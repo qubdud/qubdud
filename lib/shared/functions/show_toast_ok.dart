@@ -15,7 +15,7 @@ showToastOk({required String text, Color color = Colors.green, int milliseconds 
         child: Padding(
           padding: const EdgeInsets.all(8.0),
           child: Material(
-            color: Colors.white,
+            color: Theme.of(NavigationService.navigatorKey.currentContext!).brightness == Brightness.dark ? const Color(0xFF2A2930) : Colors.white,
             // Ustawienie koloru tła na biały
             elevation: 8,
             // Ustawienie cienia

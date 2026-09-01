@@ -26,7 +26,7 @@ showToastPush({required String message,required String tittle, Color color = Col
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Material(
-          color: Colors.white, // Ustawienie koloru tła na biały
+          color: Theme.of(NavigationService.navigatorKey.currentContext!).brightness == Brightness.dark ? const Color(0xFF2A2930) : Colors.white,
           elevation: 8, // Ustawienie cienia
           borderRadius: BorderRadius.circular(8), // Opcjonalnie, jeśli chcesz zaokrąglić rogi
           child: Padding(

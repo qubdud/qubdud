@@ -167,7 +167,7 @@ class _ViewState extends State<View> {
                             const Text('Recenzja dla: ', style: TextStyle(fontSize: 13, color: Colors.blueGrey)),
                             Expanded(
                               child: Text(
-                                Globals.instance.selectedPromo?.userId ?? '',
+                                (Globals.instance.selectedPromo?.companyName.isNotEmpty == true ? Globals.instance.selectedPromo!.companyName : 'firmy'),
                                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,

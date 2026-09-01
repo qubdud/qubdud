@@ -60,12 +60,15 @@ class WCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: margin ?? EdgeInsets.symmetric(horizontal: 16.0),
       child: Container(
         padding: padding ?? EdgeInsets.fromLTRB(16.0, 24.0, 16.0, 24.0),
         decoration: BoxDecoration(
-          color: gradientType != null ? null : (color ?? Colors.white),
+          color: gradientType != null
+              ? null
+              : (color ?? (isDark ? const Color(0xFF232228) : Colors.white)),
           gradient: _getGradient(),
           borderRadius: BorderRadius.circular(16.0),
           border: borderColor != null ? Border.all(color: borderColor!, width: 2.0) : null,

@@ -89,7 +89,7 @@ class _ViewState extends State<View> {
                         child: Ink(
                           padding: const EdgeInsets.all(16.0),
                           decoration: BoxDecoration(
-                            color: cLighterBrown,
+                            color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
                             borderRadius: BorderRadius.circular(8.0),
                           ),
                           child: Row(
@@ -128,7 +128,7 @@ class _ViewState extends State<View> {
                         child: Ink(
                           padding: const EdgeInsets.all(16.0),
                           decoration: BoxDecoration(
-                            color: cLighterBrown,
+                            color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
                             borderRadius: BorderRadius.circular(8.0),
                           ),
                           child: Row(
@@ -183,7 +183,7 @@ class _ViewState extends State<View> {
                       child: Ink(
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
-                          color: cLighterBrown,
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Row(
@@ -220,7 +220,7 @@ class _ViewState extends State<View> {
                       child: Ink(
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
-                          color: cLighterBrown,
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Row(
@@ -258,7 +258,7 @@ class _ViewState extends State<View> {
                       child: Ink(
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
-                          color: cLighterBrown,
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Row(
@@ -296,7 +296,7 @@ class _ViewState extends State<View> {
                       child: Ink(
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
-                          color: cLighterBrown,
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Row(

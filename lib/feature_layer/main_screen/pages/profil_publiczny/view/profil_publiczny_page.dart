@@ -73,6 +73,7 @@ class _ProfilView extends StatelessWidget {
                   reviews: state.reviews,
                   avgScore: state.averageScore,
                   companyId: state.targetUser?.id ?? '',
+                  companyName: state.targetUser?.companyName ?? 'Firma',
                 ),
 
                 const SizedBox(height: 60),
@@ -456,11 +457,13 @@ class _ReviewsSection extends StatefulWidget {
   final List<Review> reviews;
   final double avgScore;
   final String companyId;
+  final String companyName;
 
   const _ReviewsSection({
     required this.reviews,
     required this.avgScore,
     required this.companyId,
+    required this.companyName,
   });
 
   @override
@@ -531,6 +534,7 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
                       fileName: '',
                       timestamp: null,
                       description: '',
+                      companyName: widget.companyName,
                     );
                     context.read<MainScreenBloc>().add(GoToDodajReviewEvent());
                   },
