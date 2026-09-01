@@ -1,3 +1,4 @@
+import 'package:qb/shared/widgets/empty_state.dart';
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -644,25 +645,34 @@ class _TabPrezentacje extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final addButton = Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      child: WButton(
+        text: 'Dodaj prezentację',
+        onPressed: () => context.read<MainScreenBloc>().add(GoToDodajEvent()),
+      ),
+    );
+
     if (state.videos.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Nie dodałeś jeszcze żadnych filmów',
-                style: TextStyle(color: Colors.grey)),
-            const SizedBox(height: 16),
-            WButton(
-              text: 'Dodaj film',
-              onPressed: () =>
-                  context.read<MainScreenBloc>().add(GoToDodajEvent()),
+      return Column(
+        children: [
+          addButton,
+          const Expanded(
+            child: EmptyState(
+              icon: Icons.videocam_outlined,
+              title: 'Brak prezentacji',
+              subtitle:
+                  'Dodaj film pokazujący Twoją firmę — klienci znajdą Cię w wyszukiwarce.',
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
-    return GridView.builder(
+    return Column(children: [
+      addButton,
+      Expanded(
+        child: GridView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: state.videos.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -705,7 +715,9 @@ class _TabPrezentacje extends StatelessWidget {
           ],
         );
       },
-    );
+        ),
+      ),
+    ]);
   }
 }
 

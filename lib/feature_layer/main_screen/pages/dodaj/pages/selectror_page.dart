@@ -149,11 +149,11 @@ class _ViewState extends State<View> {
                   ),
                 ),
               ),
-            SizedBox(height: 32),
+            if (!isCompanyMode(user)) SizedBox(height: 32),
 
-            WSmallLabel(text: 'ZGŁOSZENIE '),
+            if (!isCompanyMode(user)) WSmallLabel(text: 'ZGŁOSZENIE '),
 
-            WCard(
+            if (!isCompanyMode(user)) WCard(
               child: Material(
                 color: Colors.transparent,
                 child: Column(

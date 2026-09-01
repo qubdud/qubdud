@@ -110,19 +110,15 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
               onTap: () {
                   context.read<MainScreenBloc>().add(GoToWyszukajFirmyEvent());
               }),
-          NavItem(
-              index: 2,
-              label: "Dodaj",
-              iconPath:  Icons.add_box_outlined,
-              isEnabled: isMenuEnabled,
-              onTap: () {
-
-
+          if (!isCompanyMode(state.user))
+            NavItem(
+                index: 2,
+                label: "Dodaj",
+                iconPath: Icons.add_box_outlined,
+                isEnabled: isMenuEnabled,
+                onTap: () {
                   context.read<MainScreenBloc>().add(GoToDodajEvent());
-
-
-
-              }),
+                }),
           NavItem(
               index: 3,
               label: "Kontakty",
