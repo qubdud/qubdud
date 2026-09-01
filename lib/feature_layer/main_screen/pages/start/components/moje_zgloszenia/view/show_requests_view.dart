@@ -220,14 +220,16 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Text(widget.req.category,
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold),
-                                maxLines: 1,
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis),
                           ),
+                          const SizedBox(width: 6),
                           if (widget.req.is24)
                             Container(
                               padding: const EdgeInsets.symmetric(

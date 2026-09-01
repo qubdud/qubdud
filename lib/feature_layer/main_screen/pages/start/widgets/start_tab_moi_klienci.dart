@@ -472,7 +472,7 @@ class _RequesterName extends StatelessWidget {
     if (cached != null) {
       return Text(cached,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          maxLines: 1,
+          maxLines: 2,
           overflow: TextOverflow.ellipsis);
     }
     return FutureBuilder(
@@ -485,7 +485,7 @@ class _RequesterName extends StatelessWidget {
         if (name.isNotEmpty) _requesterNameCache[userId] = name;
         return Text(name.isEmpty ? 'Zgłoszenie' : name,
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis);
       },
     );
