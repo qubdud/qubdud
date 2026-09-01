@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../../../domain_layer/firebase_service.dart';
 import '../../../../../shared/functions/show_toast.dart';
 import '../../../../../shared/functions/show_toast_error.dart';
+import '../../../../../shared/client_notes.dart';
 import '../../../bloc/main_bloc.dart';
 
 /// Kalendarz firmy: sloty 1h na najbliższe 7 dni.
@@ -350,18 +351,27 @@ class _TabKalendarzState extends State<TabKalendarz> {
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(s['bookedByName'] ?? '',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14)),
-                            Text(
-                              '${dayLabel(s['start'] as DateTime)}, ${DateFormat('HH:mm').format(s['start'] as DateTime)}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ],
+                        child: GestureDetector(
+                          onTap: () => context.read<MainScreenBloc>().add(
+                              GoToProfilPublicznyUseraEvent(
+                                  s['bookedBy'] as String)),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(s['bookedByName'] ?? '',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                      decoration: TextDecoration.underline)),
+                              Text(
+                                '${dayLabel(s['start'] as DateTime)}, ${DateFormat('HH:mm').format(s['start'] as DateTime)}',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              ClientNoteBadge(
+                                  userId: s['bookedBy'] as String,
+                                  personName: s['bookedByName'] ?? ''),
+                            ],
+                          ),
                         ),
                       ),
                       IconButton(
@@ -487,7 +497,11 @@ class _TabKalendarzState extends State<TabKalendarz> {
                     onLongPress: () => _removeSlot(s),
                     onTap: status == 'pending'
                         ? () => _setStatus(s, 'accepted')
-                        : null,
+                        : (who.isNotEmpty
+                            ? () => context.read<MainScreenBloc>().add(
+                                GoToProfilPublicznyUseraEvent(
+                                    s['bookedBy'] as String))
+                            : null),
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
