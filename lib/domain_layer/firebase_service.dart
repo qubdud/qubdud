@@ -616,8 +616,10 @@ class FirebaseService {
   }
 
 
-  // ── KALENDARZ FIRMY (sloty na 7 dni do przodu) ───────────────────────────
-  // users/{companyId}/slots/{slotId}: {start: Timestamp}
+  // ── KALENDARZ FIRMY (sloty na 7 dni do przodu, rezerwacje na kropki) ─────
+  // users/{companyId}/slots/{slotId}:
+  //   {start: Timestamp, status: 'free'|'pending'|'accepted'|'rejected',
+  //    bookedBy, bookedByName}
 
   Future<List<Map<String, dynamic>>> getSlots(String companyId) async {
     final now = DateTime.now();
@@ -631,12 +633,116 @@ class FirebaseService {
 
     final slots = <Map<String, dynamic>>[];
     for (final d in snap.docs) {
-      final start = (d.data()['start'] as Timestamp?)?.toDate();
+      final data = d.data();
+      final start = (data['start'] as Timestamp?)?.toDate();
       if (start == null) continue;
       if (start.isBefore(now) || start.isAfter(weekAhead)) continue;
-      slots.add({'id': d.id, 'start': start});
+      slots.add({
+        'id': d.id,
+        'start': start,
+        'status': data['status'] ?? 'free',
+        'bookedBy': data['bookedBy'] ?? '',
+        'bookedByName': data['bookedByName'] ?? '',
+      });
     }
     return slots;
+  }
+
+  /// User rezerwuje slot — tylko wolny (transakcja chroni przed wyścigiem).
+  Future<void> bookSlot({
+    required String companyId,
+    required String slotId,
+    required String myUid,
+    required String myName,
+  }) async {
+    final ref = _firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('slots')
+        .doc(slotId);
+    await _firestore.runTransaction((tx) async {
+      final doc = await tx.get(ref);
+      final status = doc.data()?['status'] ?? 'free';
+      if (status != 'free') {
+        throw Exception('Termin jest już zajęty');
+      }
+      tx.update(ref, {
+        'status': 'pending',
+        'bookedBy': myUid,
+        'bookedByName': myName,
+        'bookedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  /// Live-podgląd slotów (7 dni). Żółte (pending) starsze niż 1h są
+  /// pokazywane jako wolne — fizyczne czyszczenie robi cleanupOldSlots.
+  Stream<List<Map<String, dynamic>>> slotsStream(String companyId) {
+    return _firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('slots')
+        .orderBy('start')
+        .snapshots()
+        .map((snap) {
+      final now = DateTime.now();
+      final weekAhead = now.add(const Duration(days: 7));
+      final slots = <Map<String, dynamic>>[];
+      for (final d in snap.docs) {
+        final data = d.data();
+        final start = (data['start'] as Timestamp?)?.toDate();
+        if (start == null) continue;
+        if (start.isBefore(now) || start.isAfter(weekAhead)) continue;
+
+        var status = (data['status'] ?? 'free') as String;
+        var bookedBy = (data['bookedBy'] ?? '') as String;
+        var bookedByName = (data['bookedByName'] ?? '') as String;
+        final bookedAt = (data['bookedAt'] as Timestamp?)?.toDate();
+        // żółta rezerwacja wygasa po godzinie
+        if (status == 'pending' &&
+            bookedAt != null &&
+            now.difference(bookedAt).inMinutes >= 60) {
+          status = 'free';
+          bookedBy = '';
+          bookedByName = '';
+        }
+        slots.add({
+          'id': d.id,
+          'start': start,
+          'status': status,
+          'bookedBy': bookedBy,
+          'bookedByName': bookedByName,
+        });
+      }
+      return slots;
+    });
+  }
+
+  /// User odwołuje własną rezerwację → slot wraca do puli.
+  Future<void> cancelSlotBooking({
+    required String companyId,
+    required String slotId,
+  }) async {
+    await _firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('slots')
+        .doc(slotId)
+        .update({'status': 'free', 'bookedBy': '', 'bookedByName': ''});
+  }
+
+  /// Firma akceptuje/odrzuca rezerwację.
+  Future<void> setSlotStatus({
+    required String companyId,
+    required String slotId,
+    required String status,
+  }) async {
+    await _firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('slots')
+        .doc(slotId)
+        .update({'status': status});
   }
 
   Future<void> addSlot(String companyId, DateTime start) async {
@@ -645,6 +751,21 @@ class FirebaseService {
         .doc(companyId)
         .collection('slots')
         .add({'start': Timestamp.fromDate(start)});
+  }
+
+  Future<void> addSlotsBatch(
+      String companyId, List<DateTime> starts, int durationMin) async {
+    if (starts.isEmpty) return;
+    final col =
+        _firestore.collection('users').doc(companyId).collection('slots');
+    final batch = _firestore.batch();
+    for (final s in starts) {
+      batch.set(col.doc(), {
+        'start': Timestamp.fromDate(s),
+        'durationMin': durationMin,
+      });
+    }
+    await batch.commit();
   }
 
   Future<void> removeSlot(String companyId, String slotId) async {
@@ -656,18 +777,29 @@ class FirebaseService {
         .delete();
   }
 
-  /// Sprzątanie przeterminowanych slotów (wołane przy wejściu właściciela).
+  /// Sprzątanie: kasuje przeterminowane sloty i zwalnia żółte rezerwacje
+  /// starsze niż 1h (wołane przy wejściu właściciela w kalendarz).
   Future<void> cleanupOldSlots(String companyId) async {
-    final snap = await _firestore
-        .collection('users')
-        .doc(companyId)
-        .collection('slots')
-        .where('start', isLessThan: Timestamp.now())
-        .get();
-    if (snap.docs.isEmpty) return;
+    final col =
+        _firestore.collection('users').doc(companyId).collection('slots');
+
+    final old = await col.where('start', isLessThan: Timestamp.now()).get();
+    final pending = await col.where('status', isEqualTo: 'pending').get();
+    final cutoff = DateTime.now().subtract(const Duration(hours: 1));
+    final expiredPending = pending.docs.where((d) {
+      final bookedAt = (d.data()['bookedAt'] as Timestamp?)?.toDate();
+      return bookedAt != null && bookedAt.isBefore(cutoff);
+    }).toList();
+
+    if (old.docs.isEmpty && expiredPending.isEmpty) return;
     final batch = _firestore.batch();
-    for (final d in snap.docs) {
+    for (final d in old.docs) {
       batch.delete(d.reference);
+    }
+    for (final d in expiredPending) {
+      if (old.docs.any((o) => o.id == d.id)) continue;
+      batch.update(d.reference,
+          {'status': 'free', 'bookedBy': '', 'bookedByName': ''});
     }
     await batch.commit();
   }

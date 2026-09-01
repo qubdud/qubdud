@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -337,48 +338,100 @@ class _SlotsSection extends StatefulWidget {
 class _SlotsSectionState extends State<_SlotsSection> {
   List<Map<String, dynamic>> _slots = [];
   bool _loaded = false;
+  StreamSubscription<List<Map<String, dynamic>>>? _sub;
 
-  Future<void> _bookSlot(BuildContext context, DateTime st) async {
-    if (Globals.instance.anonim) {
-      showToast(text: 'Zaloguj się, aby zapytać o termin');
-      return;
-    }
-    final label = '${dayLabel(st)} o ${DateFormat('HH:mm').format(st)}';
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rezerwacja terminu'),
-        content: Text('Wysłać firmie zapytanie o termin:\n$label?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Anuluj')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Wyślij')),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    await context.read<ChatService>().sendMessage(
-          widget.companyId,
-          'Dzień dobry, chciałbym zarezerwować termin: $label. Czy jest dostępny?',
-        );
-    if (!mounted) return;
-    context.read<MainScreenBloc>().add(GoToChatEvent(widget.companyId, chatName: widget.companyName));
-  }
+  String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  Future<void> _load() async {}
 
   @override
   void initState() {
     super.initState();
-    context
+    // podgląd na żywo — rezerwacje innych osób widać od razu
+    _sub = context
         .read<FirebaseService>()
-        .getSlots(widget.companyId)
-        .then((slots) {
+        .slotsStream(widget.companyId)
+        .listen((slots) {
       if (mounted) setState(() { _slots = slots; _loaded = true; });
-    }).catchError((_) {
+    }, onError: (_) {
       if (mounted) setState(() => _loaded = true);
     });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _tapSlot(Map<String, dynamic> s) async {
+    if (Globals.instance.anonim || _myUid.isEmpty) {
+      showToast(text: 'Zaloguj się, aby zarezerwować termin');
+      return;
+    }
+    final status = s['status'] as String;
+    final mine = s['bookedBy'] == _myUid;
+
+    // wolny → rezerwuj jednym tapnięciem
+    if (status == 'free') {
+      final me = context.read<MainScreenBloc>().state.user;
+      final myName = me?.firma == true
+          ? (me?.companyName ?? 'Firma')
+          : '${me?.firstName ?? ''} ${me?.lastName ?? ''}'.trim();
+      try {
+        await context.read<FirebaseService>().bookSlot(
+              companyId: widget.companyId,
+              slotId: s['id'] as String,
+              myUid: _myUid,
+              myName: myName.isEmpty ? 'Użytkownik' : myName,
+            );
+        setState(() {
+          s['status'] = 'pending';
+          s['bookedBy'] = _myUid;
+          s['bookedByName'] = myName;
+        });
+        showToast(text: 'Zarezerwowano — czeka na akceptację firmy');
+      } catch (_) {
+        showToast(text: 'Ten termin jest już zajęty');
+        _load();
+      }
+      return;
+    }
+
+    // moja rezerwacja → można odwołać
+    if (mine) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Twoja rezerwacja'),
+          content: Text(status == 'accepted'
+              ? 'Termin zaakceptowany przez firmę. Odwołać rezerwację?'
+              : status == 'rejected'
+                  ? 'Firma odrzuciła ten termin. Zwolnić kropkę?'
+                  : 'Czeka na akceptację firmy. Odwołać rezerwację?'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Zostaw')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Odwołaj',
+                    style: TextStyle(color: Colors.red))),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+      await context.read<FirebaseService>().cancelSlotBooking(
+          companyId: widget.companyId, slotId: s['id'] as String);
+      setState(() {
+        s['status'] = 'free';
+        s['bookedBy'] = '';
+        s['bookedByName'] = '';
+      });
+      return;
+    }
+
+    showToast(text: 'Ten termin jest już zajęty');
   }
 
   @override
@@ -386,11 +439,10 @@ class _SlotsSectionState extends State<_SlotsSection> {
     if (!_loaded || _slots.isEmpty) return const SizedBox.shrink();
 
     // grupowanie po dniach (kolejność chronologiczna — sloty są posortowane)
-    final byDay = <String, List<DateTime>>{};
+    final byDay = <String, List<Map<String, dynamic>>>{};
     for (final s in _slots) {
       final st = s['start'] as DateTime;
-      final key = dayLabel(st);
-      byDay.putIfAbsent(key, () => []).add(st);
+      byDay.putIfAbsent(dayLabel(st), () => []).add(s);
     }
 
     return Padding(
@@ -398,7 +450,7 @@ class _SlotsSectionState extends State<_SlotsSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          WSmallLabel(text: 'Wolne terminy (7 dni)'),
+          WSmallLabel(text: 'Umów wizytę (7 dni)'),
           const SizedBox(height: 8),
           ...byDay.entries.map((e) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -415,36 +467,75 @@ class _SlotsSectionState extends State<_SlotsSection> {
                       child: Wrap(
                         spacing: 6,
                         runSpacing: 6,
-                        children: e.value
-                            .map((st) => GestureDetector(
-                                  onTap: () => _bookSlot(context, st),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.shade50,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                          color: Colors.green.shade200),
-                                    ),
-                                    child: Text(
-                                      DateFormat('HH:mm').format(st),
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.green.shade800),
-                                    ),
-                                  ),
-                                ))
-                            .toList(),
+                        children: e.value.map((s) => _slotDot(s)).toList(),
                       ),
                     ),
                   ],
                 ),
               )),
           const SizedBox(height: 4),
-          Text('Dotknij terminu, aby zapytać o rezerwację na czacie.',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+          Text(
+            'Kliknij kropkę, aby zarezerwować. Żółta — czeka na akceptację, zielona — przyjęta, czerwona — odrzucona.',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _slotDot(Map<String, dynamic> s) {
+    final st = s['start'] as DateTime;
+    final status = s['status'] as String;
+    final mine = s['bookedBy'] == _myUid && _myUid.isNotEmpty;
+
+    late final Color color;
+    var takenByOther = false;
+    if (status == 'free') {
+      color = Colors.green.shade400;
+    } else if (mine) {
+      color = switch (status) {
+        'accepted' => Colors.green,
+        'rejected' => Colors.red,
+        _ => Colors.amber,
+      };
+    } else {
+      color = Colors.grey.shade400;
+      takenByOther = true;
+    }
+
+    return GestureDetector(
+      onTap: () => _tapSlot(s),
+      child: Opacity(
+        opacity: takenByOther ? 0.45 : 1,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: mine ? color.withOpacity(0.18) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: color, width: mine ? 2 : 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration:
+                    BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                DateFormat('HH:mm').format(st),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: mine ? FontWeight.w700 : FontWeight.w400,
+                  decoration:
+                      takenByOther ? TextDecoration.lineThrough : null,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
