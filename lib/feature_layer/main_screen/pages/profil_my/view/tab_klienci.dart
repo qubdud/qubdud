@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/firebase_service.dart';
+import '../../../../../shared/client_notes.dart';
 import '../../../bloc/main_bloc.dart';
 
 /// Lista klientów firmy (relacja powstaje po obustronnym potwierdzeniu zadania).
@@ -44,12 +45,14 @@ class _PeopleList extends StatefulWidget {
   final IconData emptyIcon;
   final String emptyText;
   final bool isCompanyList;
+  final bool showNotes;
 
   const _PeopleList({
     required this.loader,
     required this.emptyIcon,
     required this.emptyText,
     required this.isCompanyList,
+    this.showNotes = false,
   });
 
   @override

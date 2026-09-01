@@ -92,9 +92,42 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    user.firstName??'Brak',
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          '${user.firstName ?? ''} ${user.lastName ?? ''}'.trim().isEmpty
+                              ? 'Brak'
+                              : '${user.firstName ?? ''} ${user.lastName ?? ''}'.trim(),
+                          style: const TextStyle(
+                              fontSize: 22, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      // Notatka o kliencie (tylko firma)
+                      if (isCompanyMode(
+                          context.read<MainScreenBloc>().state.user))
+                        IconButton(
+                          icon: Icon(
+                              ClientNotes.get(widget.userId).isEmpty
+                                  ? Icons.sticky_note_2_outlined
+                                  : Icons.sticky_note_2,
+                              size: 22,
+                              color: ClientNotes.get(widget.userId).isEmpty
+                                  ? Colors.grey
+                                  : const Color(0xFFB8901B)),
+                          tooltip: 'Notatka',
+                          onPressed: () async {
+                            final changed = await showClientNoteDialog(
+                                context,
+                                widget.userId,
+                                '${user.firstName ?? ''} ${user.lastName ?? ''}'
+                                    .trim());
+                            if (changed && mounted) setState(() {});
+                          },
+                        ),
+                    ],
                   ),
                   if (user.bio != null && user.bio!.isNotEmpty) ...[
                     const SizedBox(height: 8),
@@ -129,25 +162,7 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
                                       '${user.firstName ?? ''} ${user.lastName ?? ''}'
                                           .trim())),
                         ),
-                        // Notatka o kliencie (tylko firma)
-                        if (isCompanyMode(
-                            context.read<MainScreenBloc>().state.user)) ...[
-                          const SizedBox(width: 12),
-                          _ActionButton(
-                            icon: ClientNotes.get(widget.userId).isEmpty
-                                ? Icons.sticky_note_2_outlined
-                                : Icons.sticky_note_2,
-                            label: 'Notatka',
-                            onTap: () async {
-                              final changed = await showClientNoteDialog(
-                                  context,
-                                  widget.userId,
-                                  '${user.firstName ?? ''} ${user.lastName ?? ''}'
-                                      .trim());
-                              if (changed && mounted) setState(() {});
-                            },
-                          ),
-                        ],
+
                         const SizedBox(width: 12),
                         // Dodaj do kontaktów
                         _ActionButton(

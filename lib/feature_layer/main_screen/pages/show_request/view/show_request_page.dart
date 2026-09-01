@@ -15,6 +15,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../../../../shared/widgets/loading.dart';
+import '../../../../../shared/client_notes.dart';
 import '../../../../../shared/functions/effective_role.dart';
 import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/request_take_status.dart';
@@ -243,7 +244,42 @@ class _ViewState extends State<View> {
                     fontSize: 14,
                   ),
                 ),
-                Text(state.appUser!.firstName!),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                        '${state.appUser!.firstName ?? ''} ${state.appUser!.lastName ?? ''}'
+                            .trim()),
+                    if (isCompanyMode(
+                        context.read<MainScreenBloc>().state.user))
+                      IconButton(
+                        icon: Icon(
+                            ClientNotes.get(
+                                        Globals.instance.selectedRequest!.userId)
+                                    .isEmpty
+                                ? Icons.sticky_note_2_outlined
+                                : Icons.sticky_note_2,
+                            size: 20,
+                            color: ClientNotes.get(Globals
+                                        .instance.selectedRequest!.userId)
+                                    .isEmpty
+                                ? Colors.grey
+                                : const Color(0xFFB8901B)),
+                        tooltip: 'Notatka',
+                        onPressed: () async {
+                          final changed = await showClientNoteDialog(
+                              context,
+                              Globals.instance.selectedRequest!.userId,
+                              '${state.appUser!.firstName ?? ''} ${state.appUser!.lastName ?? ''}'
+                                  .trim());
+                          if (changed) setState(() {});
+                        },
+                      ),
+                  ],
+                ),
+                ClientNoteBadge(
+                    userId: Globals.instance.selectedRequest!.userId,
+                    maxLines: 3),
                 SizedBox(height: 24,),
 
                 Text(
