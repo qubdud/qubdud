@@ -648,7 +648,16 @@ class FirebaseService {
     return slots;
   }
 
+  DocumentReference<Map<String, dynamic>> _myBookingRef(
+          String myUid, String companyId, String slotId) =>
+      _firestore
+          .collection('users')
+          .doc(myUid)
+          .collection('myBookings')
+          .doc('${companyId}_$slotId');
+
   /// User rezerwuje slot — tylko wolny (transakcja chroni przed wyścigiem).
+  /// Kopia rezerwacji trafia do users/{ja}/myBookings (lista „Rezerwacje").
   Future<void> bookSlot({
     required String companyId,
     required String slotId,
@@ -660,12 +669,14 @@ class FirebaseService {
         .doc(companyId)
         .collection('slots')
         .doc(slotId);
+    DateTime? start;
     await _firestore.runTransaction((tx) async {
       final doc = await tx.get(ref);
       final status = doc.data()?['status'] ?? 'free';
       if (status != 'free') {
         throw Exception('Termin jest już zajęty');
       }
+      start = (doc.data()?['start'] as Timestamp?)?.toDate();
       tx.update(ref, {
         'status': 'pending',
         'bookedBy': myUid,
@@ -673,6 +684,55 @@ class FirebaseService {
         'bookedAt': FieldValue.serverTimestamp(),
       });
     });
+
+    final companyDoc =
+        await _firestore.collection('users').doc(companyId).get();
+    await _myBookingRef(myUid, companyId, slotId).set({
+      'companyId': companyId,
+      'companyName': companyDoc.data()?['companyName'] ?? 'Firma',
+      'slotId': slotId,
+      if (start != null) 'start': Timestamp.fromDate(start!),
+      'status': 'pending',
+      'bookedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Rezerwacje usera (firma + godzina + status). Czyści przeszłe
+  /// i wygasłe żółte (>1h bez decyzji firmy).
+  Future<List<Map<String, dynamic>>> getMyBookings(String myUid) async {
+    final snap = await _firestore
+        .collection('users')
+        .doc(myUid)
+        .collection('myBookings')
+        .get();
+    final now = DateTime.now();
+    final cutoff = now.subtract(const Duration(hours: 1));
+    final out = <Map<String, dynamic>>[];
+    final toDelete = <DocumentReference>[];
+    for (final d in snap.docs) {
+      final data = d.data();
+      final start = (data['start'] as Timestamp?)?.toDate();
+      final bookedAt = (data['bookedAt'] as Timestamp?)?.toDate();
+      final status = data['status'] ?? 'pending';
+      final expired = status == 'pending' &&
+          bookedAt != null &&
+          bookedAt.isBefore(cutoff);
+      if (start == null || start.isBefore(now) || expired) {
+        toDelete.add(d.reference);
+        continue;
+      }
+      out.add({...data, 'start': start});
+    }
+    if (toDelete.isNotEmpty) {
+      final batch = _firestore.batch();
+      for (final r in toDelete) {
+        batch.delete(r);
+      }
+      batch.commit();
+    }
+    out.sort(
+        (a, b) => (a['start'] as DateTime).compareTo(b['start'] as DateTime));
+    return out;
   }
 
   /// Live-podgląd slotów (7 dni). Żółte (pending) starsze niż 1h są
@@ -722,27 +782,43 @@ class FirebaseService {
   Future<void> cancelSlotBooking({
     required String companyId,
     required String slotId,
+    String? myUid,
   }) async {
-    await _firestore
-        .collection('users')
-        .doc(companyId)
-        .collection('slots')
-        .doc(slotId)
-        .update({'status': 'free', 'bookedBy': '', 'bookedByName': ''});
+    final batch = _firestore.batch();
+    batch.update(
+        _firestore
+            .collection('users')
+            .doc(companyId)
+            .collection('slots')
+            .doc(slotId),
+        {'status': 'free', 'bookedBy': '', 'bookedByName': ''});
+    if (myUid != null && myUid.isNotEmpty) {
+      batch.delete(_myBookingRef(myUid, companyId, slotId));
+    }
+    await batch.commit();
   }
 
-  /// Firma akceptuje/odrzuca rezerwację.
+  /// Firma akceptuje/odrzuca rezerwację (aktualizuje też kopię u klienta).
   Future<void> setSlotStatus({
     required String companyId,
     required String slotId,
     required String status,
+    String? bookedBy,
   }) async {
-    await _firestore
-        .collection('users')
-        .doc(companyId)
-        .collection('slots')
-        .doc(slotId)
-        .update({'status': status});
+    final batch = _firestore.batch();
+    batch.update(
+        _firestore
+            .collection('users')
+            .doc(companyId)
+            .collection('slots')
+            .doc(slotId),
+        {'status': status});
+    if (bookedBy != null && bookedBy.isNotEmpty) {
+      // set+merge — stare rezerwacje mogą nie mieć kopii u klienta
+      batch.set(_myBookingRef(bookedBy, companyId, slotId),
+          {'status': status}, SetOptions(merge: true));
+    }
+    await batch.commit();
   }
 
   Future<void> addSlot(String companyId, DateTime start) async {

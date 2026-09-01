@@ -238,6 +238,7 @@ class _TabKalendarzState extends State<TabKalendarz> {
             companyId: widget.companyId,
             slotId: slot['id'] as String,
             status: status,
+            bookedBy: slot['bookedBy'] as String?,
           );
       setState(() => slot['status'] = status);
       showToast(

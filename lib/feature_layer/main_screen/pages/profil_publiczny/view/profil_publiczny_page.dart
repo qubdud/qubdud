@@ -422,7 +422,9 @@ class _SlotsSectionState extends State<_SlotsSection> {
       );
       if (ok != true || !mounted) return;
       await context.read<FirebaseService>().cancelSlotBooking(
-          companyId: widget.companyId, slotId: s['id'] as String);
+          companyId: widget.companyId,
+          slotId: s['id'] as String,
+          myUid: _myUid);
       setState(() {
         s['status'] = 'free';
         s['bookedBy'] = '';

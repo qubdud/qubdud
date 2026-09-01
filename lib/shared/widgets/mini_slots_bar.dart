@@ -87,7 +87,9 @@ class _MiniSlotsBarState extends State<MiniSlotsBar> {
     }
     if (mine && status == 'pending') {
       await context.read<FirebaseService>().cancelSlotBooking(
-          companyId: widget.companyId, slotId: s['id'] as String);
+          companyId: widget.companyId,
+          slotId: s['id'] as String,
+          myUid: _myUid);
       showToast(text: 'Odwołano rezerwację');
     }
   }
