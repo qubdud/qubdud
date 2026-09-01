@@ -8,6 +8,7 @@ import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../shared/functions/show_toast.dart';
 import '../../../../../shared/globals.dart';
+import '../../../../../shared/widgets/mini_slots_bar.dart';
 
 /// Pionowy feed wideo (styl TikTok): przesuwanie w górę/dół między filmami.
 /// Bez playlisty gra pojedynczy film.
@@ -253,12 +254,26 @@ class _VideoItemState extends State<_VideoItem> {
           ),
         ),
 
-        // ── Pasek firmy na dole ───────────────────────────
+        // ── Pasek firmy na dole (+ mini-mapka slotów) ─────
         Positioned(
           left: 0,
           right: 0,
           bottom: 0,
-          child: GestureDetector(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              MiniSlotsBar(companyId: widget.promo.userId),
+              _companyBar(context),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _companyBar(BuildContext context) {
+    return GestureDetector(
             onTap: () => context
                 .read<MainScreenBloc>()
                 .add(GoToProfilPublicznyFirmyEvent(widget.promo.userId)),
@@ -329,10 +344,7 @@ class _VideoItemState extends State<_VideoItem> {
                 ],
               ),
             ),
-          ),
-        ),
-      ],
-    );
+          );
   }
 }
 

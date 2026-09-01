@@ -20,6 +20,7 @@ import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../shared/functions/show_toast_error.dart';
 import '../../../../../shared/globals.dart';
+import '../../../../../shared/widgets/mini_slots_bar.dart';
 import '../../../../../shared/widgets/w_button.dart';
 import '../../../bloc/main_bloc.dart';
 import '../../dodaj/bloc/dodaj_page_bloc.dart';
@@ -672,12 +673,19 @@ class VideoFeedPage extends StatelessWidget {
           ),
         ),
 
-        // ── Pasek firmy na dole ───────────────────────────────
+        // ── Pasek firmy na dole (+ mini-mapka slotów) ─────────
         Positioned(
           left: 0,
           right: 0,
           bottom: 0,
-          child: _CompanyBar(promo: promo),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              MiniSlotsBar(companyId: promo.userId),
+              _CompanyBar(promo: promo),
+            ],
+          ),
         ),
       ],
     );
