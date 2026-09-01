@@ -22,15 +22,35 @@ class ChatPageMob extends StatefulWidget {
 class _ChatPageMobState extends State<ChatPageMob>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
-  late bool _showBookings;
+  late List<Tab> _tabs;
+  late List<Widget> _views;
 
   @override
   void initState() {
     super.initState();
-    // rezerwacje = moje wizyty u firm — bez sensu w trybie firmowym
-    _showBookings =
+    // Rezerwacje i Firmy to perspektywa klienta — w trybie firmowym
+    // zostają Rozmowy + Ludzie (klienci).
+    final privateMode =
         !isCompanyMode(context.read<MainScreenBloc>().state.user);
-    _tab = TabController(length: _showBookings ? 4 : 3, vsync: this);
+    _tabs = [
+      const Tab(icon: Icon(Icons.chat_outlined, size: 20), text: 'Rozmowy'),
+      if (privateMode)
+        const Tab(
+            icon: Icon(Icons.event_available_outlined, size: 20),
+            text: 'Rezerwacje'),
+      if (privateMode)
+        const Tab(
+            icon: Icon(Icons.business_outlined, size: 20), text: 'Firmy'),
+      const Tab(icon: Icon(Icons.person_outline, size: 20), text: 'Ludzie'),
+    ];
+    _views = [
+      const _ConversationsList(key: ValueKey('rozmowy')),
+      if (privateMode) const _MyBookingsList(key: ValueKey('rezerwacje')),
+      if (privateMode)
+        const _ContactsList(isCompany: true, key: ValueKey('firmy')),
+      const _ContactsList(isCompany: false, key: ValueKey('ludzie')),
+    ];
+    _tab = TabController(length: _tabs.length, vsync: this);
     _tab.addListener(() {
       if (!_tab.indexIsChanging) setState(() {});
     });
@@ -90,35 +110,10 @@ class _ChatPageMobState extends State<ChatPageMob>
             TabBar(
               controller: _tab,
               labelStyle: const TextStyle(fontSize: 12),
-              tabs: [
-                const Tab(
-                    icon: Icon(Icons.chat_outlined, size: 20),
-                    text: 'Rozmowy'),
-                if (_showBookings)
-                  const Tab(
-                      icon: Icon(Icons.event_available_outlined, size: 20),
-                      text: 'Rezerwacje'),
-                const Tab(
-                    icon: Icon(Icons.business_outlined, size: 20),
-                    text: 'Firmy'),
-                const Tab(
-                    icon: Icon(Icons.person_outline, size: 20),
-                    text: 'Ludzie'),
-              ],
+              tabs: _tabs,
             ),
             Expanded(
-              child: () {
-                var idx = _tab.index;
-                if (!_showBookings && idx >= 1) idx += 1;
-                return switch (idx) {
-                  0 => const _ConversationsList(key: ValueKey('rozmowy')),
-                  1 => const _MyBookingsList(key: ValueKey('rezerwacje')),
-                  2 => const _ContactsList(
-                      isCompany: true, key: ValueKey('firmy')),
-                  _ => const _ContactsList(
-                      isCompany: false, key: ValueKey('ludzie')),
-                };
-              }(),
+              child: _views[_tab.index],
             ),
           ],
         );
