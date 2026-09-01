@@ -263,7 +263,7 @@ class _ViewState extends State<View> {
                     fontSize: 14,
                   ),
                 ),
-                Text('brak'),
+                Text(state.appUser?.phone?.isNotEmpty == true ? state.appUser!.phone! : 'brak'),
 
                 SizedBox(height: 24,),
 

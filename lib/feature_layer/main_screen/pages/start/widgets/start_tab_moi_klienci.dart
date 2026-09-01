@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
+import '../../../../../domain_layer/firebase_service.dart';
 import '../../../../../shared/globals.dart';
 import '../../../bloc/main_bloc.dart';
 import '../bloc/start_page_bloc.dart';
@@ -118,16 +119,11 @@ class _RequestCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Kategoria + dystans
+                      // Imię zgłaszającego + dystans
                       Row(
                         children: [
                           Expanded(
-                            child: Text(
-                              request.category,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                            child: _RequesterName(userId: request.userId),
                           ),
                           if (request.distance != null)
                             Text(
@@ -136,8 +132,6 @@ class _RequestCard extends StatelessWidget {
                             ),
                         ],
                       ),
-                      Text(request.sector,
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                       if (request.city.isNotEmpty)
                         Text(request.city,
                             style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
@@ -145,8 +139,8 @@ class _RequestCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           request.description,
-                          style: const TextStyle(fontSize: 12),
-                          maxLines: 2,
+                          style: const TextStyle(fontSize: 13),
+                          maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
@@ -179,7 +173,7 @@ class _RequestCard extends StatelessWidget {
                               icon: Icons.chat_bubble_outline,
                               tooltip: 'Napisz',
                               onTap: () => context.read<MainScreenBloc>().add(
-                                GoToChatEvent(request.userId),
+                                GoToChatEvent(request.userId, chatName: _requesterNameCache[request.userId]),
                               ),
                             ),
                             // Dodaj do kontaktów
@@ -250,6 +244,39 @@ class _RequestCard extends StatelessWidget {
         border: Border.all(color: color.withOpacity(0.4)),
       ),
       child: Text(text, style: TextStyle(fontSize: 11, color: color)),
+    );
+  }
+}
+
+// Imię i nazwisko zgłaszającego (cache w pamięci — bez mielenia Firestore)
+final Map<String, String> _requesterNameCache = {};
+
+class _RequesterName extends StatelessWidget {
+  final String userId;
+  const _RequesterName({required this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    final cached = _requesterNameCache[userId];
+    if (cached != null) {
+      return Text(cached,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis);
+    }
+    return FutureBuilder(
+      future: context.read<FirebaseService>().fetchUser(userId),
+      builder: (context, snap) {
+        final u = snap.data;
+        final name = u == null
+            ? ''
+            : '${u.firstName ?? ''} ${u.lastName ?? ''}'.trim();
+        if (name.isNotEmpty) _requesterNameCache[userId] = name;
+        return Text(name.isEmpty ? 'Zgłoszenie' : name,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis);
+      },
     );
   }
 }
