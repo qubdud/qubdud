@@ -33,6 +33,7 @@ class StartPageBloc extends Bloc<StartPageEvent, StartPageState> {
           state.requests = await firebase.getNearbyRequests(category: user.companyCategory!, sector: user.companySector!, myLocation: user.companyLocation!, userId: user.id);
           state.myOfferStatuses = await firebase.getMyOfferStatuses(
               state.requests.map((r) => r.id).toList(), user.id);
+          state.clientNotes = await firebase.getClientNotes(user.id);
         }
 
         state.myRequests = await firebase.getRequestsMetadataByUser(user.id);

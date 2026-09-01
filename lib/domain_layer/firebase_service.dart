@@ -915,6 +915,41 @@ class FirebaseService {
     return doc.data();
   }
 
+  // ── PRYWATNE NOTATKI FIRMY O KLIENCIE ────────────────────────────────────
+  // users/{companyId}/clientNotes/{userId}: {note, updatedAt}
+
+  Future<void> setClientNote({
+    required String companyId,
+    required String userId,
+    required String note,
+  }) async {
+    final ref = _firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('clientNotes')
+        .doc(userId);
+    if (note.trim().isEmpty) {
+      await ref.delete();
+      return;
+    }
+    await ref.set({
+      'note': note.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Wszystkie notatki firmy: {userId: treść}
+  Future<Map<String, String>> getClientNotes(String companyId) async {
+    final snap = await _firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('clientNotes')
+        .get();
+    return {
+      for (final d in snap.docs) d.id: (d.data()['note'] ?? '') as String
+    };
+  }
+
   /// Statusy MOICH ofert dla listy zgłoszeń (none = brak oferty).
   Future<Map<String, String>> getMyOfferStatuses(
       List<String> requestIds, String companyId) async {

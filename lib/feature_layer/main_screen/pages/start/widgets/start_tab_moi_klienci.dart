@@ -29,6 +29,7 @@ class _MoiKlienciTabState extends State<MoiKlienciTab> {
       return switch (_filter) {
         'new' => s == 'none',
         'active' => s == 'pending' || s == 'maybe' || s == 'accepted',
+        'rejected' => s == 'rejected',
         _ => true,
       };
     }).toList();
@@ -45,15 +46,19 @@ class _MoiKlienciTabState extends State<MoiKlienciTab> {
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-          child: Row(
+        SizedBox(
+          height: 46,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             children: [
               chip('all', 'Wszystkie'),
               const SizedBox(width: 8),
               chip('new', 'Nowe'),
               const SizedBox(width: 8),
               chip('active', 'W trakcie'),
+              const SizedBox(width: 8),
+              chip('rejected', 'Odrzucone'),
             ],
           ),
         ),
@@ -62,6 +67,7 @@ class _MoiKlienciTabState extends State<MoiKlienciTab> {
             requests: filtered,
             isTrash: false,
             offerStatuses: statuses,
+            clientNotes: widget.state.clientNotes,
           ),
         ),
       ],
@@ -73,11 +79,13 @@ class _RequestList extends StatelessWidget {
   final List<Request> requests;
   final bool isTrash;
   final Map<String, String> offerStatuses;
+  final Map<String, String> clientNotes;
 
   const _RequestList({
     required this.requests,
     required this.isTrash,
     this.offerStatuses = const {},
+    this.clientNotes = const {},
   });
 
   @override
@@ -99,6 +107,7 @@ class _RequestList extends StatelessWidget {
         request: requests[index],
         isTrash: isTrash,
         offerStatus: offerStatuses[requests[index].id] ?? 'none',
+        note: clientNotes[requests[index].userId] ?? '',
       ),
     );
   }
@@ -108,11 +117,13 @@ class _RequestCard extends StatelessWidget {
   final Request request;
   final bool isTrash;
   final String offerStatus; // none|pending|maybe|accepted|rejected
+  final String note; // prywatna notatka firmy o kliencie
 
   const _RequestCard({
     required this.request,
     required this.isTrash,
     this.offerStatus = 'none',
+    this.note = '',
   });
 
   Color? get _frameColor => switch (offerStatus) {
@@ -219,10 +230,46 @@ class _RequestCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
-                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
 
-                      // ── Pasek akcji ─────────────────────────
-                      Container(
+              // ── Notatka o kliencie (prywatna) ───────────────
+              if (note.isNotEmpty)
+                GestureDetector(
+                  onTap: () => _editNote(context),
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF6C7),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE8D67A)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.sticky_note_2_outlined,
+                            size: 14, color: Color(0xFF8A6D1B)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(note,
+                              style: const TextStyle(
+                                  fontSize: 12, color: Color(0xFF6B540F)),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // ── Pasek akcji (zawsze na dole ramki) ──────────
+              const SizedBox(height: 8),
+              Container(
                         height: 40,
                         decoration: BoxDecoration(
                           color: Colors.grey.shade100,
@@ -267,6 +314,17 @@ class _RequestCard extends StatelessWidget {
                                 GoToProfilPublicznyUseraEvent(request.userId),
                               ),
                             ),
+                            // Notatka o kliencie
+                            _IconAction(
+                              icon: note.isEmpty
+                                  ? Icons.sticky_note_2_outlined
+                                  : Icons.sticky_note_2,
+                              tooltip: 'Notatka',
+                              color: note.isEmpty
+                                  ? null
+                                  : const Color(0xFFB8901B),
+                              onTap: () => _editNote(context),
+                            ),
                             // Ukryj → kosz
                             _IconAction(
                               icon: Icons.visibility_off_outlined,
@@ -279,17 +337,62 @@ class _RequestCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// Prywatna notatka o kliencie — widzi ją tylko firma.
+  Future<void> _editNote(BuildContext context) async {
+    final ctrl = TextEditingController(text: note);
+    final saved = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Notatka o kliencie'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: ctrl,
+              maxLength: 200,
+              maxLines: 3,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'np. spoko klient / odwołuje / płaci gotówką',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const Text('Widoczna tylko dla Ciebie.',
+                style: TextStyle(fontSize: 11, color: Colors.grey)),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Anuluj')),
+          if (note.isNotEmpty)
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, ''),
+                child: const Text('Usuń',
+                    style: TextStyle(color: Colors.red))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+              child: const Text('Zapisz')),
+        ],
+      ),
+    );
+    if (saved == null || !context.mounted) return;
+    final myId = context.read<MainScreenBloc>().state.user?.id ?? '';
+    await context.read<FirebaseService>().setClientNote(
+          companyId: myId,
+          userId: request.userId,
+          note: saved,
+        );
+    if (context.mounted) {
+      context.read<StartPageBloc>().add(GetDataStartPageEvent());
+    }
   }
 
   /// Znacznik statusu MOJEJ oferty — od razu widać, czy odpowiedziano.

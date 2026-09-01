@@ -40,6 +40,13 @@ abstract class StartPageState {
     myOfferStatusesStatic = value;
   }
 
+  // Prywatne notatki firmy o klientach: {userId: treść}
+  static Map<String, String> clientNotesStatic = {};
+  Map<String, String> get clientNotes => clientNotesStatic;
+  set clientNotes(Map<String, String> value) {
+    clientNotesStatic = value;
+  }
+
   // Zgłoszenia ukryte (kosz) — dla firmy
   static List<Request> trashedRequestsStatic = [];
   List<Request> get trashedRequests => trashedRequestsStatic;
