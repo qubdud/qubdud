@@ -18,6 +18,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
+import '../../../../../shared/functions/show_toast_error.dart';
 import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/w_button.dart';
 import '../../../bloc/main_bloc.dart';
@@ -77,6 +78,8 @@ class _ViewState extends State<View> {
   String? nameError;
   late final TextEditingController name = TextEditingController();
   late final TextEditingController businessCity = TextEditingController();
+  final TextEditingController _categoryCtrl = TextEditingController();
+  final TextEditingController _sectorCtrl = TextEditingController();
 
   String type = '';
   String color = '';
@@ -96,6 +99,44 @@ class _ViewState extends State<View> {
 
 
 
+  void _updateResultsAppBar() {
+    context.read<MainScreenControlCubit>().updateAppBar(
+          isChildTitle: true,
+          key: 'wyszukajResults$_showMap',
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Wyszukaj',
+                  style: TextStyle(
+                      color: cDarkerBlue,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24)),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: Icon(
+                  _showMap ? Icons.play_circle_outline : Icons.map_outlined,
+                  color: cDarkerBlue,
+                  size: 26,
+                ),
+                tooltip: _showMap ? 'Pokaż filmy' : 'Pokaż mapę',
+                onPressed: () {
+                  setState(() => _showMap = !_showMap);
+                  _updateResultsAppBar();
+                },
+              ),
+            ],
+          ),
+        );
+  }
+
+  void _resetAppBar() {
+    context.read<MainScreenControlCubit>().updateAppBar(
+          isChildTitle: false,
+          key: 'wyszukajForm',
+          child: const SizedBox.shrink(),
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
 
@@ -103,6 +144,11 @@ class _ViewState extends State<View> {
 
     return BlocConsumer<WyszukajPageBloc, WyszukajPageState>(
         listener: (context, state) {
+          if (state is WyszukajPageResultsState) {
+            _updateResultsAppBar();
+          } else if (state is WyszukajPageMainState) {
+            _resetAppBar();
+          }
         },
 
 
@@ -149,23 +195,21 @@ class _ViewState extends State<View> {
 
               SizedBox(height: 24),
               WAnimatedDropdown(
-                controller: TextEditingController(),
-                // Twój controller, jeśli potrzebujesz
+                controller: _categoryCtrl,
                 label: 'Wybierz kategorię',
                 items: categories,
                 hintText: 'Wybierz kategorię',
                 onItemSelected: (val) {
                   setState(() {
-                    selectedCategory = val;
-                    selectedBranza =
-                    null; // reset branży przy zmianie kategorii
+                    selectedCategory = val.isEmpty ? null : val;
+                    selectedBranza = null; // reset branży przy zmianie kategorii
+                    _sectorCtrl.clear();
                   });
                 },
               ),
               SizedBox(height: 24),
               WAnimatedDropdown(
-                controller: TextEditingController(),
-                // Twój controller, jeśli potrzebujesz
+                controller: _sectorCtrl,
                 label: 'Wybierz branżę',
                 items: branze as List<String>,
                 hintText: selectedCategory == null
@@ -173,7 +217,7 @@ class _ViewState extends State<View> {
                     : 'Wybierz branżę',
                 onItemSelected: (val) {
                   setState(() {
-                    selectedBranza = val;
+                    selectedBranza = val.isEmpty ? null : val;
                   });
                 },
               ),
@@ -308,6 +352,14 @@ class _ViewState extends State<View> {
                 isEnabled: !isSearching,
                 text: 'Wyszukaj',
                 onPressed: ()  {
+                  if (selectedCategory == null ||
+                      selectedBranza == null ||
+                      selectedLocation == null) {
+                    showToastError(
+                        text:
+                            'Wybierz kategorię, branżę i lokalizację (miejscowość lub punkt na mapie)');
+                    return;
+                  }
                   context.read<WyszukajPageBloc>().add(TryWyszukajPageEvent(sector: selectedBranza!, category: selectedCategory!, location: selectedLocation!));
                 },
               ),
@@ -320,26 +372,9 @@ class _ViewState extends State<View> {
     else if (state is WyszukajPageResultsState) {
 
       return SafeArea(
-        child: Stack(
-          children: [
-            _showMap
-                ? _buildResultsMap(state.videos)
-                : _buildVideoFeed(state.videos),
-            Positioned(
-              top: 12,
-              right: 12,
-              child: FloatingActionButton.small(
-                heroTag: 'wyszukajMapToggle',
-                backgroundColor: Colors.white,
-                onPressed: () => setState(() => _showMap = !_showMap),
-                child: Icon(
-                  _showMap ? Icons.play_circle_outline : Icons.map_outlined,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-          ],
-        ),
+        child: _showMap
+            ? _buildResultsMap(state.videos)
+            : _buildVideoFeed(state.videos),
       );
     }
 

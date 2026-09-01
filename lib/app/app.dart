@@ -54,6 +54,11 @@ class App extends StatelessWidget {
       highlightColor: cDarkBlue.withOpacity(0.1),
       hoverColor: cDarkBlue.withOpacity(0.05),
       fontFamily: 'FiraSans',
+      tabBarTheme: const TabBarThemeData(
+        labelColor: cDarkBlue,
+        indicatorColor: cDarkBlue,
+        unselectedLabelColor: Colors.grey,
+      ),
       appBarTheme: const AppBarTheme(
         scrolledUnderElevation: 0.0,
         backgroundColor: Colors.white,
@@ -94,6 +99,11 @@ class App extends StatelessWidget {
         primary: cDarkBlue,
       ),
       cardColor: const Color(0xFF232228),
+      tabBarTheme: const TabBarThemeData(
+        labelColor: cDarkBlue,
+        indicatorColor: cDarkBlue,
+        unselectedLabelColor: Colors.white54,
+      ),
       appBarTheme: const AppBarTheme(
         scrolledUnderElevation: 0.0,
         backgroundColor: Color(0xFF1C1B21),

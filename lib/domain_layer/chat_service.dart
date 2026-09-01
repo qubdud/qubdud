@@ -141,7 +141,12 @@ class ChatService {
         .where('participants', arrayContains: user.uid)
         .snapshots()
         .map((snap) {
-      final overviews = snap.docs.map((d) {
+      final overviews = snap.docs.where((d) {
+        // odfiltruj czaty "z samym sobą" (brak drugiego uczestnika)
+        final participants =
+            List<String>.from(d.data()['participants'] ?? []);
+        return participants.any((p) => p != user.uid);
+      }).map((d) {
         final data = d.data();
         final participants = List<String>.from(data['participants'] ?? []);
         final otherUid = participants.firstWhere((p) => p != user.uid,
