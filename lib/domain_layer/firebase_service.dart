@@ -456,6 +456,23 @@ class FirebaseService {
     await _firestore.collection('users').doc(userId).update(data);
   }
 
+  /// Filmy firmy są wyszukiwane po ich własnym polu location —
+  /// po zmianie adresu firmy trzeba je przepiąć na nową lokalizację.
+  Future<void> updateCompanyPromosLocation(String userId, LatLng location) async {
+    final snap = await _firestore
+        .collection('promos')
+        .where('userId', isEqualTo: userId)
+        .get();
+    if (snap.docs.isEmpty) return;
+    final batch = _firestore.batch();
+    for (final d in snap.docs) {
+      batch.update(d.reference, {
+        'location': {'lat': location.latitude, 'lng': location.longitude},
+      });
+    }
+    await batch.commit();
+  }
+
   Future<void> updateRequestDescription(String requestId, String description) async {
     await _firestore.collection('requests').doc(requestId).update({'description': description});
   }

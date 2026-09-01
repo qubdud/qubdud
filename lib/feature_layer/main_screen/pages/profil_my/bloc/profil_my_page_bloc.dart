@@ -1,10 +1,12 @@
 import 'package:bloc/bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/shared/functions/show_toast.dart';
 import '../../../../../domain_layer/domain_models/company_info.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../shared/functions/show_toast_error.dart';
+import '../../../bloc/main_bloc.dart';
 
 part 'profil_my_page_event.dart';
 part 'profil_my_page_state.dart';
@@ -128,6 +130,8 @@ class MyProfilPageBloc extends Bloc<MyProfilPageEvent, MyProfilPageState> {
           'phone': event.phone,
           'bio': event.bio,
         });
+        final refreshed = await firebase.fetchUser(userId);
+        if (refreshed != null) MainScreenState.userStatic = refreshed;
         showToast(text: 'Zapisano');
         add(GetDataMyProfilPageEvent());
       } catch (e) {
@@ -145,7 +149,21 @@ class MyProfilPageBloc extends Bloc<MyProfilPageEvent, MyProfilPageState> {
           'companyName': event.companyName,
           'bio': event.bio,
           'phone': event.phone,
+          'companyCity': event.companyCity,
+          'companyAddress': event.companyAddress,
+          if (event.companyLocation != null)
+            'companyLocation': {
+              'lat': event.companyLocation!.latitude,
+              'lng': event.companyLocation!.longitude,
+            },
         });
+        // filmy firmy dziedziczą lokalizację — przepnij istniejące
+        if (event.companyLocation != null) {
+          await firebase.updateCompanyPromosLocation(
+              userId, event.companyLocation!);
+        }
+        final refreshed = await firebase.fetchUser(userId);
+        if (refreshed != null) MainScreenState.userStatic = refreshed;
         showToast(text: 'Zapisano');
         add(GetDataMyProfilPageEvent());
       } catch (e) {

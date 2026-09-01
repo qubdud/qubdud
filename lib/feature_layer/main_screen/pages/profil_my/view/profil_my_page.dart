@@ -1,8 +1,15 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:nominatim_flutter/model/request/search_request.dart';
+import 'package:nominatim_flutter/nominatim_flutter.dart';
 
 import '../../../../../../domain_layer/domain_models/promoVideo.dart';
+import '../../dodaj/view/dodaj_page.dart';
 import '../../../../../../domain_layer/firebase_service.dart';
 import '../../../../../../shared/constants.dart';
 import '../../../../../../shared/globals.dart';
@@ -170,6 +177,17 @@ class _TabDaneState extends State<_TabDane> {
   late final TextEditingController _phone;
   late final TextEditingController _bio;
   late final TextEditingController _companyName;
+  late final TextEditingController _street;
+  late final TextEditingController _buildingNr;
+  late final TextEditingController _flatNr;
+  late final TextEditingController _city;
+  late final TextEditingController _postCode;
+  late final TextEditingController _businessCity;
+  final MapController _mapController = MapController();
+
+  LatLng? _selectedLocation;
+  bool _isSearching = false;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -180,16 +198,56 @@ class _TabDaneState extends State<_TabDane> {
     _phone = TextEditingController(text: u?.phone ?? '');
     _bio = TextEditingController(text: u?.bio ?? widget.state.companyInfo?.description ?? '');
     _companyName = TextEditingController(text: u?.companyName ?? '');
+    final addr = u?.companyAddress ?? {};
+    _street = TextEditingController(text: addr['street'] ?? '');
+    _buildingNr = TextEditingController(text: addr['buildingNr'] ?? '');
+    _flatNr = TextEditingController(text: addr['flatNr'] ?? '');
+    _city = TextEditingController(text: addr['city'] ?? '');
+    _postCode = TextEditingController(text: addr['postCode'] ?? '');
+    _businessCity = TextEditingController(text: u?.companyCity ?? '');
+    final loc = u?.companyLocation;
+    if (loc != null && (loc.latitude != 0 || loc.longitude != 0)) {
+      _selectedLocation = loc;
+    }
   }
 
   @override
   void dispose() {
-    _firstName.dispose();
-    _lastName.dispose();
-    _phone.dispose();
-    _bio.dispose();
-    _companyName.dispose();
+    _debounce?.cancel();
+    for (final c in [
+      _firstName, _lastName, _phone, _bio, _companyName,
+      _street, _buildingNr, _flatNr, _city, _postCode, _businessCity,
+    ]) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  void _onCityChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 1000), () async {
+      if (value.trim().isEmpty) return;
+      setState(() => _isSearching = true);
+      try {
+        final results = await NominatimFlutter.instance.search(
+          searchRequest: SearchRequest(
+            query: '$value, Polska',
+            limit: 1,
+            addressDetails: true,
+          ),
+          language: 'pl',
+        );
+        if (results.isNotEmpty && mounted) {
+          final lat = double.tryParse(results.first.lat ?? '') ?? 52.237049;
+          final lon = double.tryParse(results.first.lon ?? '') ?? 21.017532;
+          setState(() {
+            _selectedLocation = LatLng(lat, lon);
+            _mapController.move(_selectedLocation!, 10.0);
+          });
+        }
+      } catch (_) {}
+      if (mounted) setState(() => _isSearching = false);
+    });
   }
 
   @override
@@ -231,6 +289,87 @@ class _TabDaneState extends State<_TabDane> {
                 isPassword: false,
                 hintText: 'Opis działalności widoczny na profilu firmy',
                 maxLines: 6),
+
+            const SizedBox(height: 32),
+            WSmallLabel(text: 'Adres prowadzenia działalności'),
+            const SizedBox(height: 16),
+            WInputField(controller: _street, label: 'Ulica',
+                isPassword: false, hintText: 'Ulica'),
+            const SizedBox(height: 16),
+            Row(children: [
+              Expanded(child: WInputField(controller: _buildingNr,
+                  label: 'Nr budynku', isPassword: false, hintText: 'Nr')),
+              const SizedBox(width: 16),
+              Expanded(child: WInputField(controller: _flatNr,
+                  label: 'Nr lokalu', isPassword: false, hintText: 'Nr (opcjonalnie)')),
+            ]),
+            const SizedBox(height: 16),
+            WInputField(controller: _city, label: 'Miejscowość (adres)',
+                isPassword: false, hintText: 'Miejscowość'),
+            const SizedBox(height: 16),
+            WInputField(controller: _postCode, label: 'Kod pocztowy',
+                isPassword: false, hintText: '00-000'),
+
+            const SizedBox(height: 32),
+            WSmallLabel(text: 'Lokalizacja działalności'),
+            const SizedBox(height: 8),
+            Text(
+              'Z tą lokalizacją powiązane są Twoje filmy — po niej znajdą Cię użytkownicy w wyszukiwarce. '
+              'Zmiana przenosi też już opublikowane filmy.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            WInputField(
+              controller: _businessCity,
+              label: 'Miejscowość działalności',
+              isPassword: false,
+              hintText: 'Wpisz miejscowość (do mapy)',
+              onChanged: _onCityChanged,
+            ),
+            const SizedBox(height: 8),
+            const Text('lub zaznacz lokalizację na mapie:',
+                style: TextStyle(fontSize: 13)),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 220,
+              child: Stack(children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter: _selectedLocation ??
+                          const LatLng(52.237049, 21.017532),
+                      initialZoom: _selectedLocation == null ? 6 : 10,
+                      onTap: (_, point) =>
+                          setState(() => _selectedLocation = point),
+                    ),
+                    children: [
+                      openStreetMap,
+                      if (_selectedLocation != null)
+                        MarkerLayer(markers: [
+                          Marker(
+                            point: _selectedLocation!,
+                            width: 40, height: 40,
+                            child: const Icon(Icons.location_pin,
+                                color: Colors.red, size: 40),
+                          ),
+                        ]),
+                    ],
+                  ),
+                ),
+                if (_isSearching)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(child: CircularProgressIndicator()),
+                    ),
+                  ),
+              ]),
+            ),
           ],
 
           const SizedBox(height: 24),
@@ -242,6 +381,15 @@ class _TabDaneState extends State<_TabDane> {
                   companyName: _companyName.text.trim(),
                   bio: _bio.text.trim(),
                   phone: _phone.text.trim(),
+                  companyCity: _businessCity.text.trim(),
+                  companyLocation: _selectedLocation,
+                  companyAddress: {
+                    'street': _street.text.trim(),
+                    'buildingNr': _buildingNr.text.trim(),
+                    'flatNr': _flatNr.text.trim(),
+                    'city': _city.text.trim(),
+                    'postCode': _postCode.text.trim(),
+                  },
                 ));
               } else {
                 context.read<MyProfilPageBloc>().add(UpdateUserDataEvent(

@@ -50,7 +50,17 @@ class UpdateCompanyDataEvent extends MyProfilPageEvent {
   final String companyName;
   final String bio;
   final String phone;
-  UpdateCompanyDataEvent({required this.companyName, required this.bio, required this.phone});
+  final String companyCity;
+  final LatLng? companyLocation;
+  final Map<String, String> companyAddress;
+  UpdateCompanyDataEvent({
+    required this.companyName,
+    required this.bio,
+    required this.phone,
+    required this.companyCity,
+    required this.companyLocation,
+    required this.companyAddress,
+  });
 }
 
 class TryRestoreFromTrashEvent extends MyProfilPageEvent {
