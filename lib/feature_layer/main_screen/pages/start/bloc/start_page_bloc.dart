@@ -146,6 +146,26 @@ class StartPageBloc extends Bloc<StartPageEvent, StartPageState> {
       }
     });
 
+    on<TryQuickOfferEvent>((event, emit) async {
+      try {
+        await firebase.sendOffer(
+          requestId: event.requestId,
+          companyId: user.id,
+          companyName: user.companyName ?? 'Firma',
+          message:
+              'Jestem zainteresowany tym zleceniem — mogę się nim zająć. Proszę o kontakt.',
+        );
+        state.myOfferStatuses = {
+          ...state.myOfferStatuses,
+          event.requestId: 'pending',
+        };
+        showToast(text: 'Oferta wysłana');
+        emit(StartPageMainState());
+      } catch (e) {
+        showToastError(text: 'Błąd: $e');
+      }
+    });
+
     on<TryHideRequestEvent>((event, emit) async {
       try {
         // Przenieś do koszyka — zapisz w skippedRequests z flagą 'trashed'

@@ -20,12 +20,18 @@ class MoiKlienciTab extends StatefulWidget {
 
 class _MoiKlienciTabState extends State<MoiKlienciTab> {
   String _filter = 'all'; // all | new | active | rejected (toggle)
+  double _maxKm = 0; // 0 = bez limitu
 
   @override
   Widget build(BuildContext context) {
     final statuses = widget.state.myOfferStatuses;
 
     final filtered = widget.state.requests.where((r) {
+      if (_maxKm > 0 &&
+          r.distance != null &&
+          r.distance! / 1000 > _maxKm) {
+        return false;
+      }
       final s = statuses[r.id] ?? 'none';
       return switch (_filter) {
         'new' => s == 'none',
@@ -59,6 +65,32 @@ class _MoiKlienciTabState extends State<MoiKlienciTab> {
               chip('active', 'W trakcie'),
               const SizedBox(width: 8),
               chip('rejected', 'Odrzucone'),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+          child: Row(
+            children: [
+              const Icon(Icons.place_outlined, size: 16, color: Colors.grey),
+              Expanded(
+                child: Slider(
+                  value: _maxKm,
+                  min: 0,
+                  max: 100,
+                  divisions: 20,
+                  label: _maxKm == 0 ? 'bez limitu' : '${_maxKm.round()} km',
+                  onChanged: (v) => setState(() => _maxKm = v),
+                ),
+              ),
+              SizedBox(
+                width: 62,
+                child: Text(
+                  _maxKm == 0 ? 'bez limitu' : 'do ${_maxKm.round()} km',
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  textAlign: TextAlign.right,
+                ),
+              ),
             ],
           ),
         ),
@@ -136,7 +168,68 @@ class _RequestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final frame = _frameColor;
-    return Card(
+    final canOffer = offerStatus == 'none' && !isTrash;
+
+    // ← w lewo: szybka oferta · → w prawo: ukryj
+    return Dismissible(
+      key: ValueKey('req_${request.id}'),
+      direction: isTrash
+          ? DismissDirection.none
+          : (canOffer
+              ? DismissDirection.horizontal
+              : DismissDirection.startToEnd),
+      background: Container(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 24),
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.red.shade400,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.visibility_off, color: Colors.white),
+            SizedBox(width: 8),
+            Text('Ukryj',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+      secondaryBackground: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.green.shade500,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Wyślij ofertę',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+            SizedBox(width: 8),
+            Icon(Icons.local_offer, color: Colors.white),
+          ],
+        ),
+      ),
+      confirmDismiss: (dir) async {
+        if (dir == DismissDirection.endToStart) {
+          // szybka oferta — karta zostaje (zmieni się na żółtą)
+          context
+              .read<StartPageBloc>()
+              .add(TryQuickOfferEvent(request.id));
+          return false;
+        }
+        return true; // w prawo → ukryj
+      },
+      onDismissed: (_) => context
+          .read<StartPageBloc>()
+          .add(TryHideRequestEvent(request.id)),
+      child: Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -334,6 +427,7 @@ class _RequestCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }
