@@ -153,13 +153,6 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
                 context.read<MainScreenBloc>().add(GoToRulesEvent());
               }),
           MenuItem(
-              text: themeNotifier.value == ThemeMode.dark
-                  ? 'Tryb jasny'
-                  : 'Tryb ciemny',
-              onTap: () {
-                toggleTheme();
-              }),
-          MenuItem(
               text: 'Wyloguj się',
               onTap: () {
                 context.read<MainScreenBloc>().add(LogoutEvent());

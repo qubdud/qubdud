@@ -208,6 +208,9 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     on<LogoutEvent>((event, emit) async {
       await FirebaseAuth.instance.signOut();
       Globals.instance.anonim = false;
+      // tryb widoku jest per sesja — nowe konto zaczyna jako Firma
+      await setCompanyView(true);
+      ClientNotes.clear();
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       prefs.setBool('remember_me', false);
       emit(LogoutMainScreenState());
