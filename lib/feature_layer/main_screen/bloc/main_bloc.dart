@@ -130,7 +130,9 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     on<GoToChatEvent>((event, emit) async {
       if (Globals.instance.anonim) return;
       appBarCubit.updateAppBar(
-          title: 'Kontakty',
+          title: event.chatName?.isNotEmpty == true
+              ? event.chatName!
+              : 'Kontakty',
           isVisible: true,
           isMenuVisible: true,
           onBackPressed: () {

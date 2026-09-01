@@ -229,16 +229,19 @@ class _CommentBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(top: 6, left: 16),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: comment.isOwner
-            ? Colors.blue.shade50
-            : Colors.grey.shade100,
+            ? (isDark ? const Color(0xFF17263A) : Colors.blue.shade50)
+            : (isDark ? const Color(0xFF2A2930) : Colors.grey.shade100),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: comment.isOwner ? Colors.blue.shade200 : Colors.grey.shade200,
+          color: comment.isOwner
+              ? (isDark ? Colors.blue.shade800 : Colors.blue.shade200)
+              : (isDark ? Colors.white12 : Colors.grey.shade200),
         ),
       ),
       child: Row(
@@ -255,7 +258,11 @@ class _CommentBubble extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: comment.isOwner ? Colors.blue.shade700 : Colors.black87,
+                        color: comment.isOwner
+                            ? (isDark
+                                ? Colors.blue.shade300
+                                : Colors.blue.shade700)
+                            : (isDark ? Colors.white : Colors.black87),
                       ),
                     ),
                     if (comment.isOwner) ...[

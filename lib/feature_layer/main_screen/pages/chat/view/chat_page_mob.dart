@@ -258,6 +258,37 @@ class _ContactsListState extends State<_ContactsList>
     }
   }
 
+  Future<void> _removeContact(AppUser user) async {
+    final name = user.firma == true
+        ? (user.companyName ?? 'Firma')
+        : '${user.firstName ?? ''} ${user.lastName ?? ''}'.trim();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Usunąć z kontaktów?'),
+        content: Text(name),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Anuluj')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child:
+                  const Text('Usuń', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final myUid = context.read<MainScreenBloc>().state.user?.id ?? '';
+    await context
+        .read<FirebaseService>()
+        .removeContact(myUserId: myUid, contactUserId: user.id);
+    if (mounted) {
+      setState(() =>
+          _contacts = _contacts.where((c) => c.id != user.id).toList());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -310,6 +341,7 @@ class _ContactsListState extends State<_ContactsList>
                   lastMessage: chat['lastMessage'] as String? ?? '',
                   timestamp: chat['timestamp'] as int? ?? 0,
                   unreadCount: chat['unreadCount'] as int? ?? 0,
+                  onRemove: () => _removeContact(user),
                 );
               },
             );
@@ -329,6 +361,7 @@ class _ContactCard extends StatelessWidget {
   final String lastMessage;
   final int timestamp;
   final int unreadCount;
+  final VoidCallback? onRemove;
 
   const _ContactCard({
     required this.user,
@@ -336,6 +369,7 @@ class _ContactCard extends StatelessWidget {
     required this.lastMessage,
     required this.timestamp,
     required this.unreadCount,
+    this.onRemove,
   });
 
   @override
@@ -444,6 +478,13 @@ class _ContactCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (onRemove != null)
+                    IconButton(
+                      icon: Icon(Icons.person_remove_outlined,
+                          size: 20, color: Colors.red.shade300),
+                      tooltip: 'Usuń z kontaktów',
+                      onPressed: onRemove,
+                    ),
                   const Icon(Icons.chevron_right, color: Colors.grey),
                 ],
               ),

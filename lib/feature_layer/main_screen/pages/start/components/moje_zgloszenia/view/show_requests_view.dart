@@ -161,37 +161,47 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
                       const SizedBox(width: 16),
 
                       /// 🔸 Opisy obok miniatury
-                      SizedBox( height:160,
+                      Expanded(
+                        child: SizedBox(
+                          height: 160,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(video.category,
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 4),
+                              Text(video.sector,
+                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 8),
+                              if (video.description.isNotEmpty)
+                                Text(video.description, style: const TextStyle(fontSize: 12), maxLines: 3, overflow: TextOverflow.ellipsis),
 
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(video.category, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 4),
-                            Text(video.sector, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                            const SizedBox(height: 8),
-                            if (video.description.isNotEmpty)
-                              Text(video.description, style: const TextStyle(fontSize: 12), maxLines: 3, overflow: TextOverflow.ellipsis),
+                              const Expanded(child: SizedBox()),
 
-                            Expanded(child: SizedBox()),
-
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.black45,
-                                shape: BoxShape.circle,
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black45,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: IconButton(
+                                    icon: const Icon(Icons.delete_outline_outlined, color: Colors.white, size: 18),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () {
+                                      context.read<ShowRequestsComponentBloc>().add(TryDeleteMyRequestShowRequestsComponentEvent(id: video.id));
+                                    },
+                                  ),
+                                ),
                               ),
-                              child: IconButton(
-                                icon: const Icon(Icons.delete_outline_outlined, color: Colors.white, size: 18),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                onPressed: () {
-                                  context.read<ShowRequestsComponentBloc>().add(TryDeleteMyRequestShowRequestsComponentEvent(id: video.id));
-                                },
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-
                       ),
                     ],
                   ),

@@ -141,7 +141,7 @@ class _PeopleListState extends State<_PeopleList> {
               icon: const Icon(Icons.chat_bubble_outline, size: 20),
               tooltip: 'Napisz',
               onPressed: () =>
-                  context.read<MainScreenBloc>().add(GoToChatEvent(p.id)),
+                  context.read<MainScreenBloc>().add(GoToChatEvent(p.id, chatName: p.firma == true ? p.companyName : '${p.firstName ?? ''} ${p.lastName ?? ''}'.trim())),
             ),
           ),
         );

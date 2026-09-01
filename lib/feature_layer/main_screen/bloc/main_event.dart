@@ -50,7 +50,8 @@ class GoToRulesEvent extends MainScreenEvent {}
 
 class GoToChatEvent extends MainScreenEvent {
   final String id;
-  GoToChatEvent(this.id);
+  final String? chatName;
+  GoToChatEvent(this.id, {this.chatName});
 }
 
 class LogoutEvent extends MainScreenEvent {}

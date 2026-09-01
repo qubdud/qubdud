@@ -200,7 +200,7 @@ class StartTabFavourites3 extends StatelessWidget {
                                   color: Colors.white, size: 18),
                               onPressed: () {
                                 context.read<MainScreenBloc>().add(
-                                  GoToChatEvent(videofav.userId),
+                                  GoToChatEvent(videofav.userId, chatName: videofav.companyName),
                                 );
                               },
                             ),

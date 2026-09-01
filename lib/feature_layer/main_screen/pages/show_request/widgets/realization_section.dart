@@ -83,7 +83,7 @@ class _RealizationSectionState extends State<RealizationSection> {
     if (!mounted) return;
     context
         .read<MainScreenBloc>()
-        .add(GoToChatEvent(widget.request.takenBy));
+        .add(GoToChatEvent(widget.request.takenBy, chatName: widget.request.takenByName));
   }
 
   @override

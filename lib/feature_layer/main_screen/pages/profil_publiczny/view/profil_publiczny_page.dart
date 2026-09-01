@@ -57,7 +57,7 @@ class _ProfilView extends StatelessWidget {
                 _buildHeader(context, state.targetUser, state.companyInfo),
 
                 if (state.targetUser != null)
-                  _SlotsSection(companyId: state.targetUser!.id),
+                  _SlotsSection(companyId: state.targetUser!.id, companyName: state.targetUser!.companyName ?? "Firma"),
 
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
@@ -85,11 +85,14 @@ class _ProfilView extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context, AppUser? user, ProfileInfo? info) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        color: isDark ? const Color(0xFF1C1B21) : Colors.grey.shade50,
+        border: Border(
+            bottom: BorderSide(
+                color: isDark ? Colors.white12 : Colors.grey.shade200)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -180,7 +183,7 @@ class _ProfilView extends StatelessWidget {
                   label: const Text('Napisz'),
                   onPressed: () => context
                       .read<MainScreenBloc>()
-                      .add(GoToChatEvent(user?.id ?? '')),
+                      .add(GoToChatEvent(user?.id ?? '', chatName: user?.companyName)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black87,
                     foregroundColor: Colors.white,
@@ -208,8 +211,9 @@ class _ProfilView extends StatelessWidget {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey.shade200,
-                    foregroundColor: Colors.black87,
+                    backgroundColor:
+                        isDark ? Colors.white12 : Colors.grey.shade200,
+                    foregroundColor: isDark ? Colors.white : Colors.black87,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                     padding: const EdgeInsets.symmetric(vertical: 10),
@@ -322,7 +326,8 @@ class _RealizationsSectionState extends State<_RealizationsSection> {
 // ─────────────────────────────────────────────────────────────────────────────
 class _SlotsSection extends StatefulWidget {
   final String companyId;
-  const _SlotsSection({required this.companyId});
+  final String companyName;
+  const _SlotsSection({required this.companyId, required this.companyName});
 
   @override
   State<_SlotsSection> createState() => _SlotsSectionState();
@@ -359,7 +364,7 @@ class _SlotsSectionState extends State<_SlotsSection> {
           'Dzień dobry, chciałbym zarezerwować termin: $label. Czy jest dostępny?',
         );
     if (!mounted) return;
-    context.read<MainScreenBloc>().add(GoToChatEvent(widget.companyId));
+    context.read<MainScreenBloc>().add(GoToChatEvent(widget.companyId, chatName: widget.companyName));
   }
 
   @override
@@ -530,11 +535,18 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
                     context.read<MainScreenBloc>().add(GoToDodajReviewEvent());
                   },
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.black87,
+                    foregroundColor:
+                        Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white70
+                            : Colors.black87,
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
-                      side: BorderSide(color: Colors.grey.shade300),
+                      side: BorderSide(
+                          color: Theme.of(context).brightness ==
+                                  Brightness.dark
+                              ? Colors.white24
+                              : Colors.grey.shade300),
                     ),
                   ),
                 )
@@ -588,12 +600,14 @@ class ReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: isDark ? const Color(0xFF232228) : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border:
+            Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
       ),
       child: Padding(
         padding: const EdgeInsets.all(10),
