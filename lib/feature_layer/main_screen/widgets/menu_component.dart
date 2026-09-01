@@ -21,7 +21,7 @@ class MenuComponent extends StatelessWidget {
       color: isDark ? const Color(0xFF1C1B21) : Colors.white,
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOutCubic,
-      height: showMenu ? 424 : 0,
+      height: showMenu ? menuItems.length * 48.0 + 8 : 0,
       child: SingleChildScrollView(
         child: Column(
           children: [

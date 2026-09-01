@@ -104,14 +104,16 @@ class _ViewState extends State<View> {
           isChildTitle: true,
           key: 'wyszukajResults$_showMap',
           child: Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Wyszukaj',
-                  style: TextStyle(
-                      color: cDarkerBlue,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 24)),
-              const SizedBox(width: 8),
+              const Expanded(
+                child: Center(
+                  child: Text('Wyszukaj',
+                      style: TextStyle(
+                          color: cDarkerBlue,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 24)),
+                ),
+              ),
               IconButton(
                 icon: Icon(
                   _showMap ? Icons.play_circle_outline : Icons.map_outlined,

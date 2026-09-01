@@ -137,9 +137,11 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
                   context.read<MainScreenBloc>().add(GoToProfilFirmaEvent());
                 }
               ),
-
-
-
+          NavItem(
+              index: 10,
+              label: "Menu",
+              iconPath: Icons.menu,
+              onTap: () {}),
         ];
 
         List<MenuItem> menuItems = [
@@ -193,7 +195,8 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
                     ),
                     NavBarComponent(
                       selectedIndex: _selectedIndex,
-                      onNavItemTapped: (index) => _onNavItemTapped(navItems[index]),
+                      onNavItemTapped: (index) => _onNavItemTapped(
+                          navItems.firstWhere((n) => n.index == index)),
                       navItems: navItems,
                     ),
                   ],
