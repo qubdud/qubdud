@@ -95,6 +95,16 @@ class _StartTabWyszukaneState extends State<StartTabWyszukane> {
             children: [
               const Text('Ostatnie wyszukania',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const SizedBox(width: 8),
+              // Nowe wyszukiwanie
+              IconButton(
+                icon: const Icon(Icons.search, size: 24),
+                tooltip: 'Nowe wyszukiwanie',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => context
+                    .read<MainScreenBloc>()
+                    .add(GoToWyszukajFirmyEvent()),
+              ),
               const Spacer(),
               TextButton(
                 onPressed: _clearAll,
