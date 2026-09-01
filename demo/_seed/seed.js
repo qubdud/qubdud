@@ -6,7 +6,10 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const admin = require('firebase-admin');
+const { initializeApp, cert } = require('firebase-admin/app');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getStorage } = require('firebase-admin/storage');
+const { getAuth } = require('firebase-admin/auth');
 
 const DRY = process.argv.includes('--dry');
 const onlyArg = process.argv.find((a) => a.startsWith('--only='));
@@ -24,12 +27,13 @@ if (!keyFile) {
   console.error('Brak klucza serwisowego w', DEMO_DIR);
   process.exit(1);
 }
-admin.initializeApp({
-  credential: admin.credential.cert(path.join(DEMO_DIR, keyFile)),
+initializeApp({
+  credential: cert(path.join(DEMO_DIR, keyFile)),
   storageBucket: BUCKET,
 });
-const db = admin.firestore();
-const bucket = admin.storage().bucket();
+const db = getFirestore();
+const bucket = getStorage().bucket();
+const auth = getAuth();
 
 // ── walidacja kategorii względem constants.dart ──────────────────────────────
 function loadAppCategories() {
@@ -70,9 +74,9 @@ async function uploadPublic(localPath, destination) {
 
 async function ensureAuthUser(email, displayName) {
   try {
-    return (await admin.auth().getUserByEmail(email)).uid;
+    return (await auth.getUserByEmail(email)).uid;
   } catch (_) {
-    const u = await admin.auth().createUser({
+    const u = await auth.createUser({
       email,
       password: 'Demo123!',
       displayName,
@@ -153,8 +157,8 @@ async function geocodeCity(city) {
         companySector: c.sector,
         companyCity: c.city,
         companyLocation: loc,
-        consents: { terms: true, rodo: true, acceptedAt: admin.firestore.FieldValue.serverTimestamp() },
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        consents: { terms: true, rodo: true, acceptedAt: FieldValue.serverTimestamp() },
+        createdAt: FieldValue.serverTimestamp(),
         demo: true,
       },
       { merge: true }
@@ -189,7 +193,7 @@ async function geocodeCity(city) {
         fileUrl,
         thumbUrl,
         fileName: video,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        timestamp: FieldValue.serverTimestamp(),
         description: c.bio || `${c.sector} — ${c.city}`,
         companyName: c.companyName,
         demo: true,

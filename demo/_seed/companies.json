@@ -1,0 +1,18 @@
+[
+  { "prefix": "bar", "companyName": "Bar Pod Dębem", "category": "Gastronomiczne", "sector": "Restauracja", "city": "Warszawa", "lat": 52.2297, "lng": 21.0122 },
+  { "prefix": "ca", "companyName": "Catering Smaki Miasta", "category": "Gastronomiczne", "sector": "Catering", "city": "Kraków", "lat": 50.0647, "lng": 19.945 },
+  { "prefix": "den", "companyName": "DentalMed Klinika", "category": "Zdrowie i uroda", "sector": "Dentyści", "city": "Warszawa", "lat": 52.2405, "lng": 21.0305 },
+  { "prefix": "e", "companyName": "ElektroFix Instalacje", "category": "Budowlane i Remontowe", "sector": "Elektryk", "city": "Warszawa", "lat": 52.2155, "lng": 20.9855 },
+  { "prefix": "h", "companyName": "Hydro-Serwis 24", "category": "Budowlane i Remontowe", "sector": "Hydraulik", "city": "Warszawa", "lat": 52.2521, "lng": 21.0362 },
+  { "prefix": "na", "companyName": "NaprawTel Serwis GSM", "category": "IT i Informatyczne", "sector": "Naprawa telefonów", "city": "Poznań", "lat": 52.4064, "lng": 16.9252 },
+  { "prefix": "nie", "companyName": "Nieruchomości Panorama", "category": "Usługi", "sector": "Nieruchomości", "city": "Gdańsk", "lat": 54.352, "lng": 18.6466 },
+  { "prefix": "opz", "companyName": "EventPro Organizacja Imprez", "category": "Organizacja imprez", "sector": "Organizacja imprez", "city": "Wrocław", "lat": 51.1079, "lng": 17.0385 },
+  { "prefix": "pr", "companyName": "Pralnia Świeżość", "category": "Sprzątanie", "sector": "Pralnia chemiczna", "city": "Warszawa", "lat": 52.1935, "lng": 21.0454 },
+  { "prefix": "re", "companyName": "Remonty Perfekt", "category": "Budowlane i Remontowe", "sector": "Remonty", "city": "Warszawa", "lat": 52.2612, "lng": 20.9855 },
+  { "prefix": "se", "companyName": "Serwis Rowerowy Szprycha", "category": "Usługi", "sector": "Serwis rowerów", "city": "Łódź", "lat": 51.7592, "lng": 19.456 },
+  { "prefix": "sp", "companyName": "Błysk — Sprzątanie", "category": "Sprzątanie", "sector": "Sprzątanie", "city": "Warszawa", "lat": 52.2298, "lng": 20.9762 },
+  { "prefix": "sro", "companyName": "AutoNaprawa Środmieście", "category": "Motoryzacja", "sector": "Mechanik samochodowy", "city": "Katowice", "lat": 50.2649, "lng": 19.0238 },
+  { "prefix": "sto", "companyName": "Stolarnia Dąb", "category": "Stolarskie i Ciesielskie", "sector": "Stolarz", "city": "Lublin", "lat": 51.2465, "lng": 22.5684 },
+  { "prefix": "u", "companyName": "Studio Urody Laura", "category": "Zdrowie i uroda", "sector": "Fryzjer damski", "city": "Warszawa", "lat": 52.2201, "lng": 21.0118 },
+  { "prefix": "w", "companyName": "Wykończenia Pro", "category": "Budowlane i Remontowe", "sector": "Wykończenia wnętrz", "city": "Warszawa", "lat": 52.2444, "lng": 21.0611 }
+]
