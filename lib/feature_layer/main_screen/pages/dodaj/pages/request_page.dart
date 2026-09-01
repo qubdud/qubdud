@@ -6,8 +6,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:nominatim_flutter/model/request/search_request.dart';
 import 'package:nominatim_flutter/nominatim_flutter.dart';
-import 'package:qb/data_layer/data_models/request/create_team.dart';
-import 'package:qb/data_layer/data_models/request/edit_team.dart';
 import 'package:qb/feature_layer/main_screen/bloc/main_appbar_cubit.dart';
 import 'package:qb/shared/constants.dart';
 import 'package:qb/shared/widgets/w_dropdown.dart';
@@ -20,7 +18,6 @@ import 'package:path/path.dart' as p;
 
 import 'package:latlong2/latlong.dart';
 
-import '../../../../../../domain_layer/repository.dart';
 import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../domain_layer/firebase_service.dart';
 import '../../../../../shared/globals.dart';
@@ -28,7 +25,7 @@ import '../../../../../shared/widgets/w_button.dart';
 import '../../../../../shared/widgets/w_card.dart';
 import '../../../../../shared/widgets/w_checkbox.dart';
 import '../../../bloc/main_bloc.dart';
-import '../../show_promo/view/show_promo_page.dart';
+import '../view/dodaj_page.dart';
 import '../bloc/dodaj_page_bloc.dart';
 
 class DodajRequestFormPage extends StatelessWidget {

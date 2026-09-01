@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../domain_layer/chat_service.dart';
 
-import '../../../domain_layer/repository.dart';
 import '../../../shared/constants.dart';
 import '../../core_screen/bloc/core_screen_bloc.dart';
 import '../bloc/main_appbar_cubit.dart';
@@ -23,9 +22,8 @@ class MainScreen extends StatelessWidget {
   build(BuildContext context) {
     return BlocProvider<MainScreenBloc>(
       create: (_) => MainScreenBloc(
-        repository: context.read<AppRepository>(),
         appBarCubit: context.read<MainScreenControlCubit>(),
-        appChatService: context.read<ChatService>(), // Przekazanie instancji AppBarCubit
+        appChatService: context.read<ChatService>(),
       ),
       child: const MainView(),
     );
@@ -47,9 +45,6 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
   bool _animationEnded = false;
   late AnimationController _animationController;
   late Animation<double> _animation;
-  int notificationCounter=0;
-  int chatCounter = 0 ;
-  int newsCounter = 0;
   bool isMenuEnabled = true;
 
   @override
@@ -86,17 +81,6 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
     return BlocConsumer<MainScreenBloc, MainScreenState>(
       listener: (context, state) {
         if (state is StartMainScreenState) _selectedIndex = 0;
-        if (state is FirmaMainScreenState) _selectedIndex = 0;
-        if (state is DuelsMainScreenState) _selectedIndex = 1;
-        if (state is DuelsSummaryMainScreenState) _selectedIndex = 1;
-
-        if (state is NotificationMainScreenState) _selectedIndex = 5;
-        if (state is RanksMainScreenState) _selectedIndex = 3;
-
-        if (state is StatsMainScreenState) _selectedIndex = 5;
-        if (state is CardsMainScreenState) _selectedIndex = 5;
-        if (state is NewsMainScreenState) _selectedIndex = 5;
-        if (state is ContactMainScreenState) _selectedIndex = 5;
 
         if (state is LogoutMainScreenState) {
           context.read<CoreScreenBloc>().add(CoreScreenCheckAuthenticationEvent());
@@ -139,13 +123,8 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
               index: 3,
               label: "Kontakty",
               iconPath: Icons.chat_outlined,
-              isEnabled: isMenuEnabled,
               onTap: () {
-                if(!isMenuEnabled){
-                  context.read<MainScreenBloc>().add(ShowToastEvent(message: ''));
-                } else {
-                  context.read<MainScreenBloc>().add(GoToChatEvent(''));
-                }
+                context.read<MainScreenBloc>().add(GoToChatEvent(''));
               }),
 
           NavItem(
@@ -163,51 +142,12 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
 
         List<MenuItem> menuItems = [
           MenuItem(
-              text: 'Notifications',
-              count: notificationCounter,
-              onTap: () {
-                context.read<MainScreenBloc>().add(GoToNotificationEvent());              }),
-          MenuItem(
-              text: 'News',
-              count: newsCounter,
-              onTap: () {
-                context.read<MainScreenBloc>().add(GoToNewsEvent());
-              }),
-          MenuItem(
-            text: 'Wall',
-            onTap: () {
-
-              if(!isMenuEnabled){
-                context.read<MainScreenBloc>().add(ShowToastEvent(message: ''));
-              } else {
-                context.read<MainScreenBloc>().add(GoToWallEvent());
-              }
-            },
-            isEnabled: isMenuEnabled,
-          ),
-          MenuItem(
-              text: 'Chat',
-              count: chatCounter,
-              onTap: () {
-                context.read<MainScreenBloc>().add(GoToChatEvent(''));
-              }),
-          MenuItem(
-              text: 'Your Account',
-              onTap: () {
-                context.read<MainScreenBloc>().add(GoToAccountEvent());
-              }),
-          MenuItem(
-              text: 'Contact',
-              onTap: () {
-                context.read<MainScreenBloc>().add(GoToContactEvent());
-              }),
-          MenuItem(
-              text: 'Rules and regulations',
+              text: 'Regulamin',
               onTap: () {
                 context.read<MainScreenBloc>().add(GoToRulesEvent());
               }),
           MenuItem(
-              text: 'Log out',
+              text: 'Wyloguj się',
               onTap: () {
                 context.read<MainScreenBloc>().add(LogoutEvent());
               }),
@@ -221,7 +161,7 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
 
 
               PopScope(
-                canPop: (state is FirmaMainScreenState) || (state is StartMainScreenState),
+                canPop: state is StartMainScreenState,
                 onPopInvokedWithResult: (didPop, res){
 
                   if(!didPop){

@@ -14,7 +14,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:video_player/video_player.dart';
 
-import '../../../../../../domain_layer/repository.dart';
 import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/w_button.dart';

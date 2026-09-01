@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 
-import '../../../domain_layer/repository.dart';
 import '../../../shared/constants.dart';
 import '../../../shared/widgets/loading.dart';
 import '../../core_screen/widgets/background.dart';
@@ -13,7 +12,6 @@ import '../bloc/auth_bloc.dart';
 import '../pages/forgot_password/view/forgot_password_page.dart';
 import '../pages/forgot_password_complete/forgot_password_complete.dart';
 import '../pages/login/view/login_page.dart';
-import '../pages/password_verification/view/verification_page.dart';
 import '../pages/register/view/register_page.dart';
 import '../pages/registration_complete/registration_complete.dart';
 
@@ -23,7 +21,7 @@ class AuthScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => AuthBloc(repository: context.read<AppRepository>()),
+      create: (_) => AuthBloc(),
       child: const View(),
     );
   }
@@ -101,19 +99,10 @@ class View extends StatelessWidget {
       return const RegisterPage(key: ValueKey('RegisterPage'));
     } else if (state is AuthRegistrationCompletePageState) {
       return const RegistrationCompletePage(key: ValueKey('RegistrationCompletePage'));
-    } else if (state is AuthVerificationPageState) {
-      return VerificationPage(key: ValueKey('VrifiPage'), uri: state.uri,);
     } else if (state is AuthForgotPasswordPageState) {
          return const ForgotPasswordPage(key: ValueKey('ForgotPasswordPage'));
     } else if (state is AuthForgotPasswordCompletePageState) {
       return const ForgotPasswordCompletePage(key: ValueKey('ForgotPasswordCompPage'));
-
-      //  } else if (state is AuthForgotPasswordVerificationPageState) {
-      //    return const ForgotPasswordVerificationPage(key: ValueKey('ForgotPasswordVerificationPage'));
-      //  } else if (state is AuthResetPasswordPageState) {
-      //    return const ResetPasswordPage(key: ValueKey('ResetPasswordPage'));
-      //  } else if (state is AuthPasswordChangedPageState) {
-      //    return const PasswordChangedPage(key: ValueKey('PasswordChangedPage'));
     } else {
       return const Loading(key: ValueKey('Loading'),);
     }

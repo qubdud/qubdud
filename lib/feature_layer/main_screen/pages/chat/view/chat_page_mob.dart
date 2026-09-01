@@ -11,37 +11,21 @@ import '../bloc/chat_page_bloc.dart';
 import '../functions/format_timestamp.dart';
 import '../pages/messaging_page_mob.dart';
 
-class ChatPageMob extends StatelessWidget {
-  final String id;
-  const ChatPageMob({super.key, required this.id});
+class ChatPageMob extends StatefulWidget {
+  const ChatPageMob({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => ChatPageBloc(
-        repository: context.read(),
-        chatService: context.read<ChatService>(),
-        id: id,
-      ),
-      child: const _ChatView(),
-    );
-  }
+  State<ChatPageMob> createState() => _ChatPageMobState();
 }
 
-class _ChatView extends StatefulWidget {
-  const _ChatView();
-  @override
-  State<_ChatView> createState() => _ChatViewState();
-}
-
-class _ChatViewState extends State<_ChatView>
+class _ChatPageMobState extends State<ChatPageMob>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
 
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 2, vsync: this);
+    _tab = TabController(length: 3, vsync: this);
     _tab.addListener(() {
       if (!_tab.indexIsChanging) setState(() {});
     });
@@ -60,22 +44,40 @@ class _ChatViewState extends State<_ChatView>
         if (state is MessagingLoadingPageState) {
           context.read<MainScreenControlCubit>().setIsMenuVisible(true);
           context.read<MainScreenControlCubit>().updateAppBar(
-            onBackPressed: () =>
-                context.read<MainScreenBloc>().add(GoToChatEvent('')),
-            backgroundColor: cLighterBrown,
-            title: 'Rozmowa',
-            key: UniqueKey().toString(),
-            child: const SizedBox.shrink(),
-            height: 56,
-          );
+                onBackPressed: () =>
+                    context.read<MainScreenBloc>().add(GoToChatEvent('')),
+                backgroundColor: cLighterBrown,
+                title: 'Rozmowa',
+                key: UniqueKey().toString(),
+                child: const SizedBox.shrink(),
+                height: 56,
+              );
+        }
+        if (state is MessagingPageMainState) {
+          final u = state.chatUser;
+          final name = u == null
+              ? 'Rozmowa'
+              : (u.firma == true
+                  ? (u.companyName ?? 'Firma')
+                  : '${u.firstName ?? ''} ${u.lastName ?? ''}'.trim());
+          context.read<MainScreenControlCubit>().updateAppBar(
+                onBackPressed: () =>
+                    context.read<MainScreenBloc>().add(GoToChatEvent('')),
+                backgroundColor: cLighterBrown,
+                title: name.isEmpty ? 'Rozmowa' : name,
+                key: UniqueKey().toString(),
+                child: const SizedBox.shrink(),
+                height: 56,
+              );
         }
       },
       builder: (context, state) {
         if (state is ChatPageLoadingState) {
           return Loading(noText: true, key: UniqueKey());
         }
-        if (state is MessagingPageMainState) {
-          return MessagingPageMob();
+        if (state is MessagingPageMainState ||
+            state is MessagingLoadingPageState) {
+          return const MessagingPageMob();
         }
 
         return Column(
@@ -83,16 +85,134 @@ class _ChatViewState extends State<_ChatView>
             TabBar(
               controller: _tab,
               tabs: const [
+                Tab(icon: Icon(Icons.chat_outlined), text: 'Rozmowy'),
                 Tab(icon: Icon(Icons.business_outlined), text: 'Firmy'),
                 Tab(icon: Icon(Icons.person_outline), text: 'Ludzie'),
               ],
             ),
             Expanded(
-              child: _tab.index == 0
-                  ? _ContactsList(isCompany: true, key: const ValueKey('firmy'))
-                  : _ContactsList(isCompany: false, key: const ValueKey('ludzie')),
+              child: switch (_tab.index) {
+                0 => const _ConversationsList(key: ValueKey('rozmowy')),
+                1 => const _ContactsList(
+                    isCompany: true, key: ValueKey('firmy')),
+                _ => const _ContactsList(
+                    isCompany: false, key: ValueKey('ludzie')),
+              },
             ),
           ],
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Lista wszystkich rozmów (z nazwami z dokumentu rozmowy)
+// ─────────────────────────────────────────────────────────────────────────────
+class _ConversationsList extends StatelessWidget {
+  const _ConversationsList({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final chatService = context.read<ChatService>();
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: chatService.getChatOverviews(),
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final chats = snap.data!;
+        if (chats.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.chat_outlined, size: 56, color: Colors.black12),
+                SizedBox(height: 12),
+                Text('Brak rozmów', style: TextStyle(color: Colors.grey)),
+                SizedBox(height: 6),
+                Text('Napisz do firmy lub użytkownika z zakładek obok',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                    textAlign: TextAlign.center),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(10),
+          itemCount: chats.length,
+          itemBuilder: (context, i) {
+            final chat = chats[i];
+            final name = (chat['name'] as String?)?.isNotEmpty == true
+                ? chat['name'] as String
+                : 'Rozmowa';
+            final isCompany = chat['isCompany'] == true;
+            final unread = chat['unreadCount'] as int? ?? 0;
+            final timestamp = chat['timestamp'] as int? ?? 0;
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 10),
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              child: ListTile(
+                onTap: () => context
+                    .read<ChatPageBloc>()
+                    .add(StartUserChatChatPageEvent(chat['from'] as String)),
+                leading: CircleAvatar(
+                  backgroundColor:
+                      isCompany ? Colors.blue.shade700 : Colors.grey.shade600,
+                  child: Text(name[0].toUpperCase(),
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+                title: Text(name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontWeight:
+                            unread > 0 ? FontWeight.bold : FontWeight.w600)),
+                subtitle: Text(
+                  (chat['lastMessage'] as String?)?.isNotEmpty == true
+                      ? chat['lastMessage'] as String
+                      : 'Brak wiadomości',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontWeight:
+                          unread > 0 ? FontWeight.w600 : FontWeight.normal),
+                ),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (timestamp > 0)
+                      Text(formatTimestamp(timestamp),
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.grey)),
+                    if (unread > 0) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.pinkAccent,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text('$unread',
+                            style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -113,7 +233,6 @@ class _ContactsListState extends State<_ContactsList>
   @override
   bool get wantKeepAlive => true;
 
-  final ChatService _chatService = ChatService();
   List<AppUser> _contacts = [];
   bool _loading = true;
 
@@ -165,12 +284,14 @@ class _ContactsListState extends State<_ContactsList>
       );
     }
 
+    final chatService = context.read<ChatService>();
+
     return StreamBuilder<Map<String, bool>>(
-      stream: _chatService.getOnlineStatuses(),
+      stream: chatService.getOnlineStatuses(),
       builder: (context, onlineSnap) {
         final online = onlineSnap.data ?? {};
         return StreamBuilder<List<Map<String, dynamic>>>(
-          stream: _chatService.getChatOverviews(),
+          stream: chatService.getChatOverviews(),
           builder: (context, chatSnap) {
             final chats = chatSnap.data ?? [];
             return ListView.builder(
@@ -381,7 +502,7 @@ class _ContactCard extends StatelessWidget {
                   // Przycisk "Napisz"
                   GestureDetector(
                     onTap: () => context.read<ChatPageBloc>().add(
-                      StartUserChatChatPageEvent(user.id, true),
+                      StartUserChatChatPageEvent(user.id),
                     ),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

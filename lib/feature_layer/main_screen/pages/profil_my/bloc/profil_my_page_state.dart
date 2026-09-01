@@ -33,12 +33,6 @@ class MyProfilPageMainState extends MyProfilPageState {
   MyProfilPageMainState() : super();
 }
 
-class MyProfilPageErrorState extends MyProfilPageState {
-  final ContactError contactError;
-
-  MyProfilPageErrorState({required this.contactError});
-}
-
 class MyProfilPageLoadingState extends MyProfilPageState {}
 
 class MyProfilPageNextState extends MyProfilPageState {}

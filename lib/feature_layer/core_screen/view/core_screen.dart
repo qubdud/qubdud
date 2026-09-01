@@ -5,8 +5,6 @@ import '../../../shared/constants.dart';
 import '../../auth_screen/view/auth_screen.dart';
 import '../../main_screen/bloc/main_appbar_cubit.dart';
 import '../../main_screen/view/main_page.dart';
-import '../../main_screen/view/main_page_web.dart';
-import '../pages/actualization_required.dart';
 import '../../../shared/widgets/loading.dart';
 import '../widgets/background.dart';
 import '../bloc/core_screen_bloc.dart';
@@ -62,9 +60,6 @@ class View extends StatelessWidget {
     } else if (state is CoreScreenUnauthenticatedState) {
       return const AuthScreen(key: ValueKey('AuthScreen'));
     } else if (state is CoreScreenAuthenticatedState) {
-      if (MediaQuery.of(context).size.width > minWideScreen) {
-        return const MainScreenWeb(key: ValueKey('MainWeb'));
-      }
       return const MainScreen(key: ValueKey('MainMob'));
     } else if (state is CoreScreenLoadingState) {
       return Material(

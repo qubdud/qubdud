@@ -4,8 +4,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:qb/data_layer/data_models/request/create_team.dart';
-import 'package:qb/data_layer/data_models/request/edit_team.dart';
 import 'package:qb/feature_layer/main_screen/bloc/main_appbar_cubit.dart';
 import 'package:qb/shared/constants.dart';
 import 'package:qb/shared/widgets/w_dropdown.dart';
@@ -18,7 +16,6 @@ import 'package:path/path.dart' as p;
 
 import 'package:latlong2/latlong.dart';
 
-import '../../../../../../domain_layer/repository.dart';
 import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../domain_layer/firebase_service.dart';
 import '../../../../../shared/globals.dart';

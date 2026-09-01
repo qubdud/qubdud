@@ -14,7 +14,6 @@ import 'package:qb/shared/functions/show_toast.dart';
 import 'package:qb/shared/functions/show_toast_error.dart';
 import 'package:qb/shared/functions/show_toast_ok.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
-import '../../../../../../domain_layer/repository.dart';
 import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../shared/globals.dart';

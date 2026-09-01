@@ -7,7 +7,6 @@ import 'package:fluttertoast/fluttertoast.dart';
 
 import '../domain_layer/chat_service.dart';
 import '../domain_layer/firebase_service.dart';
-import '../domain_layer/repository.dart';
 import '../feature_layer/core_screen/view/core_screen.dart';
 import '../feature_layer/main_screen/bloc/main_appbar_cubit.dart';
 import '../shared/constants.dart';
@@ -17,11 +16,7 @@ class NavigationService {
 }
 
 class App extends StatelessWidget {
-  App({super.key, required this.appRepository});
-
-  final AppRepository appRepository;
-
-
+  const App({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -31,16 +26,11 @@ class App extends StatelessWidget {
     return MultiRepositoryProvider(
       providers: [
         RepositoryProvider.value(
-          value: appRepository,
-        ),
-        RepositoryProvider.value(
           value: appChatService,
         ),
         RepositoryProvider.value(
           value: appFirebaseService,
         ),
-
-
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

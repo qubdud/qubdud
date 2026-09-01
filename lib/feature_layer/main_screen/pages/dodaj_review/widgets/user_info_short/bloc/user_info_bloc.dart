@@ -2,9 +2,6 @@ import 'dart:developer';
 
 import 'package:bloc/bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide User;
-import 'package:qb/domain_layer/domain_models/sales_result.dart';
-import 'package:qb/domain_layer/domain_models/scratch_card.dart';
-import 'package:qb/domain_layer/domain_models/business_task.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/shared/functions/show_toast.dart';
 import 'package:qb/shared/functions/show_toast_error.dart';
