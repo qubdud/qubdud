@@ -319,17 +319,6 @@ class _RequestCard extends StatelessWidget {
                                 GoToProfilPublicznyUseraEvent(request.userId),
                               ),
                             ),
-                            // Notatka o kliencie
-                            _IconAction(
-                              icon: note.isEmpty
-                                  ? Icons.sticky_note_2_outlined
-                                  : Icons.sticky_note_2,
-                              tooltip: 'Notatka',
-                              color: note.isEmpty
-                                  ? null
-                                  : const Color(0xFFB8901B),
-                              onTap: () => _editNote(context),
-                            ),
                             // Ukryj → kosz
                             _IconAction(
                               icon: Icons.visibility_off_outlined,
