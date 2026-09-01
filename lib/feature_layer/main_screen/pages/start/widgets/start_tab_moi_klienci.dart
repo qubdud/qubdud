@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../domain_layer/firebase_service.dart';
+import '../../../../../shared/client_notes.dart';
 import '../../../../../shared/globals.dart';
 import '../../../bloc/main_bloc.dart';
 import '../bloc/start_page_bloc.dart';
@@ -18,7 +19,7 @@ class MoiKlienciTab extends StatefulWidget {
 }
 
 class _MoiKlienciTabState extends State<MoiKlienciTab> {
-  String _filter = 'all'; // all | new | active
+  String _filter = 'all'; // all | new | active | rejected (toggle)
 
   @override
   Widget build(BuildContext context) {
@@ -40,20 +41,19 @@ class _MoiKlienciTabState extends State<MoiKlienciTab> {
         label: Text(label, style: const TextStyle(fontSize: 12)),
         selected: selected,
         visualDensity: VisualDensity.compact,
-        onSelected: (_) => setState(() => _filter = value),
+        // ponowny klik zdejmuje filtr → widać wszystkie
+        onSelected: (_) =>
+            setState(() => _filter = selected ? 'all' : value),
       );
     }
 
     return Column(
       children: [
-        SizedBox(
-          height: 46,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              chip('all', 'Wszystkie'),
-              const SizedBox(width: 8),
               chip('new', 'Nowe'),
               const SizedBox(width: 8),
               chip('active', 'W trakcie'),
@@ -205,11 +205,14 @@ class _RequestCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Imię zgłaszającego + dystans
+                      // Imię zgłaszającego (klik = notatka) + dystans
                       Row(
                         children: [
                           Expanded(
-                            child: _RequesterName(userId: request.userId),
+                            child: GestureDetector(
+                              onTap: () => _editNote(context),
+                              child: _RequesterName(userId: request.userId),
+                            ),
                           ),
                           if (request.distance != null)
                             Text(
@@ -218,6 +221,38 @@ class _RequestCard extends StatelessWidget {
                             ),
                         ],
                       ),
+                      // Karteczka z notatką tuż pod imieniem
+                      if (note.isNotEmpty)
+                        GestureDetector(
+                          onTap: () => _editNote(context),
+                          child: Container(
+                            margin: const EdgeInsets.only(top: 2, bottom: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF6C7),
+                              borderRadius: BorderRadius.circular(6),
+                              border:
+                                  Border.all(color: const Color(0xFFE8D67A)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.sticky_note_2,
+                                    size: 12, color: Color(0xFF8A6D1B)),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(note,
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF6B540F)),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       if (request.city.isNotEmpty)
                         Text(request.city,
                             style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
@@ -236,36 +271,6 @@ class _RequestCard extends StatelessWidget {
               ),
             ],
           ),
-
-              // ── Notatka o kliencie (prywatna) ───────────────
-              if (note.isNotEmpty)
-                GestureDetector(
-                  onTap: () => _editNote(context),
-                  child: Container(
-                    margin: const EdgeInsets.only(top: 8),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF6C7),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFE8D67A)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.sticky_note_2_outlined,
-                            size: 14, color: Color(0xFF8A6D1B)),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(note,
-                              style: const TextStyle(
-                                  fontSize: 12, color: Color(0xFF6B540F)),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
 
               // ── Pasek akcji (zawsze na dole ramki) ──────────
               const SizedBox(height: 8),
@@ -346,6 +351,13 @@ class _RequestCard extends StatelessWidget {
 
   /// Prywatna notatka o kliencie — widzi ją tylko firma.
   Future<void> _editNote(BuildContext context) async {
+    final changed = await showClientNoteDialog(
+        context, request.userId, _requesterNameCache[request.userId] ?? '');
+    if (changed && context.mounted) {
+      context.read<StartPageBloc>().add(GetDataStartPageEvent());
+    }
+    return;
+    // ignore: dead_code
     final ctrl = TextEditingController(text: note);
     final saved = await showDialog<String>(
       context: context,

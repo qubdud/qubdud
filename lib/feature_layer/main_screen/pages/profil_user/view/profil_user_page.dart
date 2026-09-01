@@ -5,6 +5,8 @@ import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../shared/widgets/loading.dart';
 import '../../../../../shared/widgets/w_button.dart';
+import '../../../../../shared/client_notes.dart';
+import '../../../../../shared/functions/effective_role.dart';
 import '../../../bloc/main_bloc.dart';
 import '../../profil_publiczny/view/profil_publiczny_page.dart';
 
@@ -102,6 +104,14 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
                       style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.4),
                     ),
                   ],
+                  // Karteczka z notatką (widzi tylko firma)
+                  ClientNoteBadge(
+                    userId: widget.userId,
+                    personName:
+                        '${user.firstName ?? ''} ${user.lastName ?? ''}'.trim(),
+                    maxLines: 3,
+                    onChanged: () => setState(() {}),
+                  ),
                   const SizedBox(height: 20),
 
                   // ── Przyciski akcji ──────────────────────────
@@ -113,8 +123,31 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
                         _ActionButton(
                           icon: Icons.chat_bubble_outline,
                           label: 'Napisz',
-                          onTap: () => context.read<MainScreenBloc>().add(GoToChatEvent(widget.userId)),
+                          onTap: () => context.read<MainScreenBloc>().add(
+                              GoToChatEvent(widget.userId,
+                                  chatName:
+                                      '${user.firstName ?? ''} ${user.lastName ?? ''}'
+                                          .trim())),
                         ),
+                        // Notatka o kliencie (tylko firma)
+                        if (isCompanyMode(
+                            context.read<MainScreenBloc>().state.user)) ...[
+                          const SizedBox(width: 12),
+                          _ActionButton(
+                            icon: ClientNotes.get(widget.userId).isEmpty
+                                ? Icons.sticky_note_2_outlined
+                                : Icons.sticky_note_2,
+                            label: 'Notatka',
+                            onTap: () async {
+                              final changed = await showClientNoteDialog(
+                                  context,
+                                  widget.userId,
+                                  '${user.firstName ?? ''} ${user.lastName ?? ''}'
+                                      .trim());
+                              if (changed && mounted) setState(() {});
+                            },
+                          ),
+                        ],
                         const SizedBox(width: 12),
                         // Dodaj do kontaktów
                         _ActionButton(

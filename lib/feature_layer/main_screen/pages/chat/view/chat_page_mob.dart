@@ -1,8 +1,10 @@
+import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/feature_layer/main_screen/bloc/main_appbar_cubit.dart';
 import 'package:qb/shared/constants.dart';
+import 'package:qb/shared/client_notes.dart';
 import 'package:qb/shared/functions/effective_role.dart';
 import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../domain_layer/chat_service.dart';
@@ -34,6 +36,10 @@ class _ChatPageMobState extends State<ChatPageMob>
         !isCompanyMode(context.read<MainScreenBloc>().state.user);
     _tabs = [
       const Tab(icon: Icon(Icons.chat_outlined, size: 20), text: 'Rozmowy'),
+      if (!privateMode)
+        const Tab(
+            icon: Icon(Icons.sticky_note_2_outlined, size: 20),
+            text: 'Notatki'),
       if (privateMode)
         const Tab(
             icon: Icon(Icons.event_available_outlined, size: 20),
@@ -45,6 +51,7 @@ class _ChatPageMobState extends State<ChatPageMob>
     ];
     _views = [
       const _ConversationsList(key: ValueKey('rozmowy')),
+      if (!privateMode) const _NotesList(key: ValueKey('notatki')),
       if (privateMode) const _MyBookingsList(key: ValueKey('rezerwacje')),
       if (privateMode)
         const _ContactsList(isCompany: true, key: ValueKey('firmy')),
@@ -190,15 +197,24 @@ class _ConversationsList extends StatelessWidget {
                     style: TextStyle(
                         fontWeight:
                             unread > 0 ? FontWeight.bold : FontWeight.w600)),
-                subtitle: Text(
-                  (chat['lastMessage'] as String?)?.isNotEmpty == true
-                      ? chat['lastMessage'] as String
-                      : 'Brak wiadomości',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontWeight:
-                          unread > 0 ? FontWeight.w600 : FontWeight.normal),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ClientNoteBadge(
+                        userId: chat['from'] as String, personName: name),
+                    Text(
+                      (chat['lastMessage'] as String?)?.isNotEmpty == true
+                          ? chat['lastMessage'] as String
+                          : 'Brak wiadomości',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontWeight: unread > 0
+                              ? FontWeight.w600
+                              : FontWeight.normal),
+                    ),
+                  ],
                 ),
                 trailing: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -633,6 +649,13 @@ class _ContactCard extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis),
                         ],
+                        ClientNoteBadge(
+                          userId: user.id,
+                          personName: isCompany
+                              ? (user.companyName ?? '')
+                              : '${user.firstName ?? ''} ${user.lastName ?? ''}'
+                                  .trim(),
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           isOnline ? 'Online' : 'Offline',
@@ -738,6 +761,111 @@ class _ContactCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notatki o klientach (tylko firma) — lista karteczek z edycją
+// ─────────────────────────────────────────────────────────────────────────────
+class _NotesList extends StatefulWidget {
+  const _NotesList({super.key});
+
+  @override
+  State<_NotesList> createState() => _NotesListState();
+}
+
+class _NotesListState extends State<_NotesList> {
+  Map<String, AppUser?> _people = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final firebase = context.read<FirebaseService>();
+    final myId = context.read<MainScreenBloc>().state.user?.id ?? '';
+    await ClientNotes.load(firebase, myId);
+    final ids = ClientNotes.all.keys.toList();
+    final map = <String, AppUser?>{};
+    for (final id in ids) {
+      map[id] = await firebase.fetchUser(id);
+    }
+    if (mounted) setState(() { _people = map; _loading = false; });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+
+    final entries = ClientNotes.all.entries.toList();
+    if (entries.isEmpty) {
+      return const EmptyState(
+        icon: Icons.sticky_note_2_outlined,
+        title: 'Brak notatek',
+        subtitle:
+            'Dotknij imienia klienta na zgłoszeniu lub w rozmowie, aby dodać prywatną notatkę.',
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: entries.length,
+      itemBuilder: (context, i) {
+        final userId = entries[i].key;
+        final note = entries[i].value;
+        final u = _people[userId];
+        final name = u == null
+            ? 'Użytkownik'
+            : (u.firma == true
+                ? (u.companyName ?? 'Firma')
+                : '${u.firstName ?? ''} ${u.lastName ?? ''}'.trim());
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 10),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ListTile(
+            onTap: () async {
+              final changed =
+                  await showClientNoteDialog(context, userId, name);
+              if (changed) _load();
+            },
+            leading: const CircleAvatar(
+              backgroundColor: Color(0xFFFFF6C7),
+              child: Icon(Icons.sticky_note_2, color: Color(0xFF8A6D1B)),
+            ),
+            title: Text(name.isEmpty ? 'Użytkownik' : name,
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w600)),
+            subtitle: Text(note, style: const TextStyle(fontSize: 12)),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                  tooltip: 'Napisz',
+                  onPressed: () => context
+                      .read<MainScreenBloc>()
+                      .add(GoToChatEvent(userId, chatName: name)),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  tooltip: 'Edytuj',
+                  onPressed: () async {
+                    final changed =
+                        await showClientNoteDialog(context, userId, name);
+                    if (changed) _load();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

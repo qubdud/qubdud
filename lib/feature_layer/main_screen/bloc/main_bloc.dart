@@ -13,6 +13,7 @@ import '../../../domain_layer/chat_service.dart';
 import '../../../domain_layer/domain_models/app_user.dart';
 import '../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../domain_layer/firebase_service.dart';
+import '../../../shared/client_notes.dart';
 import '../../../shared/functions/effective_role.dart';
 import '../../../shared/functions/show_toast.dart';
 import '../../../shared/globals.dart';
@@ -249,6 +250,11 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
         return;
       }
       final userFB = AppUser.fromDoc(doc);
+      if (userFB.firma == true) {
+        await ClientNotes.load(appFirebaseService, userFB.id);
+      } else {
+        ClientNotes.clear();
+      }
       appChatService.updateUserOnlineStatus();
       state.chatCounter = await appChatService.getTotalUnreadCount();
       state.user = userFB;
