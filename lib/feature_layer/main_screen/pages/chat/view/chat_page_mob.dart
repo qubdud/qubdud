@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/feature_layer/main_screen/bloc/main_appbar_cubit.dart';
 import 'package:qb/shared/constants.dart';
+import 'package:qb/shared/functions/effective_role.dart';
 import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../domain_layer/chat_service.dart';
 import '../../../../../domain_layer/domain_models/app_user.dart';
@@ -21,11 +22,15 @@ class ChatPageMob extends StatefulWidget {
 class _ChatPageMobState extends State<ChatPageMob>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
+  late bool _showBookings;
 
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 4, vsync: this);
+    // rezerwacje = moje wizyty u firm — bez sensu w trybie firmowym
+    _showBookings =
+        !isCompanyMode(context.read<MainScreenBloc>().state.user);
+    _tab = TabController(length: _showBookings ? 4 : 3, vsync: this);
     _tab.addListener(() {
       if (!_tab.indexIsChanging) setState(() {});
     });
@@ -85,24 +90,35 @@ class _ChatPageMobState extends State<ChatPageMob>
             TabBar(
               controller: _tab,
               labelStyle: const TextStyle(fontSize: 12),
-              tabs: const [
-                Tab(icon: Icon(Icons.chat_outlined, size: 20), text: 'Rozmowy'),
-                Tab(
-                    icon: Icon(Icons.event_available_outlined, size: 20),
-                    text: 'Rezerwacje'),
-                Tab(icon: Icon(Icons.business_outlined, size: 20), text: 'Firmy'),
-                Tab(icon: Icon(Icons.person_outline, size: 20), text: 'Ludzie'),
+              tabs: [
+                const Tab(
+                    icon: Icon(Icons.chat_outlined, size: 20),
+                    text: 'Rozmowy'),
+                if (_showBookings)
+                  const Tab(
+                      icon: Icon(Icons.event_available_outlined, size: 20),
+                      text: 'Rezerwacje'),
+                const Tab(
+                    icon: Icon(Icons.business_outlined, size: 20),
+                    text: 'Firmy'),
+                const Tab(
+                    icon: Icon(Icons.person_outline, size: 20),
+                    text: 'Ludzie'),
               ],
             ),
             Expanded(
-              child: switch (_tab.index) {
-                0 => const _ConversationsList(key: ValueKey('rozmowy')),
-                1 => const _MyBookingsList(key: ValueKey('rezerwacje')),
-                2 => const _ContactsList(
-                    isCompany: true, key: ValueKey('firmy')),
-                _ => const _ContactsList(
-                    isCompany: false, key: ValueKey('ludzie')),
-              },
+              child: () {
+                var idx = _tab.index;
+                if (!_showBookings && idx >= 1) idx += 1;
+                return switch (idx) {
+                  0 => const _ConversationsList(key: ValueKey('rozmowy')),
+                  1 => const _MyBookingsList(key: ValueKey('rezerwacje')),
+                  2 => const _ContactsList(
+                      isCompany: true, key: ValueKey('firmy')),
+                  _ => const _ContactsList(
+                      isCompany: false, key: ValueKey('ludzie')),
+                };
+              }(),
             ),
           ],
         );
