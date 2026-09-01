@@ -91,6 +91,15 @@ class Request {
   final String description;
   double? distance;
 
+  // Podjęcie zadania: firma deklaruje się (confirmedByCompany),
+  // user potwierdza (confirmedByUser) → status 'taken' i zgłoszenie
+  // znika z list innych firm.
+  String status; // 'open' | 'taken'
+  String takenBy; // uid firmy
+  String takenByName;
+  bool confirmedByCompany;
+  bool confirmedByUser;
+
   Request({
     required this.id,
     required this.userId,
@@ -105,6 +114,11 @@ class Request {
     required this.is24,
     required this.description,
     this.distance,
+    this.status = 'open',
+    this.takenBy = '',
+    this.takenByName = '',
+    this.confirmedByCompany = false,
+    this.confirmedByUser = false,
   });
 
   factory Request.fromDoc(DocumentSnapshot doc) {
@@ -127,6 +141,11 @@ class Request {
       fileName: data['fileName'] ?? '',
       timestamp: (data['timestamp'] as Timestamp?)?.toDate(),
       description: data['description'] ?? '',
+      status: data['status'] ?? 'open',
+      takenBy: data['takenBy'] ?? '',
+      takenByName: data['takenByName'] ?? '',
+      confirmedByCompany: data['confirmedByCompany'] ?? false,
+      confirmedByUser: data['confirmedByUser'] ?? false,
     );
   }
 
@@ -147,6 +166,11 @@ class Request {
       'timestamp': timestamp ?? FieldValue.serverTimestamp(),
       'is24': is24,
       'description': description,
+      'status': status,
+      'takenBy': takenBy,
+      'takenByName': takenByName,
+      'confirmedByCompany': confirmedByCompany,
+      'confirmedByUser': confirmedByUser,
     };
   }
 }

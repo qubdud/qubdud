@@ -16,6 +16,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../shared/globals.dart';
+import '../../../../../shared/widgets/request_take_status.dart';
 import '../../../../../shared/widgets/w_button.dart';
 import '../../../../../shared/widgets/w_small_label.dart';
 import '../../../bloc/main_bloc.dart';
@@ -307,6 +308,22 @@ class _ViewState extends State<View> {
 
               SizedBox(height: 24,),
 
+              // ── Podjęcie zadania (tylko firma, nie swoje zgłoszenie) ──
+              Builder(builder: (context) {
+                final me = context.read<MainScreenBloc>().state.user;
+                final req = Globals.instance.selectedRequest!;
+                if (me == null || me.firma != true || me.id == req.userId) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: CompanyTakeSection(
+                    request: req,
+                    myCompanyId: me.id,
+                    myCompanyName: me.companyName ?? 'Firma',
+                  ),
+                );
+              }),
 
             ],
           ),

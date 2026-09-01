@@ -11,6 +11,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../../../../../../shared/globals.dart';
 import '../../../../../../../shared/widgets/loading.dart';
+import '../../../../../../../shared/widgets/request_take_status.dart';
 import '../../../../../../../shared/widgets/w_small_label.dart';
 import '../bloc/show_requests_bloc.dart';
 
@@ -128,7 +129,10 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       /// 🔸 Miniatura z ikoną kosza na niej
@@ -189,6 +193,9 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
                         ),
 
                       ),
+                    ],
+                  ),
+                      UserConfirmBar(request: video),
                     ],
                   ),
                 );

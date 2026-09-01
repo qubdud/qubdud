@@ -76,7 +76,11 @@ class _RequestCard extends StatelessWidget {
         },
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _takeStatusBadge(context),
+              Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Miniatura ───────────────────────────────────
@@ -221,8 +225,40 @@ class _RequestCard extends StatelessWidget {
               ),
             ],
           ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _takeStatusBadge(BuildContext context) {
+    if (request.takenBy.isEmpty) return const SizedBox.shrink();
+    final myId = context.read<MainScreenBloc>().state.user?.id ?? '';
+    final mine = request.takenBy == myId;
+
+    late final Color color;
+    late final String text;
+    if (mine && request.status == 'taken') {
+      color = Colors.green;
+      text = 'W realizacji przez Ciebie';
+    } else if (mine) {
+      color = Colors.orange;
+      text = 'Podjęte przez Ciebie — czeka na potwierdzenie klienta';
+    } else {
+      color = Colors.grey;
+      text = 'Podjęte przez: ${request.takenByName}';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.4)),
+      ),
+      child: Text(text, style: TextStyle(fontSize: 11, color: color)),
     );
   }
 }

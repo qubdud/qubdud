@@ -14,12 +14,15 @@ import '../../../../../../domain_layer/firebase_service.dart';
 import '../../../../../../shared/constants.dart';
 import '../../../../../../shared/globals.dart';
 import '../../../../../../shared/widgets/loading.dart';
+import '../../../../../../shared/widgets/request_take_status.dart';
 import '../../../../../../shared/widgets/w_button.dart';
 import '../../../../../../shared/widgets/w_input_field.dart';
 import '../../../../../../shared/widgets/w_small_label.dart';
 import '../../../bloc/main_appbar_cubit.dart';
 import '../../../../../../feature_layer/main_screen/bloc/main_bloc.dart';
 import '../bloc/profil_my_page_bloc.dart';
+import 'tab_kalendarz.dart';
+import 'tab_klienci.dart';
 
 class MyProfilPage extends StatelessWidget {
   const MyProfilPage({super.key});
@@ -50,7 +53,7 @@ class _ProfilViewState extends State<_ProfilView>
     final user = context.read<MainScreenBloc>().state.user;
     final isCompany = user?.firma ?? false;
     _tabController = TabController(
-      length: isCompany ? 5 : 3,
+      length: isCompany ? 7 : 4,
       vsync: this,
     );
   }
@@ -94,20 +97,26 @@ class _ProfilViewState extends State<_ProfilView>
             labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             tabs: [
               const Tab(text: 'Moje dane'),
+              if (isCompany) const Tab(text: 'Kalendarz'),
+              if (isCompany) const Tab(text: 'Klienci'),
               const Tab(text: 'Zgłoszenia'),
               const Tab(text: 'Recenzje'),
               if (isCompany) const Tab(text: 'Prezentacje'),
               if (isCompany) const Tab(icon: Icon(Icons.delete_outline, size: 18)),
+              if (!isCompany) const Tab(text: 'Moje firmy'),
             ],
           ),
           body: TabBarView(
             controller: _tabController,
             children: [
               _TabDane(state: state, isCompany: isCompany, user: user),
+              if (isCompany) TabKalendarz(companyId: user.id),
+              if (isCompany) TabKlienci(companyId: user.id),
               _TabZgloszenia(state: state),
               _TabRecenzje(state: state),
               if (isCompany) _TabPrezentacje(state: state),
               if (isCompany) _TabKosz(state: state),
+              if (!isCompany) TabMojeFirmy(userId: user.id),
             ],
           ),
         );
@@ -558,6 +567,7 @@ class _RequestTileState extends State<_RequestTile> {
                     overflow: TextOverflow.ellipsis),
               ],
             ],
+            UserConfirmBar(request: widget.req),
           ],
         ),
       ),

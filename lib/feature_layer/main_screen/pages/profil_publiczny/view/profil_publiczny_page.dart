@@ -2,7 +2,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
+import '../../profil_my/view/tab_kalendarz.dart' show dayLabel;
 import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/domain_models/company_info.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
@@ -48,6 +50,9 @@ class _ProfilView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(context, state.targetUser, state.companyInfo),
+
+                if (state.targetUser != null)
+                  _SlotsSection(companyId: state.targetUser!.id),
 
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
@@ -200,6 +205,100 @@ class _ProfilView extends StatelessWidget {
             fit: BoxFit.cover,
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Wolne terminy firmy (podgląd kalendarza — 7 dni)
+// ─────────────────────────────────────────────────────────────────────────────
+class _SlotsSection extends StatefulWidget {
+  final String companyId;
+  const _SlotsSection({required this.companyId});
+
+  @override
+  State<_SlotsSection> createState() => _SlotsSectionState();
+}
+
+class _SlotsSectionState extends State<_SlotsSection> {
+  List<Map<String, dynamic>> _slots = [];
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    context
+        .read<FirebaseService>()
+        .getSlots(widget.companyId)
+        .then((slots) {
+      if (mounted) setState(() { _slots = slots; _loaded = true; });
+    }).catchError((_) {
+      if (mounted) setState(() => _loaded = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loaded || _slots.isEmpty) return const SizedBox.shrink();
+
+    // grupowanie po dniach (kolejność chronologiczna — sloty są posortowane)
+    final byDay = <String, List<DateTime>>{};
+    for (final s in _slots) {
+      final st = s['start'] as DateTime;
+      final key = dayLabel(st);
+      byDay.putIfAbsent(key, () => []).add(st);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          WSmallLabel(text: 'Wolne terminy (7 dni)'),
+          const SizedBox(height: 8),
+          ...byDay.entries.map((e) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 110,
+                      child: Text(e.key,
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w600)),
+                    ),
+                    Expanded(
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: e.value
+                            .map((st) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                        color: Colors.green.shade200),
+                                  ),
+                                  child: Text(
+                                    DateFormat('HH:mm').format(st),
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.green.shade800),
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+          const SizedBox(height: 4),
+          Text('Chcesz umówić termin? Napisz do firmy.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+        ],
       ),
     );
   }

@@ -306,9 +306,11 @@ class FirebaseService {
     final requests = querySnapshot.docs
         .map((doc) => Request.fromDoc(doc))
         .where((req) => !skippedIds.contains(req.id)) // Usuwamy te, które są na liście skipped
+        // zadania podjęte (obustronnie potwierdzone) widzi tylko firma, która je wzięła
+        .where((req) => req.status != 'taken' || req.takenBy == userId)
         .toList();
 
-    // 4. Obliczanie dystansu i sortowanie (bez zmian)
+    // 4. Obliczanie dystansu i sortowanie: pilne (24h) na górze, potem dystans
     for (var req in requests) {
       req.distance = Geolocator.distanceBetween(
         myLocation.latitude,
@@ -318,7 +320,10 @@ class FirebaseService {
       );
     }
 
-    requests.sort((a, b) => (a.distance ?? 0).compareTo(b.distance ?? 0));
+    requests.sort((a, b) {
+      if (a.is24 != b.is24) return a.is24 ? -1 : 1;
+      return (a.distance ?? 0).compareTo(b.distance ?? 0);
+    });
 
     return requests.take(limit).toList();
   }
@@ -584,6 +589,201 @@ class FirebaseService {
     return results;
   }
 
+
+  // ── KALENDARZ FIRMY (sloty na 7 dni do przodu) ───────────────────────────
+  // users/{companyId}/slots/{slotId}: {start: Timestamp}
+
+  Future<List<Map<String, dynamic>>> getSlots(String companyId) async {
+    final now = DateTime.now();
+    final weekAhead = now.add(const Duration(days: 7));
+    final snap = await _firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('slots')
+        .orderBy('start')
+        .get();
+
+    final slots = <Map<String, dynamic>>[];
+    for (final d in snap.docs) {
+      final start = (d.data()['start'] as Timestamp?)?.toDate();
+      if (start == null) continue;
+      if (start.isBefore(now) || start.isAfter(weekAhead)) continue;
+      slots.add({'id': d.id, 'start': start});
+    }
+    return slots;
+  }
+
+  Future<void> addSlot(String companyId, DateTime start) async {
+    await _firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('slots')
+        .add({'start': Timestamp.fromDate(start)});
+  }
+
+  Future<void> removeSlot(String companyId, String slotId) async {
+    await _firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('slots')
+        .doc(slotId)
+        .delete();
+  }
+
+  /// Sprzątanie przeterminowanych slotów (wołane przy wejściu właściciela).
+  Future<void> cleanupOldSlots(String companyId) async {
+    final snap = await _firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('slots')
+        .where('start', isLessThan: Timestamp.now())
+        .get();
+    if (snap.docs.isEmpty) return;
+    final batch = _firestore.batch();
+    for (final d in snap.docs) {
+      batch.delete(d.reference);
+    }
+    await batch.commit();
+  }
+
+  // ── PODJĘCIE ZADANIA (obustronne potwierdzenie) ──────────────────────────
+
+  Future<void> takeRequest({
+    required String requestId,
+    required String companyId,
+    required String companyName,
+  }) async {
+    await _firestore.collection('requests').doc(requestId).update({
+      'takenBy': companyId,
+      'takenByName': companyName,
+      'confirmedByCompany': true,
+    });
+  }
+
+  Future<void> cancelTakeRequest(String requestId) async {
+    await _firestore.collection('requests').doc(requestId).update({
+      'takenBy': '',
+      'takenByName': '',
+      'confirmedByCompany': false,
+      'confirmedByUser': false,
+      'status': 'open',
+    });
+  }
+
+  /// User potwierdza podjęcie — przy obu potwierdzeniach zgłoszenie dostaje
+  /// status 'taken' (znika z list innych firm) i powstaje relacja klient↔firma.
+  Future<void> confirmRequestByUser(Request request) async {
+    final userId = request.userId;
+    final companyId = request.takenBy;
+    if (companyId.isEmpty) return;
+
+    await _firestore.collection('requests').doc(request.id).update({
+      'confirmedByUser': true,
+      if (request.confirmedByCompany) 'status': 'taken',
+    });
+
+    if (!request.confirmedByCompany) return;
+
+    // relacja klient ↔ firma
+    final userDoc = await _firestore.collection('users').doc(userId).get();
+    final companyDoc = await _firestore.collection('users').doc(companyId).get();
+    final userData = userDoc.data() ?? {};
+    final companyData = companyDoc.data() ?? {};
+
+    final batch = _firestore.batch();
+    batch.set(
+      _firestore
+          .collection('users')
+          .doc(companyId)
+          .collection('clients')
+          .doc(userId),
+      {
+        'userId': userId,
+        'name':
+            '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}'.trim(),
+        'requestId': request.id,
+        'addedAt': FieldValue.serverTimestamp(),
+      },
+    );
+    batch.set(
+      _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('myCompanies')
+          .doc(companyId),
+      {
+        'companyId': companyId,
+        'name': companyData['companyName'] ?? 'Firma',
+        'requestId': request.id,
+        'addedAt': FieldValue.serverTimestamp(),
+      },
+    );
+    await batch.commit();
+  }
+
+  // ── KLIENCI FIRMY / MOJE FIRMY ───────────────────────────────────────────
+
+  Future<List<AppUser>> getClients(String companyId) async {
+    final snap = await _firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('clients')
+        .orderBy('addedAt', descending: true)
+        .get();
+    final users = <AppUser>[];
+    for (final d in snap.docs) {
+      final u = await fetchUser(d.id);
+      if (u != null) users.add(u);
+    }
+    return users;
+  }
+
+  Future<List<AppUser>> getMyCompanies(String userId) async {
+    final snap = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('myCompanies')
+        .orderBy('addedAt', descending: true)
+        .get();
+    final users = <AppUser>[];
+    for (final d in snap.docs) {
+      final u = await fetchUser(d.id);
+      if (u != null) users.add(u);
+    }
+    return users;
+  }
+
+  // ── PILNE ZGŁOSZENIA W POBLIŻU (powiadomienie in-app) ────────────────────
+
+  Future<int> getUrgentNearbyCount({
+    required String companyId,
+    required String category,
+    required LatLng myLocation,
+    double radiusKm = 30,
+  }) async {
+    final since = DateTime.now().subtract(const Duration(hours: 24));
+    final snap = await _firestore
+        .collection('requests')
+        .where('category', isEqualTo: category)
+        .where('is24', isEqualTo: true)
+        .get();
+
+    int count = 0;
+    for (final d in snap.docs) {
+      final req = Request.fromDoc(d);
+      if (req.status == 'taken') continue;
+      if (req.userId == companyId) continue;
+      if (req.timestamp == null || req.timestamp!.isBefore(since)) continue;
+      final distMeters = Geolocator.distanceBetween(
+        myLocation.latitude,
+        myLocation.longitude,
+        req.location.latitude,
+        req.location.longitude,
+      );
+      if (distMeters <= radiusKm * 1000) count++;
+    }
+    return count;
+  }
 
   // ── KOMENTARZE DO RECENZJI ────────────────────────────────────────────────
   // Zasada: każdy może dodać max 1 komentarz; właściciel firmy też max 1

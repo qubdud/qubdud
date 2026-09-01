@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../domain_layer/chat_service.dart';
 import '../../../domain_layer/domain_models/app_user.dart';
 import '../../../domain_layer/domain_models/promoVideo.dart';
+import '../../../domain_layer/firebase_service.dart';
 import '../../../shared/functions/show_toast.dart';
 import '../../../shared/globals.dart';
 import 'main_appbar_cubit.dart';
@@ -22,6 +23,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
   MainScreenBloc({
     required MainScreenControlCubit appBarCubit,
     required ChatService appChatService,
+    required FirebaseService appFirebaseService,
   }) : super(LoadingMainScreenState()) {
     on<ShowToastEvent>((event, emit) async {
       showToast(text: event.message);
@@ -220,6 +222,25 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
       state.chatCounter = await appChatService.getTotalUnreadCount();
       state.user = userFB;
       add(GoToHomeEvent());
+
+      // Firma: powiadomienie o pilnych (24h) zgłoszeniach w pobliżu
+      if (userFB.firma == true &&
+          userFB.companyCategory != null &&
+          userFB.companyLocation != null) {
+        try {
+          final urgent = await appFirebaseService.getUrgentNearbyCount(
+            companyId: userFB.id,
+            category: userFB.companyCategory!,
+            myLocation: userFB.companyLocation!,
+          );
+          if (urgent > 0) {
+            showToast(
+                text: urgent == 1
+                    ? 'Masz 1 pilne zgłoszenie w pobliżu!'
+                    : 'Masz $urgent pilne zgłoszenia w pobliżu!');
+          }
+        } catch (_) {}
+      }
     });
 
     add(InitEvent());

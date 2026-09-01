@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../domain_layer/chat_service.dart';
+import '../../../domain_layer/firebase_service.dart';
 
 import '../../../shared/constants.dart';
 import '../../core_screen/bloc/core_screen_bloc.dart';
@@ -23,6 +24,7 @@ class MainScreen extends StatelessWidget {
       create: (_) => MainScreenBloc(
         appBarCubit: context.read<MainScreenControlCubit>(),
         appChatService: context.read<ChatService>(),
+        appFirebaseService: context.read<FirebaseService>(),
       ),
       child: const MainView(),
     );
