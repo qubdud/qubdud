@@ -41,12 +41,15 @@ class _RegisterPageState extends State<RegisterPage> {
   final _city = TextEditingController();
   final _postCode = TextEditingController();
   final _businessCity = TextEditingController();
+  final _categoryCtrl = TextEditingController();
+  final _sectorCtrl = TextEditingController();
   final MapController _mapController = MapController();
 
   bool _isCompany = false;
   bool _obscurePassword = true;
   bool _isLoading = false;
   bool _isSearching = false;
+  bool _acceptTerms = false;
 
   String? _nameError;
   String? _surnameError;
@@ -54,6 +57,11 @@ class _RegisterPageState extends State<RegisterPage> {
   String? _phoneError;
   String? _passwordError;
   String? _nipError;
+  String? _companyNameError;
+  String? _categoryError;
+  String? _sectorError;
+  String? _locationError;
+  String? _termsError;
 
   String? _selectedCategory;
   String? _selectedSector;
@@ -69,7 +77,7 @@ class _RegisterPageState extends State<RegisterPage> {
     for (final c in [
       _name, _surname, _email, _phone, _bio, _password,
       _nip, _companyName, _street, _buildingNr, _flatNr,
-      _city, _postCode, _businessCity,
+      _city, _postCode, _businessCity, _categoryCtrl, _sectorCtrl,
     ]) {
       c.dispose();
     }
@@ -77,11 +85,15 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   bool _validate() {
-    bool ok = true;
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     setState(() {
       _nameError = _name.text.trim().isEmpty ? 'Pole wymagane' : null;
       _surnameError = _surname.text.trim().isEmpty ? 'Pole wymagane' : null;
-      _emailError = _email.text.trim().isEmpty ? 'Pole wymagane' : null;
+      _emailError = _email.text.trim().isEmpty
+          ? 'Pole wymagane'
+          : (!emailRegex.hasMatch(_email.text.trim())
+              ? 'Nieprawidłowy adres e-mail'
+              : null);
       _phoneError = _phone.text.trim().isEmpty ? 'Pole wymagane' : null;
       _passwordError = _password.text.trim().length < 6
           ? 'Hasło musi mieć min. 6 znaków'
@@ -89,15 +101,27 @@ class _RegisterPageState extends State<RegisterPage> {
       if (_isCompany) {
         _nipError =
             _nip.text.trim().length != 10 ? 'NIP musi mieć 10 cyfr' : null;
+        _companyNameError =
+            _companyName.text.trim().isEmpty ? 'Pole wymagane' : null;
+        _categoryError = _selectedCategory == null ? 'Wybierz kategorię' : null;
+        _sectorError = _selectedSector == null ? 'Wybierz branżę' : null;
+        _locationError = _selectedLocation == null
+            ? 'Wskaż lokalizację działalności (wpisz miejscowość lub zaznacz na mapie)'
+            : null;
       } else {
         _nipError = null;
+        _companyNameError = null;
+        _categoryError = null;
+        _sectorError = null;
+        _locationError = null;
       }
+      _termsError = _acceptTerms ? null : 'Zgoda jest wymagana';
     });
-    if (_nameError != null || _surnameError != null || _emailError != null ||
-        _phoneError != null || _passwordError != null || _nipError != null) {
-      ok = false;
-    }
-    return ok;
+    return [
+      _nameError, _surnameError, _emailError, _phoneError, _passwordError,
+      _nipError, _companyNameError, _categoryError, _sectorError,
+      _locationError, _termsError,
+    ].every((e) => e == null);
   }
 
   Future<void> _register() async {
@@ -119,6 +143,15 @@ class _RegisterPageState extends State<RegisterPage> {
         companySector: _isCompany ? _selectedSector : null,
         companyLocation: _isCompany ? _selectedLocation : null,
         companyCity: _isCompany ? _businessCity.text.trim() : null,
+        companyAddress: _isCompany
+            ? {
+                'street': _street.text.trim(),
+                'buildingNr': _buildingNr.text.trim(),
+                'flatNr': _flatNr.text.trim(),
+                'city': _city.text.trim(),
+                'postCode': _postCode.text.trim(),
+              }
+            : null,
       );
       if (!mounted) return;
       if (error != null) {
@@ -276,6 +309,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 }),
             const SizedBox(height: 24),
             WInputField(controller: _companyName, label: 'Nazwa firmy',
+                errorText: _companyNameError,
                 isPassword: false, hintText: 'Pełna nazwa firmy'),
             const SizedBox(height: 24),
             WInputField(controller: _street, label: 'Ulica',
@@ -301,24 +335,28 @@ class _RegisterPageState extends State<RegisterPage> {
             WSmallLabel(text: 'Branża i lokalizacja działalności'),
             const SizedBox(height: 16),
             WAnimatedDropdown(
-              controller: TextEditingController(),
+              controller: _categoryCtrl,
               label: 'Wybierz kategorię',
+              errorText: _categoryError,
               items: _categoryToSector.keys.toList(),
               hintText: 'Wybierz kategorię',
               onItemSelected: (val) => setState(() {
-                _selectedCategory = val;
+                _selectedCategory = val.isEmpty ? null : val;
                 _selectedSector = null;
+                _sectorCtrl.clear();
               }),
             ),
             const SizedBox(height: 24),
             WAnimatedDropdown(
-              controller: TextEditingController(),
+              controller: _sectorCtrl,
               label: 'Wybierz branżę',
+              errorText: _sectorError,
               items: sectors,
               hintText: _selectedCategory == null
                   ? 'Najpierw wybierz kategorię'
                   : 'Wybierz branżę',
-              onItemSelected: (val) => setState(() => _selectedSector = val),
+              onItemSelected: (val) =>
+                  setState(() => _selectedSector = val.isEmpty ? null : val),
             ),
             const SizedBox(height: 24),
             WInputField(
@@ -371,6 +409,16 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
               ]),
             ),
+            if (_locationError != null) ...[
+              const SizedBox(height: 6),
+              Text(_locationError!,
+                  style: const TextStyle(color: cMidPink, fontSize: 14)),
+            ],
+            const SizedBox(height: 6),
+            Text(
+              'Z tą lokalizacją będą powiązane Twoje filmy — po niej znajdą Cię użytkownicy w wyszukiwarce.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
           ],
 
           // ──── HASŁO ───────────────────────────────────────────
@@ -391,9 +439,34 @@ class _RegisterPageState extends State<RegisterPage> {
           // ──── ZGODY ───────────────────────────────────────────
           const SizedBox(height: 40),
           WSmallLabel(text: 'Zgody i oświadczenia'),
-          const SizedBox(height: 8),
-          const Text('RODO itp.',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              WCheckbox(
+                isError: _termsError != null,
+                value: _acceptTerms,
+                onChanged: (val) => setState(() {
+                  _acceptTerms = val ?? false;
+                  if (_acceptTerms) _termsError = null;
+                }),
+              ),
+              const SizedBox(width: 16),
+              const Flexible(
+                child: Text(
+                  'Akceptuję regulamin aplikacji i wyrażam zgodę na przetwarzanie moich danych osobowych '
+                  '(imię, nazwisko, e-mail, telefon, a w przypadku firmy także jej dane) w celu świadczenia '
+                  'usług aplikacji, zgodnie z RODO. Regulamin jest dostępny w aplikacji w menu „Regulamin".',
+                  style: TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          if (_termsError != null) ...[
+            const SizedBox(height: 6),
+            Text(_termsError!,
+                style: const TextStyle(color: cMidPink, fontSize: 14)),
+          ],
 
           const SizedBox(height: 32),
           WButton(text: 'Zarejestruj się', onPressed: _register),

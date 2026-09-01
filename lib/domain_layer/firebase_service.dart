@@ -34,6 +34,7 @@ class FirebaseService {
     String? companySector,
     LatLng? companyLocation,
     String? companyCity,
+    Map<String, String>? companyAddress,
   }) async {
     try {
       final userCredential = await _auth.createUserWithEmailAndPassword(
@@ -61,6 +62,12 @@ class FirebaseService {
             'lat': companyLocation.latitude,
             'lng': companyLocation.longitude,
           },
+        if (isCompany && companyAddress != null) 'companyAddress': companyAddress,
+        'consents': {
+          'terms': true,
+          'rodo': true,
+          'acceptedAt': FieldValue.serverTimestamp(),
+        },
         'createdAt': FieldValue.serverTimestamp(),
       });
 

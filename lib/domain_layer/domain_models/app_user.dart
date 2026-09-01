@@ -15,6 +15,7 @@ class AppUser {
   final String? companySector;
   final LatLng? companyLocation;
   final String? companyCity;
+  final Map<String, dynamic>? companyAddress;
   final DateTime? createdAt;
 
   AppUser({
@@ -31,6 +32,7 @@ class AppUser {
     this.companySector,
     this.companyLocation,
     this.companyCity,
+    this.companyAddress,
     this.createdAt,
   });
 
@@ -39,9 +41,6 @@ class AppUser {
   factory AppUser.fromDoc(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
     final loc = data['companyLocation'] ?? {};
-
-
-
 
     return AppUser(
       id: doc.id,
@@ -60,7 +59,10 @@ class AppUser {
         (loc['lng'] ?? 0.0).toDouble(),
       ),
       companyCity: data['companyCity'] as String?,
-      createdAt:  (data['timestamp'] as Timestamp?)?.toDate(),
+      companyAddress: data['companyAddress'] == null
+          ? null
+          : Map<String, dynamic>.from(data['companyAddress']),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -71,16 +73,20 @@ class AppUser {
       if (firstName != null) 'firstName': firstName,
       if (lastName != null) 'lastName': lastName,
       if (email != null) 'email': email,
-      'firma': firma??false,
+      if (phone != null) 'phone': phone,
+      if (bio != null) 'bio': bio,
+      'firma': firma ?? false,
+      'isCompany': firma ?? false,
       if (nip != null) 'nip': nip,
       if (companyName != null) 'companyName': companyName,
       if (companyCategory != null) 'companyCategory': companyCategory,
       if (companySector != null) 'companySector': companySector,
       if (companyLocation != null) 'companyLocation': {
-        'lat': companyLocation!.latitude??0,
-        'lng': companyLocation!.longitude??0,
+        'lat': companyLocation!.latitude,
+        'lng': companyLocation!.longitude,
       },
       if (companyCity != null) 'companyCity': companyCity,
+      if (companyAddress != null) 'companyAddress': companyAddress,
       if (createdAt != null) 'createdAt': createdAt,
     };
   }
