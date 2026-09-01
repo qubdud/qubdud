@@ -695,6 +695,10 @@ class FirebaseService {
       'status': 'pending',
       'bookedAt': FieldValue.serverTimestamp(),
     });
+
+    // rezerwacja też buduje relację: klient u firmy i firma u klienta
+    await _linkClient(
+        companyId: companyId, userId: myUid, requestId: 'slot_$slotId');
   }
 
   /// Rezerwacje usera (firma + godzina + status). Czyści przeszłe

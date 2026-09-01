@@ -37,6 +37,9 @@ class _ChatPageMobState extends State<ChatPageMob>
         !isCompanyMode(context.read<MainScreenBloc>().state.user);
     _tabs = [
       const Tab(icon: Icon(Icons.chat_outlined, size: 20), text: 'Rozmowy'),
+      if (!privateMode)
+        const Tab(
+            icon: Icon(Icons.groups_outlined, size: 20), text: 'Klienci'),
       if (privateMode)
         const Tab(
             icon: Icon(Icons.handshake_outlined, size: 20),
@@ -48,6 +51,7 @@ class _ChatPageMobState extends State<ChatPageMob>
     ];
     _views = [
       const _ConversationsList(key: ValueKey('rozmowy')),
+      if (!privateMode) _MyClientsTab(key: const ValueKey('klienci')),
       if (privateMode) _MyCompaniesTab(key: const ValueKey('mojefirmy')),
       if (privateMode)
         const _ContactsList(isCompany: true, key: ValueKey('firmy')),
