@@ -87,6 +87,7 @@ class _ViewState extends State<View> {
   String? selectedBranza;
   Timer? debounce;
   bool isSearching=false;
+  bool _showMap = false;
   final MapController mapController = MapController();
 
 
@@ -318,14 +319,28 @@ class _ViewState extends State<View> {
     }
     else if (state is WyszukajPageResultsState) {
 
-      return SafeArea(child:
-
-      _buildVideoFeed(state.videos),
-
-
+      return SafeArea(
+        child: Stack(
+          children: [
+            _showMap
+                ? _buildResultsMap(state.videos)
+                : _buildVideoFeed(state.videos),
+            Positioned(
+              top: 12,
+              right: 12,
+              child: FloatingActionButton.small(
+                heroTag: 'wyszukajMapToggle',
+                backgroundColor: Colors.white,
+                onPressed: () => setState(() => _showMap = !_showMap),
+                child: Icon(
+                  _showMap ? Icons.play_circle_outline : Icons.map_outlined,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ],
+        ),
       );
-
-
     }
 
 
@@ -351,6 +366,120 @@ class _ViewState extends State<View> {
       itemBuilder: (context, index) {
         return VideoPlayerItem(promoItem: videos[index],lenght: videos.length,index: index,);
       },
+    );
+  }
+
+  Widget _buildResultsMap(List<Promo> videos) {
+    if (videos.isEmpty) {
+      return const Center(child: Text('Brak wyników'));
+    }
+    final center = selectedLocation ?? videos.first.location;
+
+    return FlutterMap(
+      key: const ValueKey('ResultsMap'),
+      options: MapOptions(initialCenter: center, initialZoom: 9),
+      children: [
+        openStreetMap,
+        MarkerLayer(
+          markers: videos.asMap().entries.map((e) {
+            return Marker(
+              point: e.value.location,
+              width: 44,
+              height: 44,
+              child: GestureDetector(
+                onTap: () => _showPromoSheet(e.value, videos, e.key),
+                child: const Icon(Icons.location_pin,
+                    color: cDarkBlue, size: 40),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  void _showPromoSheet(Promo promo, List<Promo> all, int index) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: promo.thumbUrl.isNotEmpty
+                  ? Image.network(promo.thumbUrl,
+                      width: 80, height: 120, fit: BoxFit.cover)
+                  : Container(
+                      width: 80,
+                      height: 120,
+                      color: Colors.grey.shade200,
+                      child: const Icon(Icons.business_outlined),
+                    ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(promo.companyName.isNotEmpty ? promo.companyName : 'Firma',
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  Text('${promo.category} · ${promo.sector}',
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      maxLines: 2),
+                  if (promo.distance != null)
+                    Text('${(promo.distance! / 1000).toStringAsFixed(1)} km',
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade500)),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.play_arrow, size: 16),
+                        label: const Text('Oglądaj'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black87,
+                          foregroundColor: Colors.white,
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 12),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          context.read<MainScreenBloc>().add(
+                              GoToPromoFirmyEvent(promo,
+                                  playlist: all, initialIndex: index));
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 12),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          context.read<MainScreenBloc>().add(
+                              GoToProfilPublicznyFirmyEvent(promo.userId));
+                        },
+                        child: const Text('Profil'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

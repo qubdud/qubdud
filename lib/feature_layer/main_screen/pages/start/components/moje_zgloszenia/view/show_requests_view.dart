@@ -195,7 +195,7 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
                       ),
                     ],
                   ),
-                      UserConfirmBar(request: video),
+                      RequestOffersBar(request: video),
                     ],
                   ),
                 );

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../../../domain_layer/chat_service.dart';
+import '../../../../../shared/widgets/before_after.dart';
 import '../../../../../shared/functions/show_toast.dart';
 import '../../profil_my/view/tab_kalendarz.dart' show dayLabel;
 import '../../../../../domain_layer/domain_models/app_user.dart';
@@ -298,33 +299,10 @@ class _RealizationsSectionState extends State<_RealizationsSection> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: _photos.length,
-            itemBuilder: (context, i) {
-              final p = _photos[i];
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: GestureDetector(
-                  onTap: () => showDialog(
-                    context: context,
-                    builder: (_) => Dialog(
-                      insetPadding: const EdgeInsets.all(12),
-                      child: InteractiveViewer(
-                        child:
-                            CachedNetworkImage(imageUrl: p['imageUrl'] ?? ''),
-                      ),
-                    ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: CachedNetworkImage(
-                      imageUrl: p['imageUrl'] ?? '',
-                      width: 130,
-                      height: 130,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-              );
-            },
+            itemBuilder: (context, i) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: RealizationThumb(photo: _photos[i], size: 130),
+            ),
           ),
         ),
         Padding(

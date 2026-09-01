@@ -1,9 +1,9 @@
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:qb/shared/widgets/before_after.dart';
 
 import '../../../../../domain_layer/chat_service.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
@@ -45,7 +45,16 @@ class _RealizationSectionState extends State<RealizationSection> {
     } catch (_) {}
   }
 
-  Future<void> _addPhoto() async {
+  Future<void> _addPhoto({bool withBefore = false}) async {
+    File? before;
+    if (withBefore) {
+      showToast(text: 'Wybierz zdjęcie PRZED');
+      final pickedBefore = await ImagePicker()
+          .pickImage(source: ImageSource.gallery, imageQuality: 80);
+      if (pickedBefore == null || !mounted) return;
+      before = File(pickedBefore.path);
+      showToast(text: 'Teraz wybierz zdjęcie PO');
+    }
     final picked = await ImagePicker()
         .pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (picked == null || !mounted) return;
@@ -56,6 +65,7 @@ class _RealizationSectionState extends State<RealizationSection> {
             requestId: widget.request.id,
             category: widget.request.category,
             image: File(picked.path),
+            beforeImage: before,
           );
       showToast(text: 'Dodano zdjęcie realizacji');
       await _load();
@@ -108,44 +118,28 @@ class _RealizationSectionState extends State<RealizationSection> {
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: _photos.length,
-              itemBuilder: (context, i) {
-                final p = _photos[i];
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () => showDialog(
-                      context: context,
-                      builder: (_) => Dialog(
-                        insetPadding: const EdgeInsets.all(12),
-                        child: InteractiveViewer(
-                          child: CachedNetworkImage(
-                              imageUrl: p['imageUrl'] ?? ''),
-                        ),
-                      ),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: CachedNetworkImage(
-                        imageUrl: p['imageUrl'] ?? '',
-                        width: 110,
-                        height: 110,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                );
-              },
+              itemBuilder: (context, i) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: RealizationThumb(photo: _photos[i]),
+              ),
             ),
           ),
         const SizedBox(height: 12),
         if (_busy)
           const Center(child: CircularProgressIndicator())
-        else if (isRealizingCompany)
+        else if (isRealizingCompany) ...[
           OutlinedButton.icon(
             icon: const Icon(Icons.add_a_photo_outlined, size: 18),
             label: const Text('Dodaj zdjęcie realizacji'),
-            onPressed: _addPhoto,
-          )
+            onPressed: () => _addPhoto(),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.compare_outlined, size: 18),
+            label: const Text('Dodaj parę Przed / Po'),
+            onPressed: () => _addPhoto(withBefore: true),
+          ),
+        ]
         else if (isOwner)
           OutlinedButton.icon(
             icon: const Icon(Icons.photo_camera_back_outlined, size: 18),

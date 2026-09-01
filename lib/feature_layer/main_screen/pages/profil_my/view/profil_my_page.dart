@@ -567,7 +567,7 @@ class _RequestTileState extends State<_RequestTile> {
                     overflow: TextOverflow.ellipsis),
               ],
             ],
-            UserConfirmBar(request: widget.req),
+            RequestOffersBar(request: widget.req),
           ],
         ),
       ),

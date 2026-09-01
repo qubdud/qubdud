@@ -672,45 +672,119 @@ class FirebaseService {
     await batch.commit();
   }
 
-  // ── PODJĘCIE ZADANIA (obustronne potwierdzenie) ──────────────────────────
+  // ── OFERTY DO ZGŁOSZEŃ (firma pisze, user daje ✔ / ? / ✖) ────────────────
+  // requests/{id}/offers/{companyId}: {companyId, companyName, message,
+  //   status: 'pending'|'maybe'|'accepted'|'rejected', timestamp}
 
-  Future<void> takeRequest({
+  Future<void> sendOffer({
     required String requestId,
     required String companyId,
     required String companyName,
+    required String message,
   }) async {
-    await _firestore.collection('requests').doc(requestId).update({
-      'takenBy': companyId,
-      'takenByName': companyName,
-      'confirmedByCompany': true,
+    await _firestore
+        .collection('requests')
+        .doc(requestId)
+        .collection('offers')
+        .doc(companyId)
+        .set({
+      'companyId': companyId,
+      'companyName': companyName,
+      'message': message,
+      'status': 'pending',
+      'timestamp': FieldValue.serverTimestamp(),
     });
   }
 
-  Future<void> cancelTakeRequest(String requestId) async {
-    await _firestore.collection('requests').doc(requestId).update({
+  Future<Map<String, dynamic>?> getMyOffer(
+      String requestId, String companyId) async {
+    final doc = await _firestore
+        .collection('requests')
+        .doc(requestId)
+        .collection('offers')
+        .doc(companyId)
+        .get();
+    return doc.data();
+  }
+
+  Future<List<Map<String, dynamic>>> getOffers(String requestId) async {
+    final snap = await _firestore
+        .collection('requests')
+        .doc(requestId)
+        .collection('offers')
+        .orderBy('timestamp')
+        .get();
+    return snap.docs.map((d) => d.data()).toList();
+  }
+
+  /// ✔ accept — blokuje zgłoszenie na tę firmę i tworzy relację klient↔firma.
+  /// ? maybe — znacznik „klient się zastanawia".
+  /// ✖ reject — całkowite odrzucenie firmy (nie może ofertować ponownie).
+  Future<void> setOfferStatus({
+    required Request request,
+    required String companyId,
+    required String companyName,
+    required String status,
+  }) async {
+    await _firestore
+        .collection('requests')
+        .doc(request.id)
+        .collection('offers')
+        .doc(companyId)
+        .update({'status': status});
+
+    if (status == 'accepted') {
+      await _firestore.collection('requests').doc(request.id).update({
+        'takenBy': companyId,
+        'takenByName': companyName,
+        'confirmedByCompany': true,
+        'confirmedByUser': true,
+        'status': 'taken',
+      });
+      await _linkClient(
+          companyId: companyId, userId: request.userId, requestId: request.id);
+    }
+  }
+
+  /// Odblokowanie zadania przez usera — wraca do puli, oferta firmy do
+  /// 'pending', relacja klient↔firma z tego zadania jest usuwana.
+  Future<void> unlockRequest(Request request) async {
+    final companyId = request.takenBy;
+    await _firestore.collection('requests').doc(request.id).update({
       'takenBy': '',
       'takenByName': '',
       'confirmedByCompany': false,
       'confirmedByUser': false,
       'status': 'open',
     });
+    if (companyId.isEmpty) return;
+    try {
+      await _firestore
+          .collection('requests')
+          .doc(request.id)
+          .collection('offers')
+          .doc(companyId)
+          .update({'status': 'pending'});
+    } catch (_) {}
+    final batch = _firestore.batch();
+    batch.delete(_firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('clients')
+        .doc(request.userId));
+    batch.delete(_firestore
+        .collection('users')
+        .doc(request.userId)
+        .collection('myCompanies')
+        .doc(companyId));
+    await batch.commit();
   }
 
-  /// User potwierdza podjęcie — przy obu potwierdzeniach zgłoszenie dostaje
-  /// status 'taken' (znika z list innych firm) i powstaje relacja klient↔firma.
-  Future<void> confirmRequestByUser(Request request) async {
-    final userId = request.userId;
-    final companyId = request.takenBy;
-    if (companyId.isEmpty) return;
-
-    await _firestore.collection('requests').doc(request.id).update({
-      'confirmedByUser': true,
-      if (request.confirmedByCompany) 'status': 'taken',
-    });
-
-    if (!request.confirmedByCompany) return;
-
-    // relacja klient ↔ firma
+  Future<void> _linkClient({
+    required String companyId,
+    required String userId,
+    required String requestId,
+  }) async {
     final userDoc = await _firestore.collection('users').doc(userId).get();
     final companyDoc = await _firestore.collection('users').doc(companyId).get();
     final userData = userDoc.data() ?? {};
@@ -727,7 +801,7 @@ class FirebaseService {
         'userId': userId,
         'name':
             '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}'.trim(),
-        'requestId': request.id,
+        'requestId': requestId,
         'addedAt': FieldValue.serverTimestamp(),
       },
     );
@@ -740,7 +814,7 @@ class FirebaseService {
       {
         'companyId': companyId,
         'name': companyData['companyName'] ?? 'Firma',
-        'requestId': request.id,
+        'requestId': requestId,
         'addedAt': FieldValue.serverTimestamp(),
       },
     );
@@ -819,17 +893,26 @@ class FirebaseService {
     required String requestId,
     required String category,
     required File image,
+    File? beforeImage,
   }) async {
-    final name = 'realizations/${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final ref = _storage.ref().child(name);
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final ref = _storage.ref().child('realizations/$ts.jpg');
     await ref.putFile(image);
     final url = await ref.getDownloadURL();
+
+    String? beforeUrl;
+    if (beforeImage != null) {
+      final beforeRef = _storage.ref().child('realizations/${ts}_before.jpg');
+      await beforeRef.putFile(beforeImage);
+      beforeUrl = await beforeRef.getDownloadURL();
+    }
 
     await _firestore.collection('realizations').add({
       'companyId': companyId,
       'requestId': requestId,
       'category': category,
       'imageUrl': url,
+      if (beforeUrl != null) 'beforeUrl': beforeUrl,
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
@@ -838,10 +921,15 @@ class FirebaseService {
     final snap = await _firestore
         .collection('realizations')
         .where('companyId', isEqualTo: companyId)
-        .orderBy('timestamp', descending: true)
-        .limit(30)
         .get();
-    return snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+    final list = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+    list.sort((a, b) {
+      final ta = a['timestamp'];
+      final tb = b['timestamp'];
+      if (ta is! Timestamp || tb is! Timestamp) return 0;
+      return tb.compareTo(ta);
+    });
+    return list.take(30).toList();
   }
 
   Future<List<Map<String, dynamic>>> getRealizationsForRequest(

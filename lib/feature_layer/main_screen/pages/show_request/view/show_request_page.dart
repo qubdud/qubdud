@@ -318,7 +318,7 @@ class _ViewState extends State<View> {
                 }
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 24),
-                  child: CompanyTakeSection(
+                  child: CompanyOfferSection(
                     request: req,
                     myCompanyId: me.id,
                     myCompanyName: me.companyName ?? 'Firma',
