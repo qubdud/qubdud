@@ -188,6 +188,29 @@ class ChatService {
     return sum;
   }
 
+  // ───────────────────────── wskaźnik pisania (RTDB) ──────────────────────
+
+  void setTyping(String otherUid, bool typing) {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    final ref = _db.child('typing/${chatIdWith(otherUid)}/${user.uid}');
+    if (typing) {
+      ref.set(true);
+      ref.onDisconnect().remove();
+    } else {
+      ref.remove();
+    }
+  }
+
+  Stream<bool> typingStream(String otherUid) {
+    final user = _auth.currentUser;
+    if (user == null) return const Stream.empty();
+    return _db
+        .child('typing/${chatIdWith(otherUid)}/$otherUid')
+        .onValue
+        .map((e) => e.snapshot.value == true);
+  }
+
   // ───────────────────────── status online (RTDB) ─────────────────────────
 
   void updateUserOnlineStatus() {

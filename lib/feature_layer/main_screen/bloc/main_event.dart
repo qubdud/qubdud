@@ -55,6 +55,11 @@ class GoToChatEvent extends MainScreenEvent {
 
 class LogoutEvent extends MainScreenEvent {}
 
+class HandleDeepLinkEvent extends MainScreenEvent {
+  final Uri uri;
+  HandleDeepLinkEvent(this.uri);
+}
+
 class GoToProfilPublicznyUseraEvent extends MainScreenEvent {
   final String userId;
   GoToProfilPublicznyUseraEvent(this.userId);

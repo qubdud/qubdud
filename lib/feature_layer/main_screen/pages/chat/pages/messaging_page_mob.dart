@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:qb/shared/widgets/w_input_field.dart';
 import 'package:flutter/material.dart';
@@ -17,9 +19,24 @@ class MessagingPageMob extends StatefulWidget {
 class _MessagingPageMobState extends State<MessagingPageMob> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  Timer? _typingTimer;
+  String _typingTo = '';
+
+  void _onTyping(String otherUid) {
+    _typingTo = otherUid;
+    context.read<ChatService>().setTyping(otherUid, true);
+    _typingTimer?.cancel();
+    _typingTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) context.read<ChatService>().setTyping(otherUid, false);
+    });
+  }
 
   @override
   void dispose() {
+    _typingTimer?.cancel();
+    if (_typingTo.isNotEmpty) {
+      ChatService().setTyping(_typingTo, false);
+    }
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -82,6 +99,23 @@ class _MessagingPageMobState extends State<MessagingPageMob> {
                   },
                 ),
               ),
+              StreamBuilder<bool>(
+                stream: chatService.typingStream(otherUid),
+                builder: (context, snap) {
+                  if (snap.data != true) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 16, bottom: 4),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('$otherName pisze…',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                              color: Colors.grey.shade600)),
+                    ),
+                  );
+                },
+              ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
                 child: Row(
@@ -90,10 +124,13 @@ class _MessagingPageMobState extends State<MessagingPageMob> {
                       child: WInputField(
                         hintText: 'Twoja wiadomość',
                         isSend: true,
+                        onChanged: (_) => _onTyping(otherUid),
                         onSend: () async {
                           final text = _messageController.text.trim();
                           if (text.isEmpty) return;
                           _messageController.clear();
+                          _typingTimer?.cancel();
+                          chatService.setTyping(otherUid, false);
                           await chatService.sendMessage(otherUid, text);
                         },
                         controller: _messageController,

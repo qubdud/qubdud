@@ -70,6 +70,7 @@ dependencies:
   flutter_html:
   cupertino_icons: ^1.0.8
   app_links: ^6.4.0
+  share_plus: ^10.1.4
 
 
 

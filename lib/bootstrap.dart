@@ -9,6 +9,7 @@ import 'firebase_options.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'shared/theme_controller.dart';
 
 
 
@@ -50,7 +51,7 @@ Future<void> bootstrap(FutureOr<Widget> Function() builder) async {
 
       requestNotificationPermission();
 
-
+      await loadSavedTheme();
 
       runApp(await builder());
     },

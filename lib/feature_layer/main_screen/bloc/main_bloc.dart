@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'package:app_links/app_links.dart';
 import 'package:bloc/bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide User;
@@ -20,11 +22,34 @@ part 'main_event.dart';
 part 'main_state.dart';
 
 class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
+  StreamSubscription<Uri>? _linkSub;
+
+  @override
+  Future<void> close() {
+    _linkSub?.cancel();
+    return super.close();
+  }
+
   MainScreenBloc({
     required MainScreenControlCubit appBarCubit,
     required ChatService appChatService,
     required FirebaseService appFirebaseService,
   }) : super(LoadingMainScreenState()) {
+    on<HandleDeepLinkEvent>((event, emit) async {
+      final uri = event.uri;
+      if (uri.scheme != 'qubdud' || uri.pathSegments.isEmpty) return;
+      final id = uri.pathSegments.first;
+      if (uri.host == 'firma') {
+        add(GoToProfilPublicznyFirmyEvent(id));
+      } else if (uri.host == 'promo') {
+        final promo = await appFirebaseService.getPromoById(id);
+        if (promo != null) add(GoToPromoFirmyEvent(promo));
+      }
+    });
+
+    _linkSub = AppLinks().uriLinkStream.listen((uri) {
+      add(HandleDeepLinkEvent(uri));
+    });
     on<ShowToastEvent>((event, emit) async {
       showToast(text: event.message);
     });

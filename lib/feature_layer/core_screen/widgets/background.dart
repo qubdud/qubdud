@@ -9,10 +9,13 @@ class BackgroundImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Stack(
       children: [
         Container(
-          color: imageAsset == null ? cLightBrown : null,
+          color: imageAsset == null
+              ? (isDark ? const Color(0xFF16151A) : cLightBrown)
+              : null,
           height: MediaQuery.of(context).size.height,
           width: MediaQuery.of(context).size.width,
           decoration: imageAsset != null

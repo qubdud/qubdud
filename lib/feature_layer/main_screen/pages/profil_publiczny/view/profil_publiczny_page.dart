@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../../domain_layer/chat_service.dart';
 import '../../../../../shared/functions/show_toast.dart';
 import '../../profil_my/view/tab_kalendarz.dart' show dayLabel;
@@ -39,8 +40,9 @@ class _ProfilView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? const Color(0xFF16151A) : Colors.white,
       body: BlocBuilder<ProfilPubliczyPageBloc, ProfilPubliczyPageState>(
         builder: (context, state) {
           if (state is ProfilPubliczyPageLoadingState && state.targetUser == null) {
@@ -61,6 +63,9 @@ class _ProfilView extends StatelessWidget {
                   child: WSmallLabel(text: 'Prezentacje firmy'),
                 ),
                 _buildVideosGrid(context, state.videos),
+
+                if (state.targetUser != null)
+                  _RealizationsSection(companyId: state.targetUser!.id),
 
                 const SizedBox(height: 24),
                 _ReviewsSection(
@@ -148,6 +153,15 @@ class _ProfilView extends StatelessWidget {
                       ),
                   ],
                 ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.share_outlined, size: 22),
+                tooltip: 'Udostępnij profil',
+                onPressed: () {
+                  if (user == null) return;
+                  Share.share(
+                      'Sprawdź firmę ${user.companyName ?? ''} w aplikacji QUBDUD:\nqubdud://firma/${user.id}');
+                },
               ),
             ],
           ),
@@ -238,6 +252,89 @@ class _ProfilView extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Realizacje — zdjęcia wykonanych zleceń (z potwierdzonych zadań)
+// ─────────────────────────────────────────────────────────────────────────────
+class _RealizationsSection extends StatefulWidget {
+  final String companyId;
+  const _RealizationsSection({required this.companyId});
+
+  @override
+  State<_RealizationsSection> createState() => _RealizationsSectionState();
+}
+
+class _RealizationsSectionState extends State<_RealizationsSection> {
+  List<Map<String, dynamic>> _photos = [];
+
+  @override
+  void initState() {
+    super.initState();
+    context
+        .read<FirebaseService>()
+        .getRealizations(widget.companyId)
+        .then((p) {
+      if (mounted) setState(() => _photos = p);
+    }).catchError((_) {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_photos.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+          child: WSmallLabel(text: 'Realizacje'),
+        ),
+        SizedBox(
+          height: 130,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _photos.length,
+            itemBuilder: (context, i) {
+              final p = _photos[i];
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: () => showDialog(
+                    context: context,
+                    builder: (_) => Dialog(
+                      insetPadding: const EdgeInsets.all(12),
+                      child: InteractiveViewer(
+                        child:
+                            CachedNetworkImage(imageUrl: p['imageUrl'] ?? ''),
+                      ),
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: CachedNetworkImage(
+                      imageUrl: p['imageUrl'] ?? '',
+                      width: 130,
+                      height: 130,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+          child: Text(
+            'Zdjęcia z zadań zrealizowanych i potwierdzonych przez klientów.',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+          ),
+        ),
+      ],
     );
   }
 }

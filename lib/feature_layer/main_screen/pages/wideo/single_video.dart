@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/feature_layer/main_screen/bloc/main_bloc.dart';
@@ -222,6 +223,17 @@ class _VideoItemState extends State<_VideoItem> {
                   await context.read<FirebaseService>().addContact(
                       myUserId: myUid, contactUserId: widget.promo.userId);
                   showToast(text: 'Dodano do kontaktów');
+                },
+              ),
+              const SizedBox(height: 16),
+              _ActionIcon(
+                icon: Icons.share_outlined,
+                tooltip: 'Udostępnij',
+                onTap: () {
+                  final name =
+                      _author?.companyName ?? widget.promo.companyName;
+                  Share.share(
+                      'Zobacz prezentację firmy $name w aplikacji QUBDUD:\nqubdud://promo/${widget.promo.id}');
                 },
               ),
               const SizedBox(height: 16),

@@ -16,8 +16,9 @@ class NavBarComponent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      color: Colors.white,
+      color: isDark ? const Color(0xFF1C1B21) : Colors.white,
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -28,8 +29,11 @@ class NavBarComponent extends StatelessWidget {
 
   Widget _buildNavItem(BuildContext context, NavItem item) {
     final isSelected = selectedIndex == item.index;
-    final colorStart = item.isEnabled ? (!isSelected ? cDarkBrown.withOpacity(0.6) : cDarkBlue) : (!isSelected ? cDarkBrown.withOpacity(0.6) : cDarkBlue).withOpacity(0.2);
-    final colorEnd = item.isEnabled ? (isSelected ? cDarkBlue : cDarkBrown.withOpacity(0.6)) : (isSelected ? cDarkBlue : cDarkBrown.withOpacity(0.6)).withOpacity(0.2);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inactive =
+        isDark ? Colors.white.withOpacity(0.6) : cDarkBrown.withOpacity(0.6);
+    final colorStart = item.isEnabled ? (!isSelected ? inactive : cDarkBlue) : (!isSelected ? inactive : cDarkBlue).withOpacity(0.2);
+    final colorEnd = item.isEnabled ? (isSelected ? cDarkBlue : inactive) : (isSelected ? cDarkBlue : inactive).withOpacity(0.2);
 
     return InkWell(
       onTap: () {

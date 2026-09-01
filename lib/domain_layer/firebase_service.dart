@@ -118,6 +118,12 @@ class FirebaseService {
     }
   }
 
+  Future<Promo?> getPromoById(String promoId) async {
+    final doc = await _firestore.collection('promos').doc(promoId).get();
+    if (!doc.exists) return null;
+    return Promo.fromDoc(doc);
+  }
+
   Future<void> savePromoVideoMetadata(Promo promo) async {
     await _firestore.collection('promos').add(promo.toMap());
   }
@@ -803,6 +809,52 @@ class FirebaseService {
       if (distMeters <= radiusKm * 1000) count++;
     }
     return count;
+  }
+
+  // ── REALIZACJE (zdjęcia wykonanych zleceń) ───────────────────────────────
+  // Kolekcja realizations: {companyId, requestId, category, imageUrl, timestamp}
+
+  Future<void> addRealization({
+    required String companyId,
+    required String requestId,
+    required String category,
+    required File image,
+  }) async {
+    final name = 'realizations/${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final ref = _storage.ref().child(name);
+    await ref.putFile(image);
+    final url = await ref.getDownloadURL();
+
+    await _firestore.collection('realizations').add({
+      'companyId': companyId,
+      'requestId': requestId,
+      'category': category,
+      'imageUrl': url,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getRealizations(String companyId) async {
+    final snap = await _firestore
+        .collection('realizations')
+        .where('companyId', isEqualTo: companyId)
+        .orderBy('timestamp', descending: true)
+        .limit(30)
+        .get();
+    return snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getRealizationsForRequest(
+      String requestId) async {
+    final snap = await _firestore
+        .collection('realizations')
+        .where('requestId', isEqualTo: requestId)
+        .get();
+    return snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+  }
+
+  Future<void> deleteRealization(String id) async {
+    await _firestore.collection('realizations').doc(id).delete();
   }
 
   // ── KOMENTARZE DO RECENZJI ────────────────────────────────────────────────

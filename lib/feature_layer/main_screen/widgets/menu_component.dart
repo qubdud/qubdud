@@ -16,8 +16,9 @@ class MenuComponent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return AnimatedContainer(
-      color: Colors.white,
+      color: isDark ? const Color(0xFF1C1B21) : Colors.white,
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOutCubic,
       height: showMenu ? 424 : 0,
@@ -27,7 +28,8 @@ class MenuComponent extends StatelessWidget {
             Material(
               color: Colors.transparent,
               child: Column(
-                children: menuItems.map((item) => _buildMenuItem(item)).toList(),
+                children:
+                    menuItems.map((item) => _buildMenuItem(context, item)).toList(),
               ),
             ),
           ],
@@ -36,10 +38,10 @@ class MenuComponent extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuItem(MenuItem item) {
+  Widget _buildMenuItem(BuildContext context, MenuItem item) {
     return InkWell(
       onTap: () => onMenuItemTapped(item),
-      child: MenuLabel(item),
+      child: MenuLabel(context, item),
     );
   }
 }

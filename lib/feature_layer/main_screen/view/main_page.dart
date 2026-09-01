@@ -6,6 +6,7 @@ import '../../../domain_layer/chat_service.dart';
 import '../../../domain_layer/firebase_service.dart';
 
 import '../../../shared/constants.dart';
+import '../../../shared/theme_controller.dart';
 import '../../core_screen/bloc/core_screen_bloc.dart';
 import '../bloc/main_appbar_cubit.dart';
 import '../bloc/main_bloc.dart';
@@ -146,6 +147,13 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
               text: 'Regulamin',
               onTap: () {
                 context.read<MainScreenBloc>().add(GoToRulesEvent());
+              }),
+          MenuItem(
+              text: themeNotifier.value == ThemeMode.dark
+                  ? 'Tryb jasny'
+                  : 'Tryb ciemny',
+              onTap: () {
+                toggleTheme();
               }),
           MenuItem(
               text: 'Wyloguj się',

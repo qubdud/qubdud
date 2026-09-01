@@ -21,6 +21,7 @@ import '../../../../../shared/widgets/w_button.dart';
 import '../../../../../shared/widgets/w_small_label.dart';
 import '../../../bloc/main_bloc.dart';
 import '../bloc/show_request_page_bloc.dart';
+import '../widgets/realization_section.dart';
 
 class ShowRequestPage extends StatelessWidget {
   const ShowRequestPage({super.key});
@@ -324,6 +325,8 @@ class _ViewState extends State<View> {
                   ),
                 );
               }),
+
+              RealizationSection(request: Globals.instance.selectedRequest!),
 
             ],
           ),
