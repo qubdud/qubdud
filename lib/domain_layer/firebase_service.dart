@@ -915,6 +915,16 @@ class FirebaseService {
     return doc.data();
   }
 
+  /// Statusy MOICH ofert dla listy zgłoszeń (none = brak oferty).
+  Future<Map<String, String>> getMyOfferStatuses(
+      List<String> requestIds, String companyId) async {
+    final entries = await Future.wait(requestIds.map((id) async {
+      final o = await getMyOffer(id, companyId);
+      return MapEntry(id, (o?['status'] ?? 'none') as String);
+    }));
+    return Map.fromEntries(entries);
+  }
+
   Future<List<Map<String, dynamic>>> getOffers(String requestId) async {
     final snap = await _firestore
         .collection('requests')

@@ -91,7 +91,7 @@ class Request {
   final String fileName;
   final DateTime? timestamp;
   final bool is24;
-  final String description;
+  String description;
   double? distance;
 
   // Podjęcie zadania: firma deklaruje się (confirmedByCompany),

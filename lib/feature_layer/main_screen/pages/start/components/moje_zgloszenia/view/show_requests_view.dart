@@ -10,10 +10,14 @@ import 'package:qb/feature_layer/main_screen/bloc/main_bloc.dart';
 import 'package:video_player/video_player.dart';
 
 
+import '../../../../../../../shared/functions/show_toast.dart';
 import '../../../../../../../shared/globals.dart';
 import '../../../../../../../shared/widgets/loading.dart';
 import '../../../../../../../shared/widgets/request_take_status.dart';
+import '../../../../../../../shared/widgets/w_button.dart';
+import '../../../../../../../shared/widgets/w_input_field.dart';
 import '../../../../../../../shared/widgets/w_small_label.dart';
+import '../../../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../bloc/show_requests_bloc.dart';
 
 
@@ -116,118 +120,20 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
 
 
 
- return SizedBox(
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
+ if (state.requests.isEmpty) {
+      return const EmptyState(
+        icon: Icons.inbox_outlined,
+        title: 'Brak zgłoszeń',
+        subtitle:
+            'Dodaj zgłoszenie w zakładce „Dodaj" — firmy z okolicy je zobaczą.',
+      );
+    }
 
-
-              SizedBox(height: 32,),
-         //   WSmallLabel(text: 'Moje Zgłoszenia'),
-            Column(
-              children: state.requests.asMap().entries.map((entry) {
-                final video = entry.value;
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      /// 🔸 Miniatura z ikoną kosza na niej
-
-                      GestureDetector(
-                        onTap:(){
-                          Globals.instance.selectedRequest = entry.value;
-                          context.read<MainScreenBloc>().add(GoToShowRequestEvent());
-                        },
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: CachedNetworkImage(
-                            imageUrl: video.thumbUrl,
-                            width: 90,
-                            height: 160,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-
-                      /// Ikona kosza w rogu
-
-
-
-
-                      const SizedBox(width: 16),
-
-                      /// 🔸 Opisy obok miniatury
-                      Expanded(
-                        child: SizedBox(
-                          height: 160,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(video.category,
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
-                              const SizedBox(height: 4),
-                              Text(video.sector,
-                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
-                              const SizedBox(height: 8),
-                              if (video.description.isNotEmpty)
-                                Text(video.description, style: const TextStyle(fontSize: 12), maxLines: 3, overflow: TextOverflow.ellipsis),
-
-                              const Expanded(child: SizedBox()),
-
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: Container(
-                                  decoration: const BoxDecoration(
-                                    color: Colors.black45,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: IconButton(
-                                    icon: const Icon(Icons.delete_outline_outlined, color: Colors.white, size: 18),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    onPressed: () {
-                                      context.read<ShowRequestsComponentBloc>().add(TryDeleteMyRequestShowRequestsComponentEvent(id: video.id));
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                      RequestOffersBar(request: video),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-            if (state.requests.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: 80),
-                child: EmptyState(
-                  icon: Icons.inbox_outlined,
-                  title: 'Brak zgłoszeń',
-                  subtitle:
-                      'Dodaj zgłoszenie w zakładce „Dodaj" — firmy z okolicy je zobaczą.',
-                ),
-              ),
-
-
-
-          ],
-        ),
-      ),
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: state.requests.length,
+      itemBuilder: (context, index) =>
+          _MyRequestTile(req: state.requests[index]),
     );
 
 
@@ -246,3 +152,164 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
 
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Karta mojego zgłoszenia — wzór z dawnej zakładki w profilu:
+// miniatura, kategoria/branża, edycja opisu, usuwanie, oferty firm.
+// ──────────────────────────────────────────────────────────────────────────────
+class _MyRequestTile extends StatefulWidget {
+  final Request req;
+  const _MyRequestTile({required this.req});
+
+  @override
+  State<_MyRequestTile> createState() => _MyRequestTileState();
+}
+
+class _MyRequestTileState extends State<_MyRequestTile> {
+  bool _editing = false;
+  late final TextEditingController _desc;
+
+  @override
+  void initState() {
+    super.initState();
+    _desc = TextEditingController(text: widget.req.description);
+  }
+
+  @override
+  void dispose() {
+    _desc.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    Globals.instance.selectedRequest = widget.req;
+                    context.read<MainScreenBloc>().add(GoToShowRequestEvent());
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: widget.req.thumbUrl.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: widget.req.thumbUrl,
+                            width: 60,
+                            height: 80,
+                            fit: BoxFit.cover,
+                          )
+                        : Container(
+                            width: 60,
+                            height: 80,
+                            color: Colors.grey.shade200,
+                            child:
+                                const Icon(Icons.image_not_supported_outlined),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(widget.req.category,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                          if (widget.req.is24)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 5, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text('24h',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                        ],
+                      ),
+                      Text(widget.req.sector,
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.grey)),
+                      if (widget.req.city.isNotEmpty)
+                        Text(widget.req.city,
+                            style: const TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                ),
+                Column(
+                  children: [
+                    IconButton(
+                      icon: Icon(_editing ? Icons.close : Icons.edit_outlined,
+                          size: 20),
+                      onPressed: () => setState(() => _editing = !_editing),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline,
+                          size: 20, color: Colors.red),
+                      onPressed: () => context
+                          .read<ShowRequestsComponentBloc>()
+                          .add(TryDeleteMyRequestShowRequestsComponentEvent(
+                              id: widget.req.id)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            if (_editing) ...[
+              const SizedBox(height: 12),
+              WInputField(
+                controller: _desc,
+                label: 'Opis zgłoszenia',
+                isPassword: false,
+                hintText: 'Wpisz opis',
+                maxLines: 3,
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: WButton(
+                  text: 'Zapisz',
+                  onPressed: () async {
+                    final newDesc = _desc.text.trim();
+                    await context
+                        .read<FirebaseService>()
+                        .updateRequestDescription(widget.req.id, newDesc);
+                    setState(() {
+                      widget.req.description = newDesc;
+                      _editing = false;
+                    });
+                    showToast(text: 'Zapisano');
+                  },
+                ),
+              ),
+            ] else if (widget.req.description.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(widget.req.description,
+                  style: const TextStyle(fontSize: 13),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
+            ],
+            RequestOffersBar(request: widget.req),
+          ],
+        ),
+      ),
+    );
+  }
+}

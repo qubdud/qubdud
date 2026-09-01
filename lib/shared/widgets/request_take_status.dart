@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain_layer/domain_models/promoVideo.dart';
 import '../../domain_layer/firebase_service.dart';
+import '../../feature_layer/main_screen/bloc/main_bloc.dart';
 import '../functions/show_toast.dart';
 import '../functions/show_toast_error.dart';
 
@@ -291,8 +292,16 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
             const Icon(Icons.check_circle, size: 15, color: Colors.green),
             const SizedBox(width: 6),
             Expanded(
-              child: Text('W realizacji: ${req.takenByName}',
-                  style: const TextStyle(fontSize: 12, color: Colors.green)),
+              child: GestureDetector(
+                onTap: () => context
+                    .read<MainScreenBloc>()
+                    .add(GoToProfilPublicznyFirmyEvent(req.takenBy)),
+                child: Text('W realizacji: ${req.takenByName}',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.green,
+                        decoration: TextDecoration.underline)),
+              ),
             ),
             TextButton(
               onPressed: _unlock,
@@ -327,37 +336,53 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
               style:
                   const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          ...visible.map((o) => Padding(
+          ...visible.map((o) {
+            // „?" = zastanawiam się → cała oferta na żółto
+            final isMaybe = o['status'] == 'maybe';
+            final maybeColor = Colors.amber.shade800;
+            return Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(o['companyName'] ?? 'Firma',
-                                    style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700),
-                                    overflow: TextOverflow.ellipsis),
-                              ),
-                              if (o['status'] == 'maybe') ...[
+                      // tap w nazwę/treść = szybki podgląd profilu firmy
+                      child: GestureDetector(
+                        onTap: () => context.read<MainScreenBloc>().add(
+                            GoToProfilPublicznyFirmyEvent(
+                                o['companyId'] ?? '')),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.storefront_outlined,
+                                    size: 13,
+                                    color: isMaybe
+                                        ? maybeColor
+                                        : Colors.blueGrey),
                                 const SizedBox(width: 4),
-                                const Icon(Icons.help_outline,
-                                    size: 13, color: Colors.orange),
+                                Flexible(
+                                  child: Text(o['companyName'] ?? 'Firma',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: isMaybe ? maybeColor : null,
+                                          decoration:
+                                              TextDecoration.underline),
+                                      overflow: TextOverflow.ellipsis),
+                                ),
                               ],
-                            ],
-                          ),
-                          if ((o['message'] ?? '').toString().isNotEmpty)
-                            Text(o['message'],
-                                style: const TextStyle(fontSize: 12),
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis),
-                        ],
+                            ),
+                            if ((o['message'] ?? '').toString().isNotEmpty)
+                              Text(o['message'],
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: isMaybe ? maybeColor : null),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis),
+                          ],
+                        ),
                       ),
                     ),
                     _decisionBtn(Icons.check, Colors.green,
@@ -368,7 +393,8 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
                         () => _setStatus(o, 'rejected')),
                   ],
                 ),
-              )),
+              );
+          }),
         ],
       ),
     );

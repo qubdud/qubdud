@@ -33,6 +33,13 @@ abstract class StartPageState {
     myReviewStatic = value;
   }
 
+  // Status mojej oferty per zgłoszenie: none/pending/maybe/accepted/rejected
+  static Map<String, String> myOfferStatusesStatic = {};
+  Map<String, String> get myOfferStatuses => myOfferStatusesStatic;
+  set myOfferStatuses(Map<String, String> value) {
+    myOfferStatusesStatic = value;
+  }
+
   // Zgłoszenia ukryte (kosz) — dla firmy
   static List<Request> trashedRequestsStatic = [];
   List<Request> get trashedRequests => trashedRequestsStatic;

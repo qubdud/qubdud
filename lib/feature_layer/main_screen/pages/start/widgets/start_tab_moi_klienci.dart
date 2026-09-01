@@ -9,21 +9,76 @@ import '../../../../../shared/globals.dart';
 import '../../../bloc/main_bloc.dart';
 import '../bloc/start_page_bloc.dart';
 
-class MoiKlienciTab extends StatelessWidget {
+class MoiKlienciTab extends StatefulWidget {
   final StartPageState state;
   const MoiKlienciTab({super.key, required this.state});
 
   @override
+  State<MoiKlienciTab> createState() => _MoiKlienciTabState();
+}
+
+class _MoiKlienciTabState extends State<MoiKlienciTab> {
+  String _filter = 'all'; // all | new | active
+
+  @override
   Widget build(BuildContext context) {
-    return _RequestList(requests: state.requests, isTrash: false);
+    final statuses = widget.state.myOfferStatuses;
+
+    final filtered = widget.state.requests.where((r) {
+      final s = statuses[r.id] ?? 'none';
+      return switch (_filter) {
+        'new' => s == 'none',
+        'active' => s == 'pending' || s == 'maybe' || s == 'accepted',
+        _ => true,
+      };
+    }).toList();
+
+    Widget chip(String value, String label) {
+      final selected = _filter == value;
+      return ChoiceChip(
+        label: Text(label, style: const TextStyle(fontSize: 12)),
+        selected: selected,
+        visualDensity: VisualDensity.compact,
+        onSelected: (_) => setState(() => _filter = value),
+      );
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: Row(
+            children: [
+              chip('all', 'Wszystkie'),
+              const SizedBox(width: 8),
+              chip('new', 'Nowe'),
+              const SizedBox(width: 8),
+              chip('active', 'W trakcie'),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _RequestList(
+            requests: filtered,
+            isTrash: false,
+            offerStatuses: statuses,
+          ),
+        ),
+      ],
+    );
   }
 }
 
 class _RequestList extends StatelessWidget {
   final List<Request> requests;
   final bool isTrash;
+  final Map<String, String> offerStatuses;
 
-  const _RequestList({required this.requests, required this.isTrash});
+  const _RequestList({
+    required this.requests,
+    required this.isTrash,
+    this.offerStatuses = const {},
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +98,7 @@ class _RequestList extends StatelessWidget {
       itemBuilder: (context, index) => _RequestCard(
         request: requests[index],
         isTrash: isTrash,
+        offerStatus: offerStatuses[requests[index].id] ?? 'none',
       ),
     );
   }
@@ -51,15 +107,33 @@ class _RequestList extends StatelessWidget {
 class _RequestCard extends StatelessWidget {
   final Request request;
   final bool isTrash;
+  final String offerStatus; // none|pending|maybe|accepted|rejected
 
-  const _RequestCard({required this.request, required this.isTrash});
+  const _RequestCard({
+    required this.request,
+    required this.isTrash,
+    this.offerStatus = 'none',
+  });
+
+  Color? get _frameColor => switch (offerStatus) {
+        'pending' || 'maybe' => Colors.amber,
+        'accepted' => Colors.green,
+        'rejected' => Colors.red,
+        _ => null,
+      };
 
   @override
   Widget build(BuildContext context) {
+    final frame = _frameColor;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: frame == null
+            ? BorderSide.none
+            : BorderSide(color: frame, width: 2),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: () {
@@ -71,6 +145,7 @@ class _RequestCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _offerStatusChip(),
               _takeStatusBadge(context),
               Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,8 +189,8 @@ class _RequestCard extends StatelessWidget {
 
               // ── Treść ───────────────────────────────────────
               Expanded(
-                child: SizedBox(
-                  height: 136,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 130),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -144,7 +219,7 @@ class _RequestCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
-                      const Spacer(),
+                      const SizedBox(height: 8),
 
                       // ── Pasek akcji ─────────────────────────
                       Container(
@@ -213,6 +288,38 @@ class _RequestCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Znacznik statusu MOJEJ oferty — od razu widać, czy odpowiedziano.
+  Widget _offerStatusChip() {
+    if (offerStatus == 'none') return const SizedBox.shrink();
+    final (color, icon, text) = switch (offerStatus) {
+      'accepted' => (Colors.green, Icons.check_circle, 'Klient zaakceptował Twoją ofertę'),
+      'rejected' => (Colors.red, Icons.cancel, 'Klient odrzucił Twoją ofertę'),
+      'maybe' => (Colors.orange, Icons.help, 'Klient się zastanawia'),
+      _ => (Colors.amber, Icons.mark_email_read_outlined, 'Oferta wysłana — czeka na decyzję'),
+    };
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(text,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: color,
+                    fontWeight: FontWeight.w700)),
+          ),
+        ],
       ),
     );
   }
