@@ -13,7 +13,6 @@ import '../widgets/backdrop_blur.dart';
 import '../widgets/build_from_state.dart';
 import '../widgets/menu_component.dart';
 import '../widgets/nav_bar_component.dart';
-import '../widgets/nav_bar_gradient_component.dart';
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});

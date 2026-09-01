@@ -37,7 +37,6 @@ class View extends StatelessWidget {
         // Obsługa zdarzeń, jeśli potrzeba (np. powiadomienia, komunikaty itp.)
       },
       builder: (context, state) {
-        final isWideScreen = MediaQuery.of(context).size.width > minWideScreen;
         return BackgroundImage(
           //imageAsset: isWideScreen ? 'assets/images/bg_mapa.png' : 'assets/images/bg_logowanie_mob.png',
           child: Scaffold(
@@ -56,36 +55,13 @@ class View extends StatelessWidget {
                 transitionBuilder: (child, animation) {
                   return FadeTransition(opacity: animation, child: child);
                 },
-                child: isWideScreen
-                    ? Row(
-                        mainAxisSize: MainAxisSize.max,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                              flex: 3,
-                              child: Column(
-                                children: [
-                                  Expanded(flex: 1, child: SizedBox.shrink()),
-                                  Image.asset(
-                                    'assets/images/kamper_web.png',
-                                    fit: BoxFit.cover,
-                                  ),
-                                ],
-                              )),
-                          SizedBox(
-                            width: maxColumnSize,
-                            child: _buildWidgetBasedOnState(state),
-                          ),
-                          Expanded(flex: 1, child: SizedBox.shrink()),
-                        ],
-                      )
-                    : Align(
-                        alignment: Alignment.topCenter,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: maxColumnSize),
-                          child: _buildWidgetBasedOnState(state),
-                        ),
-                      )),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: maxColumnSize),
+                    child: _buildWidgetBasedOnState(state),
+                  ),
+                )),
           ),
         );
       },
