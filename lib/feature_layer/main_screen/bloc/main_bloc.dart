@@ -13,6 +13,7 @@ import '../../../domain_layer/chat_service.dart';
 import '../../../domain_layer/domain_models/app_user.dart';
 import '../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../domain_layer/firebase_service.dart';
+import '../../../shared/functions/effective_role.dart';
 import '../../../shared/functions/show_toast.dart';
 import '../../../shared/globals.dart';
 import 'main_appbar_cubit.dart';
@@ -215,6 +216,8 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
       state.menuIsVisible = false;
       emit(LoadingMainScreenState());
 
+      await loadCompanyView();
+
       if (!kIsWeb) {
         if (Platform.isIOS) {
           FirebaseMessaging messaging = FirebaseMessaging.instance;
@@ -251,8 +254,9 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
       state.user = userFB;
       add(GoToHomeEvent());
 
-      // Firma: powiadomienie o pilnych (24h) zgłoszeniach w pobliżu
+      // Firma (w trybie firmowym): powiadomienie o pilnych zgłoszeniach
       if (userFB.firma == true &&
+          Globals.instance.companyView &&
           userFB.companyCategory != null &&
           userFB.companyLocation != null) {
         try {

@@ -1,3 +1,4 @@
+import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -15,15 +16,10 @@ class StartTabOtrzymaneRecenzje extends StatelessWidget {
     final reviews = state.myReview;
 
     if (reviews.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.star_outline, size: 56, color: Colors.black12),
-            SizedBox(height: 12),
-            Text('Brak opinii', style: TextStyle(color: Colors.grey)),
-          ],
-        ),
+      return const EmptyState(
+        icon: Icons.star_outline,
+        title: 'Brak opinii',
+        subtitle: 'Tu pojawią się recenzje wystawione Twojej firmie.',
       );
     }
 

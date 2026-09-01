@@ -6,6 +6,8 @@ import '../../../domain_layer/chat_service.dart';
 import '../../../domain_layer/firebase_service.dart';
 
 import '../../../shared/constants.dart';
+import '../../../shared/functions/effective_role.dart';
+import '../../../shared/globals.dart';
 import '../../../shared/theme_controller.dart';
 import '../../core_screen/bloc/core_screen_bloc.dart';
 import '../bloc/main_appbar_cubit.dart';
@@ -145,6 +147,17 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
         ];
 
         List<MenuItem> menuItems = [
+          if (state.user?.firma == true)
+            MenuItem(
+                text: Globals.instance.companyView
+                    ? 'Przełącz na konto prywatne'
+                    : 'Przełącz na konto firmowe',
+                onTap: () async {
+                  await setCompanyView(!Globals.instance.companyView);
+                  if (context.mounted) {
+                    context.read<MainScreenBloc>().add(InitEvent());
+                  }
+                }),
           MenuItem(
               text: 'Regulamin',
               onTap: () {

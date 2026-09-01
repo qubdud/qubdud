@@ -6,6 +6,8 @@ import '../../../../../../shared/globals.dart';
 import '../../../../../../shared/widgets/loading.dart';
 import '../bloc/start_page_bloc.dart';
 import '../components/moje_zgloszenia/view/show_requests_view.dart';
+import '../../profil_my/view/tab_kalendarz.dart';
+import '../../../../../shared/functions/effective_role.dart';
 import '../widgets/start_tab_favourites.dart';
 import '../widgets/start_tab_moi_klienci.dart';
 import '../widgets/start_tab_otrzymane_rec.dart';
@@ -43,7 +45,7 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
     super.initState();
     final user = context.read<MainScreenBloc>().state.user;
     _isAnon = Globals.instance.anonim;
-    _isCompany = (!_isAnon) && (user?.firma ?? false);
+    _isCompany = (!_isAnon) && isCompanyMode(user);
 
     final length = _isAnon ? 1 : (_isCompany ? 5 : 3);
     _tabController = TabController(length: length, vsync: this);
@@ -75,7 +77,7 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
                 : _isCompany
                 ? const [
               Tab(text: 'Otrzymane zgłoszenia'),
-              Tab(text: 'Moje zgłoszenia'),
+              Tab(text: 'Kalendarz'),
               Tab(text: 'Otrzymane recenzje'),
               Tab(text: 'Ulubione'),
               Tab(text: 'Wyszukania'),
@@ -107,9 +109,11 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
     final idx = _tabController.index;
 
     if (_isCompany) {
+      final myId = context.read<MainScreenBloc>().state.user?.id ?? '';
       switch (idx) {
         case 0: return MoiKlienciTab(key: const ValueKey(0), state: state);
-        case 1: return ShowRequestsComponent(key: const ValueKey(1));
+        case 1: return TabKalendarz(
+            key: const ValueKey(1), companyId: myId, showGenerator: false);
         case 2: return StartTabOtrzymaneRecenzje(key: const ValueKey(2), state: state);
         case 3: return StartTabFavourites(key: const ValueKey(3), state: state);
         case 4: return StartTabWyszukane(key: const ValueKey(4), state: state);

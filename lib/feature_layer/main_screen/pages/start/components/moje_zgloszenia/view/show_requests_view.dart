@@ -1,3 +1,4 @@
+import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -211,8 +212,16 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
                 );
               }).toList(),
             ),
-            if(state.requests.isEmpty)
-              Text('Nie masz żadnych zgłoszeń'),
+            if (state.requests.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: EmptyState(
+                  icon: Icons.inbox_outlined,
+                  title: 'Brak zgłoszeń',
+                  subtitle:
+                      'Dodaj zgłoszenie w zakładce „Dodaj" — firmy z okolicy je zobaczą.',
+                ),
+              ),
 
 
 

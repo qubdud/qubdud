@@ -11,6 +11,10 @@ class Globals {
   int lastSearchIndex = 0;
 
   bool anonim = false;
+
+  /// Konto firmowe może przełączyć się na widok prywatny (user).
+  /// true = obsługuję firmę, false = działam jak zwykły user.
+  bool companyView = true;
   String kategoria = '';
   String branza = '';
   LatLng pozycja = LatLng(52.237049, 21.017532);

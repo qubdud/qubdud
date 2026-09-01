@@ -17,6 +17,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../domain_layer/firebase_service.dart';
+import '../../../../../shared/functions/effective_role.dart';
 import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/w_button.dart';
 import '../../../../../shared/widgets/w_card.dart';
@@ -57,9 +58,9 @@ class _ViewState extends State<View> {
         return
           Column(
           children: [
-            if (user!.firma!) SizedBox(height: 16),
-            if (user!.firma!) WSmallLabel(text: 'PREZENTACJA'),
-            if (user!.firma!)
+            if (isCompanyMode(user)) SizedBox(height: 16),
+            if (isCompanyMode(user)) WSmallLabel(text: 'PREZENTACJA'),
+            if (isCompanyMode(user))
               WCard(
                 child: Material(
                   color: Colors.transparent,

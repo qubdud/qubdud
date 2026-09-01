@@ -14,7 +14,20 @@ import '../../../bloc/main_bloc.dart';
 /// czerwony = odrzucony. Rezerwacje do akceptacji na górze (Akceptuj/Odrzuć/Napisz).
 class TabKalendarz extends StatefulWidget {
   final String companyId;
-  const TabKalendarz({super.key, required this.companyId});
+
+  /// true: pełne zarządzanie (generator slotów) — widok w Profilu.
+  /// false: widok operacyjny na Starcie (rezerwacje + siatka).
+  final bool showGenerator;
+
+  /// false: bez sekcji „Rezerwacje do akceptacji" (Profil = konfiguracja).
+  final bool showBookings;
+
+  const TabKalendarz({
+    super.key,
+    required this.companyId,
+    this.showGenerator = true,
+    this.showBookings = true,
+  });
 
   @override
   State<TabKalendarz> createState() => _TabKalendarzState();
@@ -316,7 +329,7 @@ class _TabKalendarzState extends State<TabKalendarz> {
         const SizedBox(height: 12),
 
         // ── Rezerwacje do akceptacji ──────────────────────
-        if (pending.isNotEmpty) ...[
+        if (widget.showBookings && pending.isNotEmpty) ...[
           const Text('Rezerwacje do akceptacji',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
@@ -382,12 +395,14 @@ class _TabKalendarzState extends State<TabKalendarz> {
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
         const SizedBox(height: 8),
-        OutlinedButton.icon(
-          icon: const Icon(Icons.auto_awesome_outlined, size: 18),
-          label: const Text('Generuj sloty (start, długość, ilość, dni)'),
-          onPressed: _generateSlots,
-        ),
-        const SizedBox(height: 8),
+        if (widget.showGenerator) ...[
+          OutlinedButton.icon(
+            icon: const Icon(Icons.auto_awesome_outlined, size: 18),
+            label: const Text('Generuj sloty (start, długość, ilość, dni)'),
+            onPressed: _generateSlots,
+          ),
+          const SizedBox(height: 8),
+        ],
         _legend(),
         const SizedBox(height: 12),
         ...days.map((day) => _dayCard(day)),
@@ -442,11 +457,12 @@ class _TabKalendarzState extends State<TabKalendarz> {
                         fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline, size: 22),
-                  tooltip: 'Dodaj termin',
-                  onPressed: () => _addSlot(day),
-                ),
+                if (widget.showGenerator)
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline, size: 22),
+                    tooltip: 'Dodaj termin',
+                    onPressed: () => _addSlot(day),
+                  ),
               ],
             ),
             if (daySlots.isEmpty)

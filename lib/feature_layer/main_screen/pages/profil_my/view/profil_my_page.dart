@@ -12,6 +12,7 @@ import '../../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../dodaj/view/dodaj_page.dart';
 import '../../../../../../domain_layer/firebase_service.dart';
 import '../../../../../../shared/constants.dart';
+import '../../../../../../shared/functions/effective_role.dart';
 import '../../../../../../shared/globals.dart';
 import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../../shared/widgets/request_take_status.dart';
@@ -51,9 +52,9 @@ class _ProfilViewState extends State<_ProfilView>
   void initState() {
     super.initState();
     final user = context.read<MainScreenBloc>().state.user;
-    final isCompany = user?.firma ?? false;
+    final isCompany = isCompanyMode(user);
     _tabController = TabController(
-      length: isCompany ? 8 : 4,
+      length: isCompany ? 7 : 4,
       vsync: this,
     );
   }
@@ -86,7 +87,7 @@ class _ProfilViewState extends State<_ProfilView>
           return const Loading(key: ValueKey('Loading'));
         }
 
-        final isCompany = user.firma ?? false;
+        final isCompany = isCompanyMode(user);
 
         return Scaffold(
           backgroundColor: Colors.transparent,
@@ -103,20 +104,21 @@ class _ProfilViewState extends State<_ProfilView>
               const Tab(text: 'Recenzje'),
               if (isCompany) const Tab(text: 'Prezentacje'),
               if (isCompany) const Tab(icon: Icon(Icons.delete_outline, size: 18)),
-              const Tab(text: 'Moje firmy'),
+              if (!isCompany) const Tab(text: 'Moje firmy'),
             ],
           ),
           body: TabBarView(
             controller: _tabController,
             children: [
               _TabDane(state: state, isCompany: isCompany, user: user),
-              if (isCompany) TabKalendarz(companyId: user.id),
+              if (isCompany)
+                TabKalendarz(companyId: user.id, showBookings: false),
               if (isCompany) TabKlienci(companyId: user.id),
               _TabZgloszenia(state: state),
               _TabRecenzje(state: state),
               if (isCompany) _TabPrezentacje(state: state),
               if (isCompany) _TabKosz(state: state),
-              TabMojeFirmy(userId: user.id),
+              if (!isCompany) TabMojeFirmy(userId: user.id),
             ],
           ),
         );

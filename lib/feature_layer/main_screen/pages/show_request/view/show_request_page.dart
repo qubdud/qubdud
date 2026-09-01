@@ -15,6 +15,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../../../../shared/widgets/loading.dart';
+import '../../../../../shared/functions/effective_role.dart';
 import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/request_take_status.dart';
 import '../../../../../shared/widgets/w_button.dart';
@@ -313,7 +314,7 @@ class _ViewState extends State<View> {
               Builder(builder: (context) {
                 final me = context.read<MainScreenBloc>().state.user;
                 final req = Globals.instance.selectedRequest!;
-                if (me == null || me.firma != true || me.id == req.userId) {
+                if (me == null || !isCompanyMode(me) || me.id == req.userId) {
                   return const SizedBox.shrink();
                 }
                 return Padding(

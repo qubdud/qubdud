@@ -1,3 +1,4 @@
+import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -18,14 +19,10 @@ class StartTabFavourites extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state.favVideo.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            WSmallLabel(text: 'Brak ulubionych'),
-            const Text('Oznacz swoje ulubione firmy!'),
-          ],
-        ),
+      return const EmptyState(
+        icon: Icons.favorite_outline,
+        title: 'Brak ulubionych',
+        subtitle: 'Oznacz serduszkiem filmy firm, aby mieć je pod ręką.',
       );
     }
 

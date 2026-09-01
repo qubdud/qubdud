@@ -1,3 +1,4 @@
+import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -26,22 +27,12 @@ class _RequestList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (requests.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isTrash ? Icons.delete_outline : Icons.inbox_outlined,
-              size: 56,
-              color: Colors.grey.shade300,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              isTrash ? 'Kosz jest pusty' : 'Brak zgłoszeń w Twojej okolicy',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-            ),
-          ],
-        ),
+      return EmptyState(
+        icon: isTrash ? Icons.delete_outline : Icons.inbox_outlined,
+        title: isTrash ? 'Kosz jest pusty' : 'Brak zgłoszeń',
+        subtitle: isTrash
+            ? null
+            : 'Tu pojawią się zgłoszenia z Twojej kategorii i okolicy.',
       );
     }
 
