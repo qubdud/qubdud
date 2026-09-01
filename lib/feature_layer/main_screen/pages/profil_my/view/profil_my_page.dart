@@ -55,7 +55,7 @@ class _ProfilViewState extends State<_ProfilView>
     final user = context.read<MainScreenBloc>().state.user;
     final isCompany = isCompanyMode(user);
     _tabController = TabController(
-      length: isCompany ? 7 : 3,
+      length: isCompany ? 6 : 2,
       vsync: this,
     );
   }
@@ -100,12 +100,10 @@ class _ProfilViewState extends State<_ProfilView>
             tabs: [
               const Tab(text: 'Moje dane'),
               if (isCompany) const Tab(text: 'Kalendarz'),
-              if (isCompany) const Tab(text: 'Klienci'),
               if (isCompany) const Tab(text: 'Zgłoszenia'),
               const Tab(text: 'Recenzje'),
               if (isCompany) const Tab(text: 'Prezentacje'),
               if (isCompany) const Tab(icon: Icon(Icons.delete_outline, size: 18)),
-              if (!isCompany) const Tab(text: 'Moje firmy'),
             ],
           ),
           body: TabBarView(
@@ -114,12 +112,10 @@ class _ProfilViewState extends State<_ProfilView>
               _TabDane(state: state, isCompany: isCompany, user: user),
               if (isCompany)
                 TabKalendarz(companyId: user.id, showBookings: false),
-              if (isCompany) TabKlienci(companyId: user.id),
               if (isCompany) _TabZgloszenia(state: state),
               _TabRecenzje(state: state),
               if (isCompany) _TabPrezentacje(state: state),
               if (isCompany) _TabKosz(state: state),
-              if (!isCompany) TabMojeFirmy(userId: user.id),
             ],
           ),
         );

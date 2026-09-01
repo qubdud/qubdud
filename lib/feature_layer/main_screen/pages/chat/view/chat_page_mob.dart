@@ -10,6 +10,7 @@ import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../domain_layer/chat_service.dart';
 import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../bloc/main_bloc.dart';
+import '../../profil_my/view/tab_klienci.dart';
 import '../bloc/chat_page_bloc.dart';
 import '../functions/format_timestamp.dart';
 import '../pages/messaging_page_mob.dart';
@@ -38,8 +39,15 @@ class _ChatPageMobState extends State<ChatPageMob>
       const Tab(icon: Icon(Icons.chat_outlined, size: 20), text: 'Rozmowy'),
       if (!privateMode)
         const Tab(
+            icon: Icon(Icons.groups_outlined, size: 20), text: 'Klienci'),
+      if (!privateMode)
+        const Tab(
             icon: Icon(Icons.sticky_note_2_outlined, size: 20),
             text: 'Notatki'),
+      if (privateMode)
+        const Tab(
+            icon: Icon(Icons.handshake_outlined, size: 20),
+            text: 'Moje firmy'),
       if (privateMode)
         const Tab(
             icon: Icon(Icons.business_outlined, size: 20), text: 'Firmy'),
@@ -47,7 +55,9 @@ class _ChatPageMobState extends State<ChatPageMob>
     ];
     _views = [
       const _ConversationsList(key: ValueKey('rozmowy')),
+      if (!privateMode) _MyClientsTab(key: const ValueKey('klienci')),
       if (!privateMode) const _NotesList(key: ValueKey('notatki')),
+      if (privateMode) _MyCompaniesTab(key: const ValueKey('mojefirmy')),
       if (privateMode)
         const _ContactsList(isCompany: true, key: ValueKey('firmy')),
       const _ContactsList(isCompany: false, key: ValueKey('ludzie')),
@@ -711,5 +721,28 @@ class _NotesListState extends State<_NotesList> {
         );
       },
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Klienci firmy / moje firmy — relacje po domkniętych zleceniach
+// ─────────────────────────────────────────────────────────────────────────────
+class _MyClientsTab extends StatelessWidget {
+  const _MyClientsTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final myId = context.read<MainScreenBloc>().state.user?.id ?? '';
+    return TabKlienci(companyId: myId);
+  }
+}
+
+class _MyCompaniesTab extends StatelessWidget {
+  const _MyCompaniesTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final myId = context.read<MainScreenBloc>().state.user?.id ?? '';
+    return TabMojeFirmy(userId: myId);
   }
 }
