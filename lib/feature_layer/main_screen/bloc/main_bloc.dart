@@ -79,7 +79,8 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
             add(GoToHomeEvent());
           });
 
-      emit(VideoFirmyMainScreenState(event.promo));
+      emit(VideoFirmyMainScreenState(event.promo,
+          playlist: event.playlist, initialIndex: event.initialIndex));
     });
 
     on<GoToWyszukajFirmyEvent>((event, emit) async {

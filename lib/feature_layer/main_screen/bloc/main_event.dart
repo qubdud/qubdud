@@ -37,7 +37,9 @@ class GoToProfilPublicznyFirmyEvent extends MainScreenEvent {
 
 class GoToPromoFirmyEvent extends MainScreenEvent {
   final Promo promo;
-  GoToPromoFirmyEvent(this.promo);
+  final List<Promo>? playlist;
+  final int initialIndex;
+  GoToPromoFirmyEvent(this.promo, {this.playlist, this.initialIndex = 0});
 }
 
 class GoToShowRequestEvent extends MainScreenEvent {}

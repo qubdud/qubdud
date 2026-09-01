@@ -40,7 +40,9 @@ class ProfilPublicznyFirmyMainScreenState extends MainScreenState {
 
 class VideoFirmyMainScreenState extends MainScreenState {
   final Promo promo;
-  VideoFirmyMainScreenState(this.promo);
+  final List<Promo>? playlist;
+  final int initialIndex;
+  VideoFirmyMainScreenState(this.promo, {this.playlist, this.initialIndex = 0});
 }
 
 class ShowRequestMainScreenState extends MainScreenState {}

@@ -461,6 +461,26 @@ class FirebaseService {
     await _firestore.collection('users').doc(userId).update(data);
   }
 
+  Future<void> incrementPromoViews(String promoId) async {
+    try {
+      await _firestore
+          .collection('promos')
+          .doc(promoId)
+          .update({'views': FieldValue.increment(1)});
+    } catch (_) {}
+  }
+
+  /// Liczba zleceń zrealizowanych przez firmę (obustronnie potwierdzonych).
+  Future<int> getCompletedJobsCount(String companyId) async {
+    final snap = await _firestore
+        .collection('requests')
+        .where('takenBy', isEqualTo: companyId)
+        .where('status', isEqualTo: 'taken')
+        .count()
+        .get();
+    return snap.count ?? 0;
+  }
+
   /// Filmy firmy są wyszukiwane po ich własnym polu location —
   /// po zmianie adresu firmy trzeba je przepiąć na nową lokalizację.
   Future<void> updateCompanyPromosLocation(String userId, LatLng location) async {

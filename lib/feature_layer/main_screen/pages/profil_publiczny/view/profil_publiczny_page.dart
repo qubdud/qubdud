@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../../../domain_layer/chat_service.dart';
+import '../../../../../shared/functions/show_toast.dart';
 import '../../profil_my/view/tab_kalendarz.dart' show dayLabel;
 import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/domain_models/company_info.dart';
@@ -114,6 +116,36 @@ class _ProfilView extends StatelessWidget {
                       Text(user!.companyCategory!,
                           style: TextStyle(
                               color: Colors.grey.shade500, fontSize: 12)),
+                    if (user != null)
+                      FutureBuilder<int>(
+                        future: context
+                            .read<FirebaseService>()
+                            .getCompletedJobsCount(user.id),
+                        builder: (context, snap) {
+                          final n = snap.data ?? 0;
+                          if (n == 0) return const SizedBox.shrink();
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.verified_outlined,
+                                    size: 14, color: Colors.green),
+                                const SizedBox(width: 4),
+                                Text(
+                                  n == 1
+                                      ? '1 zrealizowane zlecenie'
+                                      : '$n zrealizowanych zleceń',
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                   ],
                 ),
               ),
@@ -196,8 +228,8 @@ class _ProfilView extends StatelessWidget {
       ),
       itemCount: videos.length,
       itemBuilder: (context, i) => GestureDetector(
-        onTap: () =>
-            context.read<MainScreenBloc>().add(GoToPromoFirmyEvent(videos[i])),
+        onTap: () => context.read<MainScreenBloc>().add(
+            GoToPromoFirmyEvent(videos[i], playlist: videos, initialIndex: i)),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(10),
           child: CachedNetworkImage(
@@ -224,6 +256,36 @@ class _SlotsSection extends StatefulWidget {
 class _SlotsSectionState extends State<_SlotsSection> {
   List<Map<String, dynamic>> _slots = [];
   bool _loaded = false;
+
+  Future<void> _bookSlot(BuildContext context, DateTime st) async {
+    if (Globals.instance.anonim) {
+      showToast(text: 'Zaloguj się, aby zapytać o termin');
+      return;
+    }
+    final label = '${dayLabel(st)} o ${DateFormat('HH:mm').format(st)}';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rezerwacja terminu'),
+        content: Text('Wysłać firmie zapytanie o termin:\n$label?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Anuluj')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Wyślij')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await context.read<ChatService>().sendMessage(
+          widget.companyId,
+          'Dzień dobry, chciałbym zarezerwować termin: $label. Czy jest dostępny?',
+        );
+    if (!mounted) return;
+    context.read<MainScreenBloc>().add(GoToChatEvent(widget.companyId));
+  }
 
   @override
   void initState() {
@@ -273,20 +335,23 @@ class _SlotsSectionState extends State<_SlotsSection> {
                         spacing: 6,
                         runSpacing: 6,
                         children: e.value
-                            .map((st) => Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.shade50,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                        color: Colors.green.shade200),
-                                  ),
-                                  child: Text(
-                                    DateFormat('HH:mm').format(st),
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.green.shade800),
+                            .map((st) => GestureDetector(
+                                  onTap: () => _bookSlot(context, st),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade50,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                          color: Colors.green.shade200),
+                                    ),
+                                    child: Text(
+                                      DateFormat('HH:mm').format(st),
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.green.shade800),
+                                    ),
                                   ),
                                 ))
                             .toList(),
@@ -296,7 +361,7 @@ class _SlotsSectionState extends State<_SlotsSection> {
                 ),
               )),
           const SizedBox(height: 4),
-          Text('Chcesz umówić termin? Napisz do firmy.',
+          Text('Dotknij terminu, aby zapytać o rezerwację na czacie.',
               style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
         ],
       ),

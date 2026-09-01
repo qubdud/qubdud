@@ -18,7 +18,11 @@ Widget buildWidgetBasedOnState(MainScreenState state) {
   if (state is StartMainScreenState) {
     return StartPage(key: ValueKey('StartPage'));
   } else if (state is VideoFirmyMainScreenState) {
-    return SingleVideoPage(promo: state.promo, key: ValueKey('SingleVideoPage'));
+    return SingleVideoPage(
+        promo: state.promo,
+        playlist: state.playlist,
+        initialIndex: state.initialIndex,
+        key: ValueKey('SingleVideoPage'));
   } else if (state is RulesMainScreenState) {
     return RulesPage(key: ValueKey('RulesPage'));
   } else if (state is ProfilFirmaMainScreenState) {

@@ -3,214 +3,323 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:video_player/video_player.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/feature_layer/main_screen/bloc/main_bloc.dart';
-import '../../../../../../shared/widgets/loading.dart';
+import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
-import 'bloc/single_video_page_bloc.dart';
+import '../../../../../shared/functions/show_toast.dart';
+import '../../../../../shared/globals.dart';
 
-class SingleVideoPage extends StatelessWidget {
+/// Pionowy feed wideo (styl TikTok): przesuwanie w górę/dół między filmami.
+/// Bez playlisty gra pojedynczy film.
+class SingleVideoPage extends StatefulWidget {
   final Promo promo;
-  const SingleVideoPage({super.key, required this.promo});
+  final List<Promo>? playlist;
+  final int initialIndex;
+
+  const SingleVideoPage({
+    super.key,
+    required this.promo,
+    this.playlist,
+    this.initialIndex = 0,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => SingleVideoPageBloc(
-        firebase: context.read<FirebaseService>(),
-        promo: promo,
-        userId: context.read<MainScreenBloc>().state.user!.id,
-      ),
-      child: View(promo: promo),
-    );
-  }
+  State<SingleVideoPage> createState() => _SingleVideoPageState();
 }
 
-class View extends StatefulWidget {
-  final Promo promo;
-  const View({super.key, required this.promo});
-
-  @override
-  State<View> createState() => _ViewState();
-}
-
-class _ViewState extends State<View> {
-  late VideoPlayerController _controller;
+class _SingleVideoPageState extends State<SingleVideoPage> {
+  late final PageController _pageController;
+  late final List<Promo> _videos;
+  int _current = 0;
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.network(widget.promo.fileUrl)
-      ..initialize().then((_) {
-        if (mounted) {
-          setState(() {});
-          _controller.play();
-          _controller.setLooping(true);
-        }
-      });
+    _videos = (widget.playlist != null && widget.playlist!.isNotEmpty)
+        ? widget.playlist!
+        : [widget.promo];
+    _current = widget.initialIndex.clamp(0, _videos.length - 1);
+    _pageController = PageController(initialPage: _current);
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<SingleVideoPageBloc, SingleVideoPageState>(
-      listener: (context, state) {},
-      builder: (context, state) {
-        if (state is! SingleVideoPageMainState || !_controller.value.isInitialized) {
-          return const Loading(noText: true, key: ValueKey('loading_video'));
-        }
+    return Container(
+      color: Colors.black,
+      child: PageView.builder(
+        controller: _pageController,
+        scrollDirection: Axis.vertical,
+        itemCount: _videos.length,
+        onPageChanged: (i) => setState(() => _current = i),
+        itemBuilder: (context, i) => _VideoItem(
+          key: ValueKey(_videos[i].id),
+          promo: _videos[i],
+          isActive: i == _current,
+        ),
+      ),
+    );
+  }
+}
 
-        final author = state.author;
-        final reviewCount = state.reviews.length;
-        final rating = state.averageRating;
+class _VideoItem extends StatefulWidget {
+  final Promo promo;
+  final bool isActive;
 
-        return Container(
-          color: Colors.black,
-          width: double.infinity,
-          height: double.infinity,
-          child: Stack(
+  const _VideoItem({super.key, required this.promo, required this.isActive});
+
+  @override
+  State<_VideoItem> createState() => _VideoItemState();
+}
+
+class _VideoItemState extends State<_VideoItem> {
+  VideoPlayerController? _controller;
+  AppUser? _author;
+  int _reviewCount = 0;
+  double _rating = 0;
+  bool _viewCounted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initPlayer();
+    _loadAuthor();
+    if (widget.isActive) _countView();
+  }
+
+  void _initPlayer() {
+    _controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.promo.fileUrl))
+      ..initialize().then((_) {
+        if (!mounted) return;
+        setState(() {});
+        if (widget.isActive) _controller!.play();
+        _controller!.setLooping(true);
+      });
+  }
+
+  Future<void> _loadAuthor() async {
+    final firebase = context.read<FirebaseService>();
+    try {
+      final results = await Future.wait([
+        firebase.fetchUser(widget.promo.userId),
+        firebase.getReviewsMetadataByReviewedUser(widget.promo.userId),
+      ]);
+      final author = results[0] as AppUser?;
+      final reviews = results[1] as List<Review>;
+      if (!mounted) return;
+      setState(() {
+        _author = author;
+        _reviewCount = reviews.length;
+        _rating = reviews.isEmpty
+            ? 0
+            : reviews.map((r) => r.score).reduce((a, b) => a + b) /
+                reviews.length;
+      });
+    } catch (_) {}
+  }
+
+  void _countView() {
+    if (_viewCounted) return;
+    _viewCounted = true;
+    context.read<FirebaseService>().incrementPromoViews(widget.promo.id);
+  }
+
+  @override
+  void didUpdateWidget(covariant _VideoItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      _controller?.play();
+      _countView();
+    } else if (!widget.isActive && oldWidget.isActive) {
+      _controller?.pause();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final initialized = _controller?.value.isInitialized ?? false;
+
+    return Stack(
+      children: [
+        // ── Film ─────────────────────────────────────────
+        if (initialized)
+          Positioned.fill(
+            child: FittedBox(
+              fit: BoxFit.cover,
+              clipBehavior: Clip.hardEdge,
+              child: SizedBox(
+                width: _controller!.value.size.width,
+                height: _controller!.value.size.height,
+                child: VideoPlayer(_controller!),
+              ),
+            ),
+          )
+        else
+          const Center(
+              child: CircularProgressIndicator(color: Colors.white54)),
+
+        // pauza/wznowienie tapnięciem
+        Positioned.fill(
+          child: GestureDetector(
+            onTap: () {
+              if (_controller == null || !initialized) return;
+              setState(() {
+                _controller!.value.isPlaying
+                    ? _controller!.pause()
+                    : _controller!.play();
+              });
+            },
+          ),
+        ),
+        if (initialized && !_controller!.value.isPlaying)
+          const Center(
+            child: Icon(Icons.play_arrow, color: Colors.white70, size: 72),
+          ),
+
+        // ── Ikony akcji po prawej ─────────────────────────
+        Positioned(
+          right: 8,
+          bottom: 140,
+          child: Column(
             children: [
-              // ── Film ─────────────────────────────────────────
-              Positioned.fill(
-                child: FittedBox(
-                  fit: BoxFit.cover,
-                  child: SizedBox(
-                    width: _controller.value.size.width,
-                    height: _controller.value.size.height,
-                    child: VideoPlayer(_controller),
-                  ),
-                ),
+              _ActionIcon(
+                icon: Icons.favorite_outline,
+                tooltip: 'Ulubione',
+                onTap: () async {
+                  if (Globals.instance.anonim) {
+                    showToast(text: 'Zaloguj się, aby dodać do ulubionych');
+                    return;
+                  }
+                  final myUid =
+                      context.read<MainScreenBloc>().state.user?.id ?? '';
+                  await context.read<FirebaseService>().addPromoToFavorites(
+                      userId: myUid, promoId: widget.promo.id);
+                  showToast(text: 'Dodano do ulubionych');
+                },
               ),
-
-              // ── Ikony akcji po prawej ─────────────────────────
-              Positioned(
-                right: 8,
-                bottom: 140,
-                child: Column(
-                  children: [
-                    // Ulubione
-                    _ActionIcon(
-                      icon: Icons.favorite_outline,
-                      tooltip: 'Ulubione',
-                      onTap: () {
-                        context.read<SingleVideoPageBloc>().add(
-                          ToggleFavoriteVideoEvent(
-                            promoId: widget.promo.id,
-                            isFavorite: false,
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    // Dodaj do kontaktów
-                    _ActionIcon(
-                      icon: Icons.person_add_outlined,
-                      tooltip: 'Dodaj do kontaktów',
-                      onTap: () async {
-                        final firebase = context.read<FirebaseService>();
-                        final myUid = context.read<MainScreenBloc>().state.user?.id ?? '';
-                        await firebase.addContact(
-                          myUserId: myUid,
-                          contactUserId: widget.promo.userId,
-                        );
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Dodano do kontaktów')),
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 16),
+              _ActionIcon(
+                icon: Icons.person_add_outlined,
+                tooltip: 'Dodaj do kontaktów',
+                onTap: () async {
+                  if (Globals.instance.anonim) {
+                    showToast(text: 'Zaloguj się, aby dodać kontakt');
+                    return;
+                  }
+                  final myUid =
+                      context.read<MainScreenBloc>().state.user?.id ?? '';
+                  await context.read<FirebaseService>().addContact(
+                      myUserId: myUid, contactUserId: widget.promo.userId);
+                  showToast(text: 'Dodano do kontaktów');
+                },
               ),
-
-              // ── Pasek firmy na dole (identyczny jak w wyszukaj) ──
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: GestureDetector(
-                  onTap: () => context.read<MainScreenBloc>()
-                      .add(GoToProfilPublicznyFirmyEvent(author.id)),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.65),
-                    ),
-                    child: Row(
-                      children: [
-                        // Awatar
-                        CircleAvatar(
-                          radius: 22,
-                          backgroundColor: Colors.white24,
-                          child: Text(
-                            author.companyName?.isNotEmpty == true
-                                ? author.companyName![0].toUpperCase()
-                                : 'F',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-
-                        // Nazwa + gwiazdki
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                author.companyName ?? '',
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 3),
-                              if (reviewCount > 0)
-                                Row(
-                                  children: [
-                                    ...List.generate(
-                                      5,
-                                          (i) => Icon(
-                                        i < rating ? Icons.star : Icons.star_border,
-                                        color: Colors.amber,
-                                        size: 14,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '($reviewCount)',
-                                      style: const TextStyle(
-                                          color: Colors.white70, fontSize: 12),
-                                    ),
-                                  ],
-                                )
-                              else
-                                const Text('Brak opinii',
-                                    style: TextStyle(
-                                        color: Colors.white54, fontSize: 12)),
-                            ],
-                          ),
-                        ),
-
-                        const Icon(Icons.chevron_right, color: Colors.white70),
-                      ],
-                    ),
+              const SizedBox(height: 16),
+              // licznik wyświetleń
+              Column(
+                children: [
+                  const Icon(Icons.visibility_outlined,
+                      color: Colors.white70, size: 22),
+                  Text(
+                    '${widget.promo.views + (_viewCounted ? 1 : 0)}',
+                    style:
+                        const TextStyle(color: Colors.white70, fontSize: 11),
                   ),
-                ),
+                ],
               ),
             ],
           ),
-        );
-      },
+        ),
+
+        // ── Pasek firmy na dole ───────────────────────────
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: GestureDetector(
+            onTap: () => context
+                .read<MainScreenBloc>()
+                .add(GoToProfilPublicznyFirmyEvent(widget.promo.userId)),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              color: Colors.black.withOpacity(0.65),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Colors.white24,
+                    child: Text(
+                      (_author?.companyName ?? widget.promo.companyName)
+                              .isNotEmpty
+                          ? (_author?.companyName ?? widget.promo.companyName)[0]
+                              .toUpperCase()
+                          : 'F',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _author?.companyName ?? widget.promo.companyName,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        if (_reviewCount > 0)
+                          Row(
+                            children: [
+                              ...List.generate(
+                                5,
+                                (i) => Icon(
+                                  i < _rating
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  color: Colors.amber,
+                                  size: 14,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text('($_reviewCount)',
+                                  style: const TextStyle(
+                                      color: Colors.white70, fontSize: 12)),
+                            ],
+                          )
+                        else
+                          const Text('Brak opinii',
+                              style: TextStyle(
+                                  color: Colors.white54, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: Colors.white70),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

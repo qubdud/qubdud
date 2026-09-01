@@ -42,7 +42,7 @@ class StartTabFavourites extends StatelessWidget {
         final videofav = state.favVideo[index];
 
         return GestureDetector(
-          onTap: (){context.read<MainScreenBloc>().add(GoToPromoFirmyEvent(videofav));},
+          onTap: (){context.read<MainScreenBloc>().add(GoToPromoFirmyEvent(videofav, playlist: state.favVideo, initialIndex: index));},
           child: Stack(
             children: [
               // 1. Miniaturka jako tło

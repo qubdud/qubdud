@@ -45,7 +45,7 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
     _isAnon = Globals.instance.anonim;
     _isCompany = (!_isAnon) && (user?.firma ?? false);
 
-    final length = _isAnon ? 1 : (_isCompany ? 4 : 3);
+    final length = _isAnon ? 1 : (_isCompany ? 5 : 3);
     _tabController = TabController(length: length, vsync: this);
     // Listener żeby setState przy zmianie taba → rebuild
     _tabController.addListener(() {
@@ -75,6 +75,7 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
                 : _isCompany
                 ? const [
               Tab(text: 'Otrzymane zgłoszenia'),
+              Tab(text: 'Moje zgłoszenia'),
               Tab(text: 'Otrzymane recenzje'),
               Tab(text: 'Ulubione'),
               Tab(text: 'Wyszukania'),
@@ -108,9 +109,10 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
     if (_isCompany) {
       switch (idx) {
         case 0: return MoiKlienciTab(key: const ValueKey(0), state: state);
-        case 1: return StartTabOtrzymaneRecenzje(key: const ValueKey(1), state: state);
-        case 2: return StartTabFavourites(key: const ValueKey(2), state: state);
-        case 3: return StartTabWyszukane(key: const ValueKey(3), state: state);
+        case 1: return ShowRequestsComponent(key: const ValueKey(1));
+        case 2: return StartTabOtrzymaneRecenzje(key: const ValueKey(2), state: state);
+        case 3: return StartTabFavourites(key: const ValueKey(3), state: state);
+        case 4: return StartTabWyszukane(key: const ValueKey(4), state: state);
       }
     } else {
       switch (idx) {

@@ -13,6 +13,7 @@ class Promo {
   final DateTime? timestamp;
   final String description;
   final String companyName; // snapshot nazwy firmy
+  final int views;
   double? distance;
 
   Promo({
@@ -27,6 +28,7 @@ class Promo {
     required this.timestamp,
     required this.description,
     this.companyName = '',
+    this.views = 0,
     this.distance,
   });
 
@@ -49,6 +51,7 @@ class Promo {
       timestamp: (data['timestamp'] as Timestamp?)?.toDate(),
       description: data['description'] ?? '',
       companyName: data['companyName'] ?? '',
+      views: (data['views'] as num?)?.toInt() ?? 0,
     );
   }
 
