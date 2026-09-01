@@ -114,7 +114,7 @@ class _RequestCard extends StatelessWidget {
               // ── Treść ───────────────────────────────────────
               Expanded(
                 child: SizedBox(
-                  height: 130,
+                  height: 136,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
