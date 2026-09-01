@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "25035113178",
+    "firebase_url": "https://qubdud-8f2b8-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "qubdud-8f2b8",
+    "storage_bucket": "qubdud-8f2b8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:25035113178:android:acda9089ccd5f582fc5be3",
+        "android_client_info": {
+          "package_name": "com.qb.zkv.pl.qb"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAnWUcRZL7kli4rMLDvgMv5jpjUinambeU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

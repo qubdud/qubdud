@@ -1,0 +1,48 @@
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:flutter/material.dart';
+
+import '../../app/app.dart';
+
+showToastOk({required String text, Color color = Colors.green, int milliseconds = 3000, bool positioned = true}) {
+  var fToast = FToast();
+  fToast.init(NavigationService.navigatorKey.currentContext!);
+  fToast.showToast(
+    gravity: ToastGravity.CENTER,
+    toastDuration: Duration(milliseconds: milliseconds),
+    child: SizedBox(
+      width: MediaQuery.of(NavigationService.navigatorKey.currentContext!).size.width,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Material(
+            color: Colors.white,
+            // Ustawienie koloru tła na biały
+            elevation: 8,
+            // Ustawienie cienia
+            borderRadius: BorderRadius.circular(8),
+            // Opcjonalnie, jeśli chcesz zaokrąglić rogi
+            child: Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Column(
+                children: [
+                  const Icon(
+                    Icons.check_circle_outline,
+                    size: 50,
+                    color: Colors.green,
+                  ),
+                  Center(
+                    child: SelectableText(
+                      text,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}

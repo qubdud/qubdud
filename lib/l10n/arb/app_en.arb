@@ -1,0 +1,12 @@
+{
+    "@@loacale": "en",
+    "listAppBarTitle": "Future Mind",
+    "@listAppBarTitle": {
+        "description": "Text shown in the List"
+    },
+    "@@loacale": "en",
+    "detailAppBarTitle": "Future Mind WebView",
+    "@detailAppBarTitle": {
+        "description": "Text shown in the Detail"
+    }
+}

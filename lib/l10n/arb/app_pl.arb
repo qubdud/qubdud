@@ -1,0 +1,12 @@
+{
+    "@@locale": "pl",
+    "appBarTitle": "Future Mind",
+    "@appBarTitle": {
+        "description": "Text w AppBar"
+    },
+     "@@loacale": "pl",
+     "detailAppBarTitle": "Future Mind WebView",
+     "@detailAppBarTitle": {
+         "description": "Text w Detail"
+     }
+}

@@ -1,0 +1,288 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../domain_layer/domain_models/promoVideo.dart';
+import '../../domain_layer/firebase_service.dart';
+import '../../feature_layer/main_screen/bloc/main_bloc.dart';
+
+/// Widget recenzji z sekcją komentarzy.
+/// Zasada: każdy user/firma może dodać dokładnie 1 komentarz.
+class ReviewWithComments extends StatefulWidget {
+  final Review review;
+  final bool showCompanyActions; // czy pokazać "odpowiedz jako firma"
+
+  const ReviewWithComments({
+    super.key,
+    required this.review,
+    this.showCompanyActions = false,
+  });
+
+  @override
+  State<ReviewWithComments> createState() => _ReviewWithCommentsState();
+}
+
+class _ReviewWithCommentsState extends State<ReviewWithComments> {
+  List<ReviewComment> _comments = [];
+  bool _loading = true;
+  bool _showInput = false;
+  bool _alreadyCommented = false;
+  final TextEditingController _ctrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  String _authorName = '';
+
+  Future<void> _load() async {
+    final firebase = context.read<FirebaseService>();
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final comments = await firebase.getCommentsForReview(widget.review.id);
+    final already = await firebase.hasUserCommented(
+      reviewId: widget.review.id,
+      userId: uid,
+    );
+    // Pobierz nazwę autora jeśli nie ma w modelu
+    String authorName = widget.review.authorName;
+    if (authorName.isEmpty) {
+      final author = await firebase.fetchUser(widget.review.userId);
+      authorName = author?.displayName ?? '';
+    }
+    if (mounted) {
+      setState(() {
+        _comments = comments;
+        _alreadyCommented = already;
+        _authorName = authorName;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _submit() async {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty) return;
+
+    final firebase = context.read<FirebaseService>();
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final user = context.read<MainScreenBloc>().state.user;
+    final name = user?.displayName ?? '';
+    final isOwner = user?.firma == true &&
+        user?.id == widget.review.reviewedUserId;
+
+    await firebase.addComment(ReviewComment(
+      id: '',
+      reviewId: widget.review.id,
+      authorId: uid,
+      authorName: name,
+      isOwner: isOwner,
+      text: text,
+    ));
+
+    _ctrl.clear();
+    setState(() {
+      _showInput = false;
+      _alreadyCommented = true;
+    });
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+    return GestureDetector(
+      onTap:(){context.read<MainScreenBloc>().add(GoToProfilPublicznyFirmyEvent(widget.review.reviewedUserId));},
+
+
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+
+
+          
+
+
+          Row(
+            children: [
+              ...List.generate(5, (i) => Icon(
+                i < widget.review.score ? Icons.star : Icons.star_border,
+                color: Colors.amber, size: 16,
+              )),
+              const SizedBox(width: 6),
+              Expanded(
+                child:
+
+
+                GestureDetector(
+                  onTap:(){context.read<MainScreenBloc>().add(GoToProfilPublicznyUseraEvent(widget.review.userId));},
+
+
+                  child:
+
+
+                  Text(_authorName.isNotEmpty ? _authorName : widget.review.authorName,
+
+
+
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                ),
+              ),
+              if (widget.review.timestamp != null)
+                Text(
+                  '${widget.review.timestamp!.day}.${widget.review.timestamp!.month}.${widget.review.timestamp!.year}',
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+            ],
+          ),
+          if (widget.review.description.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(widget.review.description, style: const TextStyle(fontSize: 13)),
+          ],
+
+          // ── Komentarze ────────────────────────────────────────
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 4),
+              child: SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else ...[
+            if (_comments.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ..._comments.map((c) => _CommentBubble(
+                comment: c,
+                canDelete: c.authorId == uid,
+                onDelete: () async {
+                  await context.read<FirebaseService>().deleteComment(
+                    reviewId: widget.review.id,
+                    commentId: c.id,
+                  );
+                  _load();
+                },
+              )),
+            ],
+
+            // Przycisk "Dodaj komentarz" — tylko jeśli nie ma jeszcze komentarza
+            if (!_alreadyCommented) ...[
+              const SizedBox(height: 6),
+              GestureDetector(
+                onTap: () => setState(() => _showInput = !_showInput),
+                child: Text(
+                  _showInput ? 'Anuluj' : 'Dodaj komentarz',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blueGrey.shade600,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+              if (_showInput) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        style: TextStyle(fontSize: 14),
+                        controller: _ctrl,
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          hintText: 'Twój komentarz...',
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: _submit,
+                      icon: const Icon(Icons.send, color: Colors.blueGrey),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CommentBubble extends StatelessWidget {
+  final ReviewComment comment;
+  final bool canDelete;
+  final VoidCallback onDelete;
+
+  const _CommentBubble({
+    required this.comment,
+    required this.canDelete,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 6, left: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: comment.isOwner
+            ? Colors.blue.shade50
+            : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: comment.isOwner ? Colors.blue.shade200 : Colors.grey.shade200,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      comment.authorName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: comment.isOwner ? Colors.blue.shade700 : Colors.black87,
+                      ),
+                    ),
+                    if (comment.isOwner) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('firma', style: TextStyle(fontSize: 9, color: Colors.blue)),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(comment.text, style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+          if (canDelete)
+            GestureDetector(
+              onTap: onDelete,
+              child: const Icon(Icons.close, size: 14, color: Colors.grey),
+            ),
+        ],
+      ),
+    );
+  }
+}
