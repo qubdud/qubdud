@@ -150,8 +150,8 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
           if (state.user?.firma == true)
             MenuItem(
                 text: Globals.instance.companyView
-                    ? 'Przełącz na konto prywatne'
-                    : 'Przełącz na konto firmowe',
+                    ? 'Przełącz na: Użytkownik'
+                    : 'Przełącz na: Firma',
                 onTap: () async {
                   await setCompanyView(!Globals.instance.companyView);
                   if (context.mounted) {
