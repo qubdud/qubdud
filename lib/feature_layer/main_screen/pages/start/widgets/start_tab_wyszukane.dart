@@ -1,3 +1,5 @@
+import 'package:qb/shared/widgets/empty_state.dart';
+import 'package:qb/shared/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -54,40 +56,51 @@ class _StartTabWyszukaneState extends State<StartTabWyszukane> {
     setState(() => _history.clear());
   }
 
+  Widget _bigSearchButton(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+      child: SizedBox(
+        height: 56,
+        child: ElevatedButton.icon(
+          icon: const Icon(Icons.search, size: 26),
+          label: const Text('Szukaj firmy / usługi',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: cDarkBlue,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28)),
+            elevation: 3,
+          ),
+          onPressed: () =>
+              context.read<MainScreenBloc>().add(GoToWyszukajFirmyEvent()),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
 
     if (_history.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.search, size: 56, color: Colors.grey.shade300),
-            const SizedBox(height: 16),
-            const Text('Brak historii wyszukań',
-                style: TextStyle(color: Colors.grey, fontSize: 16)),
-            const SizedBox(height: 8),
-            const Text('Wyszukaj firmy aby zobaczyć historię',
-                style: TextStyle(color: Colors.grey, fontSize: 13)),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.search),
-              label: const Text('Wyszukaj'),
-              onPressed: () => context.read<MainScreenBloc>().add(GoToWyszukajFirmyEvent()),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black87,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
+      return Column(
+        children: [
+          _bigSearchButton(context),
+          const Expanded(
+            child: EmptyState(
+              icon: Icons.search,
+              title: 'Brak historii wyszukań',
+              subtitle: 'Wyszukaj firmę, aby zobaczyć tu historię.',
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
     return Column(
       children: [
+        _bigSearchButton(context),
         // Nagłówek z przyciskiem "Wyczyść"
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -95,16 +108,6 @@ class _StartTabWyszukaneState extends State<StartTabWyszukane> {
             children: [
               const Text('Ostatnie wyszukania',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              const SizedBox(width: 8),
-              // Nowe wyszukiwanie
-              IconButton(
-                icon: const Icon(Icons.search, size: 24),
-                tooltip: 'Nowe wyszukiwanie',
-                visualDensity: VisualDensity.compact,
-                onPressed: () => context
-                    .read<MainScreenBloc>()
-                    .add(GoToWyszukajFirmyEvent()),
-              ),
               const Spacer(),
               TextButton(
                 onPressed: _clearAll,
