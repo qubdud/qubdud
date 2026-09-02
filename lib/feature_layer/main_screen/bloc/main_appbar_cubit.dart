@@ -8,17 +8,20 @@ class MainScreenControlCubit extends Cubit<MainScreenControlState> {
 
   void updateAppBar(
       {String? title, bool? isVisible, VoidCallback? onBackPressed, Widget? child, double? height, Color? backgroundColor, String? key, bool? isMenuVisible, bool? isChildTitle, bool? showBack}) {
+    // ekran z tekstowym tytułem nie może odziedziczyć widgetu tytułu
+    // z poprzedniego ekranu (np. „Wyszukaj” + mapa na profilu firmy)
+    final textTitle = title != null && isChildTitle == null;
     emit(state.copyWith(
         title: title,
         showBack: showBack,
         isVisible: isVisible,
         onBackPressed: onBackPressed,
-        child: child,
+        child: textTitle ? const SizedBox.shrink() : child,
         height: height,
         backgroundColor: backgroundColor,
         key: key,
         isMenuVisible: isMenuVisible,
-        isChildTitle: isChildTitle));
+        isChildTitle: textTitle ? false : isChildTitle));
   }
 
   bool getIsVisible() {

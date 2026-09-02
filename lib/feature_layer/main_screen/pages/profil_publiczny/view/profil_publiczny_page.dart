@@ -285,7 +285,7 @@ class _ProfilViewState extends State<_ProfilView> {
                       .read<MainScreenBloc>()
                       .add(GoToChatEvent(user?.id ?? '', chatName: user?.companyName)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black87,
+                    backgroundColor: cDarkBlue,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
@@ -296,8 +296,8 @@ class _ProfilViewState extends State<_ProfilView> {
               const SizedBox(width: 10),
               Expanded(
                 child: ElevatedButton.icon(
-                  icon: const Icon(Icons.person_add_outlined, size: 16),
-                  label: const Text('Kontakt'),
+                  icon: const Icon(Icons.bookmark_add_outlined, size: 16),
+                  label: const Text('Zapisz'),
                   onPressed: () async {
                     final firebase = context.read<FirebaseService>();
                     final myUid =
@@ -306,7 +306,8 @@ class _ProfilViewState extends State<_ProfilView> {
                         myUserId: myUid, contactUserId: user?.id ?? '');
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Dodano do kontaktów')),
+                        const SnackBar(
+                            content: Text('Zapisano w Kontakty → Zapisani')),
                       );
                     }
                   },

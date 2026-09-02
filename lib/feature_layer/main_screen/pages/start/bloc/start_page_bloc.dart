@@ -32,6 +32,15 @@ class StartPageBloc extends Bloc<StartPageEvent, StartPageState> {
     on<GetDataStartPageEvent>((event, emit) async {
 
       emit(StartPageLoadingState());
+      // anonim: tylko siatka prezentacji — reszta wymaga konta (i wywala
+      // permission-denied, co zostawiało pustą siatkę)
+      if (user.id.isEmpty) {
+        try {
+          state.videos = await firebase.getRandomPromos(limit: 20);
+        } catch (_) {}
+        emit(StartPageMainState());
+        return;
+      }
       try {
         if (user.firma == true) {
           state.requests = await firebase.getNearbyRequests(category: user.companyCategory!, sector: user.companySector!, myLocation: user.companyLocation!, userId: user.id);
