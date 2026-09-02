@@ -76,6 +76,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
 
     on<GoToProfilPublicznyFirmyEvent>((event, emit) async {
       appBarCubit.updateAppBar(
+          showBack: true,
           backgroundColor: Colors.transparent,
           title: 'Profil firmy',
           isVisible: true,
@@ -88,6 +89,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
 
     on<GoToProfilPublicznyUseraEvent>((event, emit) async {
       appBarCubit.updateAppBar(
+          showBack: true,
           backgroundColor: Colors.transparent,
           title: 'Profil użytkownika',
           isVisible: true,
@@ -99,6 +101,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
 
     on<GoToPromoFirmyEvent>((event, emit) async {
       appBarCubit.updateAppBar(
+          showBack: true,
           backgroundColor: Colors.transparent,
           title: 'Wideo',
           isVisible: true,
@@ -112,6 +115,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
 
     on<GoToWyszukajFirmyEvent>((event, emit) async {
       appBarCubit.updateAppBar(
+          showBack: true,
           backgroundColor: Colors.transparent,
           title: 'Wyszukaj',
           isVisible: true,
@@ -132,6 +136,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     on<GoToChatEvent>((event, emit) async {
       if (Globals.instance.anonim) return;
       appBarCubit.updateAppBar(
+          showBack: event.id.isNotEmpty,
           title: event.chatName?.isNotEmpty == true
               ? event.chatName!
               : 'Kontakty',
@@ -149,6 +154,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
 
     on<GoToProfilFirmaEvent>((event, emit) async {
       appBarCubit.updateAppBar(
+          showBack: false,
           title: 'Profil',
           isVisible: true,
           isMenuVisible: true,
@@ -164,6 +170,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
 
     on<GoToShowRequestEvent>((event, emit) async {
       appBarCubit.updateAppBar(
+          showBack: true,
           title: 'Zgłoszenie',
           isVisible: true,
           height: 56,
@@ -177,6 +184,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     on<GoToDodajEvent>((event, emit) async {
       if (Globals.instance.anonim) return;
       appBarCubit.updateAppBar(
+          showBack: false,
           title: 'Dodaj',
           isVisible: true,
           height: 56,
@@ -191,6 +199,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     on<GoToDodajReviewEvent>((event, emit) async {
       if (Globals.instance.anonim) return;
       appBarCubit.updateAppBar(
+          showBack: true,
           title: 'Dodaj recenzje',
           isVisible: true,
           height: 56,
@@ -204,6 +213,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
 
     on<GoToRulesEvent>((event, emit) async {
       appBarCubit.updateAppBar(
+          showBack: true,
           title: 'Regulamin',
           isVisible: true,
           backgroundColor: Colors.transparent,

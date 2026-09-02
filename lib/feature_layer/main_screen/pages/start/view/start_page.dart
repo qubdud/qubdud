@@ -82,7 +82,7 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
               Tab(text: 'Recenzje'),
             ]
                 : const [
-              Tab(text: 'Wyszukania'),
+              Tab(text: 'Odkrywaj'),
               Tab(text: 'Rezerwacje'),
               Tab(text: 'Ulubione'),
               Tab(text: 'Zgłoszenia'),

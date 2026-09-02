@@ -18,13 +18,13 @@ class AppBarComponent extends StatelessWidget {
             duration: const Duration(milliseconds: 400),
             curve: Curves.easeInOut,
             height: state.isVisible ? MediaQuery.of(context).padding.top + state.height : 0, // Zmienna wysokość
-            child: SizedBox(child: BpsAppBar(state.title, state.onBackPressed, child, childTitle, state.backgroundColor, state.key)));
+            child: SizedBox(child: BpsAppBar(state.title, state.onBackPressed, child, childTitle, state.backgroundColor, state.key, state.showBack)));
       },
     );
   }
 }
 
-Widget BpsAppBar(String appBarTitle, VoidCallback? appBarVoidCallback, Widget? child, bool childTitle, Color background, String key) {
+Widget BpsAppBar(String appBarTitle, VoidCallback? appBarVoidCallback, Widget? child, bool childTitle, Color background, String key, bool showBack) {
   return AnimatedSwitcher(
     duration: const Duration(milliseconds: 300),
     layoutBuilder: (currentChild, previousChildren) {
@@ -72,11 +72,14 @@ Widget BpsAppBar(String appBarTitle, VoidCallback? appBarVoidCallback, Widget? c
                     fontSize: 24,
                   ),
                 ),
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_outlined),
-                  color: cDarkerBlue,
-                  onPressed: appBarVoidCallback,
-                ),
+                automaticallyImplyLeading: false,
+                leading: showBack
+                    ? IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_outlined),
+                        color: cDarkerBlue,
+                        onPressed: appBarVoidCallback,
+                      )
+                    : null,
                 elevation: 0,
                 shape: const RoundedRectangleBorder(
                     borderRadius: BorderRadius.only(

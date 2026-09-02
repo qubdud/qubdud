@@ -76,6 +76,7 @@ class _ChatPageMobState extends State<ChatPageMob>
         if (state is MessagingLoadingPageState) {
           context.read<MainScreenControlCubit>().setIsMenuVisible(true);
           context.read<MainScreenControlCubit>().updateAppBar(
+                showBack: true,
                 onBackPressed: () =>
                     context.read<MainScreenBloc>().add(GoToChatEvent('')),
                 backgroundColor: cLighterBrown,
@@ -93,6 +94,7 @@ class _ChatPageMobState extends State<ChatPageMob>
                   ? (u.companyName ?? 'Firma')
                   : '${u.firstName ?? ''} ${u.lastName ?? ''}'.trim());
           context.read<MainScreenControlCubit>().updateAppBar(
+                showBack: true,
                 onBackPressed: () =>
                     context.read<MainScreenBloc>().add(GoToChatEvent('')),
                 backgroundColor: cLighterBrown,

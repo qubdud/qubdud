@@ -1,6 +1,7 @@
 import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:qb/shared/constants.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
@@ -373,56 +374,110 @@ class _RequestCard extends StatelessWidget {
                           color: Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: isTrash
-                              ? [
-                            // Kosz: tylko przywróć
-                            _IconAction(
-                              icon: Icons.restore_from_trash_outlined,
-                              tooltip: 'Przywróć',
-                              color: Colors.green,
-                              onTap: () => context.read<StartPageBloc>().add(
-                                TryRestoreRequestEvent(request.id),
+                        child: isTrash
+                            ? Center(
+                                child: TextButton.icon(
+                                  icon: const Icon(
+                                      Icons.restore_from_trash_outlined,
+                                      size: 18),
+                                  label: const Text('Przywróć'),
+                                  style: TextButton.styleFrom(
+                                      foregroundColor: Colors.green.shade700),
+                                  onPressed: () => context
+                                      .read<StartPageBloc>()
+                                      .add(TryRestoreRequestEvent(request.id)),
+                                ),
+                              )
+                            : Row(
+                                children: [
+                                  // Napisz
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      icon: const Icon(
+                                          Icons.chat_bubble_outline,
+                                          size: 18),
+                                      label: const Text('Napisz'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: cDarkBlue,
+                                        side: const BorderSide(
+                                            color: cDarkBlue),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 10),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(10)),
+                                      ),
+                                      onPressed: () =>
+                                          context.read<MainScreenBloc>().add(
+                                                GoToChatEvent(request.userId,
+                                                    chatName:
+                                                        _requesterNameCache[
+                                                            request.userId]),
+                                              ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  // Wyślij ofertę / status oferty
+                                  Expanded(
+                                    flex: 5,
+                                    child: _OfferButton(
+                                      status: offerStatus,
+                                      onSend: () => _sendOffer(context),
+                                    ),
+                                  ),
+                                  // Reszta pod „⋯"
+                                  PopupMenuButton<String>(
+                                    icon: Icon(Icons.more_horiz,
+                                        color: Colors.grey.shade700),
+                                    padding: EdgeInsets.zero,
+                                    onSelected: (v) {
+                                      switch (v) {
+                                        case 'contact':
+                                          context.read<StartPageBloc>().add(
+                                              TryAddContactStartPageEvent(
+                                                  request.userId));
+                                          break;
+                                        case 'profile':
+                                          context.read<MainScreenBloc>().add(
+                                              GoToProfilPublicznyUseraEvent(
+                                                  request.userId));
+                                          break;
+                                        case 'hide':
+                                          context.read<StartPageBloc>().add(
+                                              TryHideRequestEvent(request.id));
+                                          break;
+                                      }
+                                    },
+                                    itemBuilder: (_) => const [
+                                      PopupMenuItem(
+                                          value: 'profile',
+                                          child: ListTile(
+                                              dense: true,
+                                              leading: Icon(Icons
+                                                  .account_circle_outlined),
+                                              title: Text('Profil klienta'))),
+                                      PopupMenuItem(
+                                          value: 'contact',
+                                          child: ListTile(
+                                              dense: true,
+                                              leading: Icon(
+                                                  Icons.person_add_outlined),
+                                              title:
+                                                  Text('Dodaj do kontaktów'))),
+                                      PopupMenuItem(
+                                          value: 'hide',
+                                          child: ListTile(
+                                              dense: true,
+                                              leading: Icon(
+                                                  Icons.visibility_off_outlined,
+                                                  color: Colors.red),
+                                              title: Text('Ukryj zgłoszenie',
+                                                  style: TextStyle(
+                                                      color: Colors.red)))),
+                                    ],
+                                  ),
+                                ],
                               ),
-                            ),
-                          ]
-                              : [
-                            // Napisz wiadomość
-                            _IconAction(
-                              icon: Icons.chat_bubble_outline,
-                              tooltip: 'Napisz',
-                              onTap: () => context.read<MainScreenBloc>().add(
-                                GoToChatEvent(request.userId, chatName: _requesterNameCache[request.userId]),
-                              ),
-                            ),
-                            // Dodaj do kontaktów
-                            _IconAction(
-                              icon: Icons.person_add_outlined,
-                              tooltip: 'Dodaj do kontaktów',
-                              onTap: () => context.read<StartPageBloc>().add(
-                                TryAddContactStartPageEvent(request.userId),
-                              ),
-                            ),
-                            // Profil usera
-                            _IconAction(
-                              icon: Icons.account_circle_outlined,
-                              tooltip: 'Profil',
-                              onTap: () => context.read<MainScreenBloc>().add(
-                                GoToProfilPublicznyUseraEvent(request.userId),
-                              ),
-                            ),
-                            // Ukryj → kosz
-                            _IconAction(
-                              icon: Icons.visibility_off_outlined,
-                              tooltip: 'Ukryj',
-                              color: Colors.red.shade300,
-                              onTap: () => context.read<StartPageBloc>().add(
-                                TryHideRequestEvent(request.id),
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
             ],
           ),
@@ -433,6 +488,13 @@ class _RequestCard extends StatelessWidget {
   }
 
   /// Prywatna notatka o kliencie — widzi ją tylko firma.
+  Future<void> _sendOffer(BuildContext context) async {
+    final msg = await showOfferDialog(
+        context, _requesterNameCache[request.userId] ?? '');
+    if (msg == null || !context.mounted) return;
+    context.read<StartPageBloc>().add(TryQuickOfferEvent(request.id, message: msg));
+  }
+
   Future<void> _editNote(BuildContext context) async {
     final changed = await showClientNoteDialog(
         context, request.userId, _requesterNameCache[request.userId] ?? '');
@@ -584,6 +646,116 @@ class _RequesterName extends StatelessWidget {
       },
     );
   }
+}
+
+/// Przycisk oferty: aktywny gdy jeszcze nie odpowiedziano, inaczej status.
+class _OfferButton extends StatelessWidget {
+  final String status;
+  final VoidCallback onSend;
+  const _OfferButton({required this.status, required this.onSend});
+
+  @override
+  Widget build(BuildContext context) {
+    final shape =
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(10));
+    switch (status) {
+      case 'pending':
+        return FilledButton.tonalIcon(
+          icon: const Icon(Icons.hourglass_top, size: 18),
+          label: const Text('Oferta wysłana'),
+          style: FilledButton.styleFrom(
+              backgroundColor: Colors.amber.shade100,
+              foregroundColor: Colors.amber.shade900,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              shape: shape),
+          onPressed: null,
+        );
+      case 'maybe':
+        return FilledButton.tonalIcon(
+          icon: const Icon(Icons.help_outline, size: 18),
+          label: const Text('Klient się zastanawia'),
+          style: FilledButton.styleFrom(
+              backgroundColor: Colors.amber.shade100,
+              foregroundColor: Colors.amber.shade900,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              shape: shape),
+          onPressed: null,
+        );
+      case 'accepted':
+        return FilledButton.icon(
+          icon: const Icon(Icons.check_circle, size: 18),
+          label: const Text('Zaakceptowana'),
+          style: FilledButton.styleFrom(
+              backgroundColor: Colors.green.shade600,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.green.shade600,
+              disabledForegroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              shape: shape),
+          onPressed: null,
+        );
+      case 'rejected':
+        return FilledButton.tonalIcon(
+          icon: const Icon(Icons.cancel_outlined, size: 18),
+          label: const Text('Odrzucona'),
+          style: FilledButton.styleFrom(
+              backgroundColor: Colors.red.shade50,
+              foregroundColor: Colors.red.shade700,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              shape: shape),
+          onPressed: null,
+        );
+      default:
+        return FilledButton.icon(
+          icon: const Icon(Icons.local_offer_outlined, size: 18),
+          label: const Text('Wyślij ofertę'),
+          style: FilledButton.styleFrom(
+              backgroundColor: cDarkBlue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              shape: shape),
+          onPressed: onSend,
+        );
+    }
+  }
+}
+
+/// Dialog oferty: gotowa treść do edycji (cena, termin) + Wyślij.
+Future<String?> showOfferDialog(BuildContext context, String clientName) {
+  final ctrl = TextEditingController(text: kDefaultOfferMessage);
+  return showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(clientName.isEmpty ? 'Oferta' : 'Oferta dla: $clientName'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: ctrl,
+            maxLines: 4,
+            maxLength: 300,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Napisz, co oferujesz, cenę, termin…',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const Text('Klient zobaczy ofertę przy swoim zgłoszeniu i zdecyduje ✔ / ? / ✖.',
+              style: TextStyle(fontSize: 11, color: Colors.grey)),
+        ],
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx), child: const Text('Anuluj')),
+        FilledButton.icon(
+          icon: const Icon(Icons.send, size: 16),
+          label: const Text('Wyślij'),
+          onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+        ),
+      ],
+    ),
+  );
 }
 
 class _IconAction extends StatelessWidget {

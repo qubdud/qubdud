@@ -12,6 +12,9 @@ part 'start_page_event.dart';
 part 'start_page_state.dart';
 
 
+const kDefaultOfferMessage =
+    'Jestem zainteresowany tym zleceniem — mogę się nim zająć. Proszę o kontakt.';
+
 class StartPageBloc extends Bloc<StartPageEvent, StartPageState> {
   StartPageBloc({
     required FirebaseService firebase,
@@ -46,7 +49,7 @@ class StartPageBloc extends Bloc<StartPageEvent, StartPageState> {
         }
 
         state.favVideo = await firebase.getFavoritePromos(user.id);
-        state.videos = await firebase.getRandomPromos();
+        state.videos = await firebase.getRandomPromos(limit: 20);
 
         // Załaduj kosz (skipped z flagą trashed)
         if (user.firma ?? false) {
@@ -152,8 +155,9 @@ class StartPageBloc extends Bloc<StartPageEvent, StartPageState> {
           requestId: event.requestId,
           companyId: user.id,
           companyName: user.companyName ?? 'Firma',
-          message:
-              'Jestem zainteresowany tym zleceniem — mogę się nim zająć. Proszę o kontakt.',
+          message: event.message?.trim().isNotEmpty == true
+              ? event.message!.trim()
+              : kDefaultOfferMessage,
         );
         state.myOfferStatuses = {
           ...state.myOfferStatuses,

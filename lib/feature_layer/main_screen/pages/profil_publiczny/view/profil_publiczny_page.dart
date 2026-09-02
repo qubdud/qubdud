@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:qb/shared/constants.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
@@ -37,12 +38,29 @@ class ProfilPubliczyPage extends StatelessWidget {
   }
 }
 
-class _ProfilView extends StatelessWidget {
+class _ProfilView extends StatefulWidget {
   const _ProfilView();
+
+  @override
+  State<_ProfilView> createState() => _ProfilViewState();
+}
+
+class _ProfilViewState extends State<_ProfilView> {
+  final _slotsKey = GlobalKey();
+
+  void _scrollToSlots() {
+    final ctx = _slotsKey.currentContext;
+    if (ctx == null) return;
+    Scrollable.ensureVisible(ctx,
+        duration: const Duration(milliseconds: 400),
+        alignment: 0.05,
+        curve: Curves.easeInOut);
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final myUid = FirebaseAuth.instance.currentUser?.uid ?? '';
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF16151A) : Colors.white,
       body: BlocBuilder<ProfilPubliczyPageBloc, ProfilPubliczyPageState>(
@@ -51,14 +69,23 @@ class _ProfilView extends StatelessWidget {
             return const Loading();
           }
 
-          return SingleChildScrollView(
+          final canBook =
+              state.targetUser != null && state.targetUser!.id != myUid;
+
+          return Stack(
+            children: [
+              SingleChildScrollView(
+            padding: EdgeInsets.only(bottom: canBook ? 88 : 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(context, state.targetUser, state.companyInfo),
 
                 if (state.targetUser != null)
-                  _SlotsSection(companyId: state.targetUser!.id, companyName: state.targetUser!.companyName ?? "Firma"),
+                  KeyedSubtree(
+                    key: _slotsKey,
+                    child: _SlotsSection(companyId: state.targetUser!.id, companyName: state.targetUser!.companyName ?? "Firma"),
+                  ),
 
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
@@ -80,6 +107,32 @@ class _ProfilView extends StatelessWidget {
                 const SizedBox(height: 60),
               ],
             ),
+          ),
+              // przyklejone CTA — sloty są w środku strony, przycisk zawsze widoczny
+              if (canBook)
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                  child: SizedBox(
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed: _scrollToSlots,
+                      icon: const Icon(Icons.event_available, size: 22),
+                      label: const Text('Umów wizytę',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: cDarkBlue,
+                        foregroundColor: Colors.white,
+                        elevation: 6,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(26)),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           );
         },
       ),

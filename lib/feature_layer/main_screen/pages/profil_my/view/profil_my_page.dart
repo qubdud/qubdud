@@ -411,11 +411,6 @@ class _TabDaneState extends State<_TabDane> {
           ),
 
           const SizedBox(height: 40),
-          WButton(
-            text: 'Wyloguj',
-            onPressed: () => context.read<MainScreenBloc>().add(LogoutEvent()),
-          ),
-          const SizedBox(height: 40),
         ],
       ),
     );

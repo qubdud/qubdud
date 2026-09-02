@@ -7,9 +7,10 @@ class MainScreenControlCubit extends Cubit<MainScreenControlState> {
   MainScreenControlCubit() : super(const MainScreenControlState());
 
   void updateAppBar(
-      {String? title, bool? isVisible, VoidCallback? onBackPressed, Widget? child, double? height, Color? backgroundColor, String? key, bool? isMenuVisible, bool? isChildTitle}) {
+      {String? title, bool? isVisible, VoidCallback? onBackPressed, Widget? child, double? height, Color? backgroundColor, String? key, bool? isMenuVisible, bool? isChildTitle, bool? showBack}) {
     emit(state.copyWith(
         title: title,
+        showBack: showBack,
         isVisible: isVisible,
         onBackPressed: onBackPressed,
         child: child,
@@ -48,7 +49,12 @@ class MainScreenControlState {
   final double height;
   final Color backgroundColor;
 
+  /// false na ekranach dolnego paska (Kontakty/Profil/Dodaj) — strzałka
+  /// „wstecz" ma sens tylko na ekranach w głąb.
+  final bool showBack;
+
   const MainScreenControlState({
+    this.showBack = true,
     this.title = '',
     this.isVisible = false,
     this.isMenuVisible = true,
@@ -61,6 +67,7 @@ class MainScreenControlState {
   });
 
   MainScreenControlState copyWith({
+    bool? showBack,
     String? title,
     bool? isVisible,
     bool? isMenuVisible,
@@ -72,6 +79,7 @@ class MainScreenControlState {
     Color? backgroundColor,
   }) {
     return MainScreenControlState(
+        showBack: showBack ?? this.showBack,
         title: title ?? this.title,
         isMenuVisible: isMenuVisible ?? this.isMenuVisible,
         isVisible: isVisible ?? this.isVisible,

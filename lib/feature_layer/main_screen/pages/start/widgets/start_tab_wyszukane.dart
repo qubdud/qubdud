@@ -1,13 +1,17 @@
-import 'package:qb/shared/widgets/empty_state.dart';
-import 'package:qb/shared/constants.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:qb/shared/constants.dart';
+import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../bloc/start_page_bloc.dart';
-import '../../../bloc/main_bloc.dart';
 
-/// Tab "Wyszukane" — historia ostatnich wyszukań
-/// Kliknięcie w wpis przenosi do ekranu wyszukaj z wypełnionymi filtrami
+import '../../../../../domain_layer/domain_models/promoVideo.dart';
+import '../../../bloc/main_bloc.dart';
+import '../bloc/start_page_bloc.dart';
+
+/// Zakładka „Odkrywaj" — pierwsza rzecz, jaką widzi użytkownik:
+/// duży przycisk szukania, ostatnie wyszukania jako chipy i siatka
+/// prezentacji firm (tap = pionowy feed wideo).
 class StartTabWyszukane extends StatefulWidget {
   final StartPageState state;
   const StartTabWyszukane({super.key, required this.state});
@@ -18,7 +22,6 @@ class StartTabWyszukane extends StatefulWidget {
 
 class _StartTabWyszukaneState extends State<StartTabWyszukane> {
   List<_SearchEntry> _history = [];
-  bool _loading = true;
 
   @override
   void initState() {
@@ -41,151 +44,216 @@ class _StartTabWyszukaneState extends State<StartTabWyszukane> {
     // jedna pozycja na kategorię+branżę (współrzędne różnią się co wyszukanie)
     final seen = <String>{};
     entries.retainWhere((e) => seen.add('${e.category}|${e.sector}'));
-
-    if (mounted) setState(() { _history = entries; _loading = false; });
+    if (mounted) setState(() => _history = entries);
   }
 
-  Future<void> _remove(int index) async {
+  Future<void> _remove(_SearchEntry entry) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList('search_history') ?? [];
-    raw.removeAt(index);
+    raw.removeWhere((e) => e.startsWith('${entry.category}|${entry.sector}|'));
     await prefs.setStringList('search_history', raw);
-    setState(() => _history.removeAt(index));
+    setState(() => _history.remove(entry));
   }
 
-  Future<void> _clearAll() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('search_history');
-    setState(() => _history.clear());
-  }
-
-  Widget _bigSearchButton(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 28, 16, 10),
-      child: SizedBox(
-        height: 56,
-        child: ElevatedButton.icon(
-          icon: const Icon(Icons.search, size: 26),
-          label: const Text('Szukaj firmy / usługi',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: cDarkBlue,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28)),
-            elevation: 3,
-          ),
-          onPressed: () =>
-              context.read<MainScreenBloc>().add(GoToWyszukajFirmyEvent()),
-        ),
-      ),
-    );
+  void _repeat(_SearchEntry entry) {
+    final parts = entry.location.split(',');
+    final lat = parts.length == 2 ? double.tryParse(parts[0]) : null;
+    final lng = parts.length == 2 ? double.tryParse(parts[1]) : null;
+    context.read<MainScreenBloc>().add(GoToWyszukajFirmyEvent(
+          autoCategory: entry.category,
+          autoSector: entry.sector,
+          autoLat: lat,
+          autoLng: lng,
+        ));
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    final videos = widget.state.videos;
 
-    if (_history.isEmpty) {
-      return Column(
-        children: [
-          _bigSearchButton(context),
-          const Expanded(
-            child: EmptyState(
-              icon: Icons.search,
-              title: 'Brak historii wyszukań',
-              subtitle: 'Wyszukaj firmę, aby zobaczyć tu historię.',
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+      children: [
+        // ── Szukaj ─────────────────────────────────────────
+        SizedBox(
+          height: 56,
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.search, size: 26),
+            label: const Text('Szukaj firmy / usługi',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: cDarkBlue,
+              foregroundColor: Colors.white,
+              shape:
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+              elevation: 3,
             ),
+            onPressed: () =>
+                context.read<MainScreenBloc>().add(GoToWyszukajFirmyEvent()),
+          ),
+        ),
+
+        // ── Ostatnie wyszukania jako chipy ─────────────────
+        if (_history.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          const _SectionTitle('Ostatnio szukane'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: _history
+                .map((e) => InputChip(
+                      avatar: const Icon(Icons.history, size: 16),
+                      label: Text(e.sector,
+                          style: const TextStyle(fontSize: 13)),
+                      onPressed: () => _repeat(e),
+                      onDeleted: () => _remove(e),
+                      deleteIconColor: Colors.grey,
+                    ))
+                .toList(),
           ),
         ],
-      );
-    }
 
-    return Column(
-      children: [
-        _bigSearchButton(context),
-        // Nagłówek z przyciskiem "Wyczyść"
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            children: [
-              const Text('Ostatnie wyszukania',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              const Spacer(),
-              TextButton(
-                onPressed: _clearAll,
-                child: const Text('Wyczyść wszystko',
-                    style: TextStyle(color: Colors.grey, fontSize: 12)),
-              ),
-            ],
+        // ── Prezentacje firm ───────────────────────────────
+        const SizedBox(height: 22),
+        const _SectionTitle('Poznaj firmy',
+            subtitle: 'Dotknij, aby obejrzeć prezentację'),
+        const SizedBox(height: 10),
+        if (videos.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 24),
+            child: EmptyState(
+              icon: Icons.videocam_outlined,
+              title: 'Jeszcze nic tu nie ma',
+              subtitle: 'Użyj wyszukiwarki, aby znaleźć firmy w swojej okolicy.',
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.7,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemCount: videos.length,
+            itemBuilder: (context, i) => _PromoTile(
+              promo: videos[i],
+              onTap: () => context.read<MainScreenBloc>().add(
+                  GoToPromoFirmyEvent(videos[i],
+                      playlist: videos, initialIndex: i)),
+            ),
           ),
-        ),
-
-        // Lista
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: _history.length,
-            itemBuilder: (context, i) {
-              final entry = _history[i];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  leading: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: cDarkBlue.withOpacity(0.10),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.history, color: cDarkBlue, size: 22),
-                  ),
-                  title: Text(
-                    entry.category,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  subtitle: Text(
-                    entry.sector +
-                        '',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.close, size: 18, color: Colors.grey),
-                    onPressed: () => _remove(i),
-                  ),
-                  onTap: () {
-                    final parts = entry.location.split(',');
-                    final lat = parts.length == 2 ? double.tryParse(parts[0]) : null;
-                    final lng = parts.length == 2 ? double.tryParse(parts[1]) : null;
-                    context.read<MainScreenBloc>().add(GoToWyszukajFirmyEvent(
-                      autoCategory: entry.category,
-                      autoSector: entry.sector,
-                      autoLat: lat,
-                      autoLng: lng,
-                    ));
-                  },
-                ),
-              );
-            },
-          ),
-        ),
       ],
     );
   }
+}
 
-  String _formatLocation(String loc) {
-    // "52.23,21.01" → skrót współrzędnych lub pusty string
-    try {
-      final parts = loc.split(',');
-      if (parts.length == 2) {
-        final lat = double.parse(parts[0]);
-        final lng = double.parse(parts[1]);
-        return '${lat.toStringAsFixed(2)}, ${lng.toStringAsFixed(2)}';
-      }
-    } catch (_) {}
-    return '';
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  final String? subtitle;
+  const _SectionTitle(this.text, {this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(text,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        if (subtitle != null)
+          Text(subtitle!,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+      ],
+    );
+  }
+}
+
+/// Kafelek prezentacji: miniatura + nazwa firmy + branża na gradiencie.
+class _PromoTile extends StatelessWidget {
+  final Promo promo;
+  final VoidCallback onTap;
+  const _PromoTile({required this.promo, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (promo.thumbUrl.isNotEmpty)
+              CachedNetworkImage(
+                imageUrl: promo.thumbUrl,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => Container(color: Colors.grey.shade200),
+                errorWidget: (_, __, ___) => Container(
+                    color: Colors.grey.shade200,
+                    child: const Icon(Icons.videocam_off_outlined,
+                        color: Colors.grey)),
+              )
+            else
+              Container(
+                  color: Colors.grey.shade200,
+                  child: const Icon(Icons.videocam_outlined,
+                      color: Colors.grey, size: 40)),
+            // gradient pod tekstem
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(10, 28, 10, 10),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black87],
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      promo.companyName.isNotEmpty ? promo.companyName : 'Firma',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          height: 1.15),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      promo.sector,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // ikona play
+            const Positioned(
+              top: 8,
+              right: 8,
+              child: CircleAvatar(
+                radius: 14,
+                backgroundColor: Colors.black45,
+                child: Icon(Icons.play_arrow, color: Colors.white, size: 18),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
