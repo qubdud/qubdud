@@ -464,6 +464,16 @@ class FirebaseService {
 
 
 
+  Future<void> addFcmToken(String uid, String token) async {
+    await _firestore.collection('users').doc(uid).set(
+        {'fcmTokens': FieldValue.arrayUnion([token])}, SetOptions(merge: true));
+  }
+
+  Future<void> removeFcmToken(String uid, String token) async {
+    await _firestore.collection('users').doc(uid).set(
+        {'fcmTokens': FieldValue.arrayRemove([token])}, SetOptions(merge: true));
+  }
+
   Future<void> updateUserData(String userId, Map<String, dynamic> data) async {
     await _firestore.collection('users').doc(userId).update(data);
   }
@@ -998,6 +1008,7 @@ class FirebaseService {
         'confirmedByCompany': true,
         'confirmedByUser': true,
         'status': 'taken',
+        'takenAt': FieldValue.serverTimestamp(),
       });
       await _linkClient(
           companyId: companyId, userId: request.userId, requestId: request.id);

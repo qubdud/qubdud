@@ -14,6 +14,7 @@ import '../../../domain_layer/domain_models/app_user.dart';
 import '../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../domain_layer/firebase_service.dart';
 import '../../../shared/client_notes.dart';
+import '../../../shared/push_service.dart';
 import '../../../shared/functions/effective_role.dart';
 import '../../../shared/functions/show_toast.dart';
 import '../../../shared/globals.dart';
@@ -224,6 +225,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     });
 
     on<LogoutEvent>((event, emit) async {
+      await PushService.unregister(appFirebaseService);
       await FirebaseAuth.instance.signOut();
       Globals.instance.anonim = false;
       // tryb widoku jest per sesja — nowe konto zaczyna jako Firma
@@ -280,6 +282,29 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
       state.chatCounter = await appChatService.getTotalUnreadCount();
       state.user = userFB;
       add(GoToHomeEvent());
+
+      // push: token na konto + co robić po kliknięciu w powiadomienie
+      PushService.register(userFB.id, appFirebaseService, (data) {
+        switch (data['type']) {
+          case 'offer':          // nowa oferta → Start → Zgłoszenia (user)
+            Globals.instance.startTab = 3;
+            add(GoToHomeEvent());
+            break;
+          case 'booking':        // nowa rezerwacja → Start → Kalendarz (firma)
+          case 'booking_decision': // decyzja firmy → Start → Rezerwacje (user)
+            Globals.instance.startTab = 1;
+            add(GoToHomeEvent());
+            break;
+          case 'review':         // prośba o recenzję → profil firmy
+            final id = data['companyId'] as String?;
+            if (id != null && id.isNotEmpty) {
+              add(GoToProfilPublicznyFirmyEvent(id));
+            }
+            break;
+          default:               // pilne zgłoszenie, decyzja klienta → Start
+            add(GoToHomeEvent());
+        }
+      });
 
       // Firma (w trybie firmowym): powiadomienie o pilnych zgłoszeniach
       if (userFB.firma == true &&
