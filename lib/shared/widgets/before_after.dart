@@ -26,6 +26,7 @@ class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
       child: LayoutBuilder(builder: (context, constraints) {
         final width = constraints.maxWidth;
         return GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onHorizontalDragUpdate: (d) => setState(() =>
               _fraction = (d.localPosition.dx / width).clamp(0.02, 0.98)),
           onTapDown: (d) => setState(() =>
@@ -36,13 +37,19 @@ class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
               // PO (spód, całość)
               CachedNetworkImage(
                   imageUrl: widget.afterUrl, fit: BoxFit.cover),
-              // PRZED (wierzch, przycięty do frakcji)
-              ClipRect(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: _fraction,
-                  child: SizedBox(
-                    width: width,
+              // PRZED (wierzch, przycięty do frakcji).
+              // OverflowBox trzyma pełną szerokość zdjęcia, więc suwak
+              // przycina obraz zamiast go ściskać.
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: width * _fraction,
+                child: ClipRect(
+                  child: OverflowBox(
+                    alignment: Alignment.centerLeft,
+                    minWidth: width,
+                    maxWidth: width,
                     child: CachedNetworkImage(
                         imageUrl: widget.beforeUrl, fit: BoxFit.cover),
                   ),
