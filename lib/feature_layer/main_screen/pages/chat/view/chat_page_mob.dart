@@ -188,12 +188,18 @@ class _ConversationsList extends StatelessWidget {
                 onTap: () => context
                     .read<ChatPageBloc>()
                     .add(StartUserChatChatPageEvent(chat['from'] as String)),
-                leading: CircleAvatar(
-                  backgroundColor:
-                      isCompany ? Colors.blue.shade700 : Colors.grey.shade600,
-                  child: Text(name[0].toUpperCase(),
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold)),
+                // avatar → profil rozmówcy (firma lub osoba)
+                leading: GestureDetector(
+                  onTap: () => context.read<MainScreenBloc>().add(isCompany
+                      ? GoToProfilPublicznyFirmyEvent(chat['from'] as String)
+                      : GoToProfilPublicznyUseraEvent(chat['from'] as String)),
+                  child: CircleAvatar(
+                    backgroundColor:
+                        isCompany ? Colors.blue.shade700 : Colors.grey.shade600,
+                    child: Text(name[0].toUpperCase(),
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
                 ),
                 title: Text(name,
                     maxLines: 1,
