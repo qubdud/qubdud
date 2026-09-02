@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 
 import '../domain_layer/firebase_service.dart';
 import 'functions/show_toast.dart';
@@ -21,10 +22,17 @@ class PushService {
     _uid = uid;
     final m = FirebaseMessaging.instance;
     try {
-      await m.requestPermission(alert: true, badge: true, sound: true);
+      final perm = await m.requestPermission(alert: true, badge: true, sound: true);
+      debugPrint('PUSH: zgoda=${perm.authorizationStatus}');
       final token = await m.getToken();
-      if (token != null) await firebase.addFcmToken(uid, token);
-    } catch (_) {}
+      debugPrint('PUSH: token=${token == null ? 'BRAK' : '${token.substring(0, 12)}…'}');
+      if (token != null) {
+        await firebase.addFcmToken(uid, token);
+        debugPrint('PUSH: zapisano token dla $uid');
+      }
+    } catch (e) {
+      debugPrint('PUSH: błąd rejestracji: $e');
+    }
 
     await _onToken?.cancel();
     _onToken = m.onTokenRefresh.listen((t) {
