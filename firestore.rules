@@ -1,0 +1,152 @@
+rules_version = '2';
+
+// QUBDUD — reguły Firestore.
+// Zasada: anonim (Firebase anonymous auth) widzi WYŁĄCZNIE prezentacje (promos).
+// Wszystko inne wymaga pełnego konta. Zapisy tylko we własnych danych, z kilkoma
+// wyjątkami wynikającymi z mechaniki apki (rezerwacje, relacje, oferty, czat).
+// Cloud Functions działają z Admin SDK i omijają te reguły.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function anyAuth() {
+      return request.auth != null;
+    }
+    function signedIn() {
+      return request.auth != null
+          && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+    function isMe(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+    function onlyKeys(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // ── prezentacje firm: anonim może oglądać ──
+    match /promos/{promoId} {
+      allow read: if anyAuth();
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn()
+          && (resource.data.userId == request.auth.uid || onlyKeys(['views']));
+      allow delete: if isMe(resource.data.userId);
+    }
+
+    // ── użytkownicy i firmy ──
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow create, update: if isMe(userId);
+      allow delete: if false;
+
+      // sloty kalendarza: firma zarządza, klient rezerwuje/odwołuje swoje
+      match /slots/{slotId} {
+        allow read: if signedIn();
+        allow create, delete: if isMe(userId);
+        allow update: if signedIn()
+            && (request.auth.uid == userId
+                || request.resource.data.bookedBy == request.auth.uid
+                || resource.data.bookedBy == request.auth.uid);
+      }
+
+      // rezerwacje klienta: klient pisze swoje, firma aktualizuje status
+      match /myBookings/{bookingId} {
+        allow read: if isMe(userId);
+        allow write: if signedIn();
+      }
+
+      // relacje klient↔firma — zapisuje strona inicjująca (oferta/rezerwacja)
+      match /clients/{clientId} {
+        allow list: if isMe(userId);
+        allow get: if signedIn()
+            && (request.auth.uid == userId || request.auth.uid == clientId);
+        allow write: if signedIn();
+      }
+      match /myCompanies/{companyId} {
+        allow list: if isMe(userId);
+        allow get: if signedIn()
+            && (request.auth.uid == userId || request.auth.uid == companyId);
+        allow write: if signedIn();
+      }
+
+      // prywatne dane właściciela konta
+      match /clientNotes/{noteId} {
+        allow read, write: if isMe(userId);
+      }
+      match /favoritePromos/{promoId} {
+        allow read, write: if isMe(userId);
+      }
+      match /skippedRequests/{requestId} {
+        allow read, write: if isMe(userId);
+      }
+      match /contacts/{contactId} {
+        allow read, write: if isMe(userId);
+      }
+    }
+
+    // ── profil rozszerzony (kolekcja `profile`) ──
+    match /profile/{userId} {
+      allow read: if signedIn();
+      allow write: if isMe(userId);
+    }
+
+    // ── zgłoszenia i oferty ──
+    match /requests/{requestId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn()
+          && (resource.data.userId == request.auth.uid
+              || resource.data.takenBy == request.auth.uid
+              || request.resource.data.takenBy == request.auth.uid);
+      allow delete: if isMe(resource.data.userId);
+
+      match /offers/{companyId} {
+        allow read: if signedIn();
+        allow create: if isMe(companyId);
+        allow update: if signedIn()
+            && (request.auth.uid == companyId
+                || get(/databases/$(database)/documents/requests/$(requestId)).data.userId == request.auth.uid);
+        allow delete: if isMe(companyId);
+      }
+    }
+
+    // ── recenzje i komentarze ──
+    match /reviews/{reviewId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isMe(resource.data.userId);
+
+      match /comments/{commentId} {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.authorId == request.auth.uid;
+        allow update, delete: if isMe(resource.data.authorId);
+      }
+    }
+
+    // ── czat: tylko uczestnicy ──
+    match /chats/{chatId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.participants;
+      allow create: if signedIn() && request.auth.uid in request.resource.data.participants;
+      allow update: if signedIn()
+          && request.auth.uid in resource.data.participants
+          && request.auth.uid in request.resource.data.participants;
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read, create, update: if signedIn()
+            && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow delete: if false;
+      }
+    }
+
+    // ── realizacje (zdjęcia Przed/Po) ──
+    match /realizations/{realizationId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.companyId == request.auth.uid;
+      allow update, delete: if isMe(resource.data.companyId);
+    }
+
+    // ── tylko Cloud Functions ──
+    match /reviewReminders/{id} {
+      allow read, write: if false;
+    }
+  }
+}

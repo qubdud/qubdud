@@ -129,7 +129,13 @@ class _VideoItemState extends State<_VideoItem> {
   void _countView() {
     if (_viewCounted) return;
     _viewCounted = true;
-    context.read<FirebaseService>().incrementPromoViews(widget.promo.id);
+    // anonim nie ma prawa zapisu (reguły) — licznik tylko dla zalogowanych
+    if (!Globals.instance.anonim) {
+      context
+          .read<FirebaseService>()
+          .incrementPromoViews(widget.promo.id)
+          .catchError((_) {});
+    }
   }
 
   @override
