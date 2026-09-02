@@ -62,6 +62,8 @@ async function pushTo(uid, { title, body, data = {} }) {
       || code === 'messaging/invalid-registration-token') dead.push(tokens[i]);
   });
   if (dead.length) await ref.update({ fcmTokens: FieldValue.arrayRemove(...dead) });
+  console.log(`push → ${uid}: ok=${res.successCount} fail=${res.failureCount}`
+    + (dead.length ? ` (usunięto ${dead.length} martwych tokenów)` : '') + ` | ${title}`);
 }
 
 async function userName(uid) {
@@ -88,6 +90,7 @@ exports.notifyUrgentRequest = onDocumentCreated('requests/{id}', async (event) =
     .get();
 
   const body = `${d.sector || d.category}${d.city ? ' · ' + d.city : ''}: ${short(d.description)}`;
+  console.log(`pilne ${event.params.id}: ${d.category}/${d.sector}, firm w kategorii: ${firms.size}`);
   const jobs = [];
   for (const f of firms.docs) {
     if (f.id === d.userId) continue;
