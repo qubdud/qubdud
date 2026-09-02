@@ -494,28 +494,37 @@ class _RealizationRequestState extends State<_RealizationRequest> {
                     const Center(child: CircularProgressIndicator())
                   else
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Expanded(
-                          child: FilledButton.icon(
-                            icon: const Icon(Icons.check, size: 18),
-                            label: const Text('Potwierdzam'),
-                            style: FilledButton.styleFrom(
-                                backgroundColor: Colors.green.shade600),
-                            onPressed: () =>
-                                _decide(pending.first['id'] as String, 'approved'),
-                          ),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.close, size: 15),
+                          label: const Text('Odrzuć',
+                              style: TextStyle(fontSize: 13)),
+                          style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red.shade700,
+                              side: BorderSide(color: Colors.red.shade300),
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 4),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8))),
+                          onPressed: () =>
+                              _decide(pending.first['id'] as String, 'rejected'),
                         ),
                         const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            icon: const Icon(Icons.close, size: 18),
-                            label: const Text('Nie zgadza się'),
-                            style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red.shade700,
-                                side: BorderSide(color: Colors.red.shade300)),
-                            onPressed: () =>
-                                _decide(pending.first['id'] as String, 'rejected'),
-                          ),
+                        FilledButton.icon(
+                          icon: const Icon(Icons.check, size: 15),
+                          label: const Text('Potwierdź',
+                              style: TextStyle(fontSize: 13)),
+                          style: FilledButton.styleFrom(
+                              backgroundColor: Colors.green.shade600,
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 4),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8))),
+                          onPressed: () =>
+                              _decide(pending.first['id'] as String, 'approved'),
                         ),
                       ],
                     ),
