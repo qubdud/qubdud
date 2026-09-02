@@ -1,7 +1,6 @@
 import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:qb/shared/widgets/swipe_right_to_hide.dart';
 import 'package:qb/shared/functions/show_toast.dart';
 import 'package:qb/shared/functions/show_toast_error.dart';
 import 'package:qb/domain_layer/chat_service.dart';
@@ -176,34 +175,9 @@ class _RequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final frame = _frameColor;
 
-    // → w prawo: ukryj. W lewo karta nic nie robi — ten gest przełącza
-    // zakładkę na Kalendarz (oferta jest pod przyciskiem).
-    return SwipeRightToHide(
-      key: ValueKey('req_${request.id}'),
-      enabled: !isTrash,
-      onHide: () => context
-          .read<StartPageBloc>()
-          .add(TryHideRequestEvent(request.id)),
-      background: Container(
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 24),
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Colors.red.shade400,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.visibility_off, color: Colors.white),
-            SizedBox(width: 8),
-            Text('Ukryj',
-                style: TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      ),
-      child: Card(
+    // bez gestów na karcie — poziomy ruch przesuwa zakładki;
+    // oferta przyciskiem, ukrycie w menu ⋯
+    return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -489,7 +463,6 @@ class _RequestCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
       ),
     );
   }
@@ -872,7 +845,7 @@ Future<String?> showOfferDialog(BuildContext context, String clientName) {
             ),
             const SizedBox(height: 4),
             const Text(
-                'Klient zobaczy ofertę przy swoim zgłoszeniu i zdecyduje ✔ / ? / ✖.',
+                'Klient zobaczy ofertę przy swoim zgłoszeniu.',
                 style: TextStyle(fontSize: 12, color: Colors.grey)),
             const SizedBox(height: 14),
             Row(

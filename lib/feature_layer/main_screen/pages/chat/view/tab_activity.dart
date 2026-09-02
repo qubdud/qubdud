@@ -382,26 +382,33 @@ class _TabActivityState extends State<TabActivity> {
       onNoteChanged: () => setState(() {}),
     );
     if (it.kind != ActivityKind.chat) return card;
-    // rozmowę można schować do kosza jak dawniej na liście rozmów
-    return Dismissible(
-      key: ValueKey('act_chat_${it.personId}'),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 24),
-        margin: const EdgeInsets.only(bottom: 10),
-        decoration: BoxDecoration(
-          color: Colors.red.shade400,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: const Icon(Icons.delete_outline, color: Colors.white),
-      ),
-      onDismissed: (_) {
-        chatService.hideChat(it.personId);
-        showToast(text: 'Rozmowa przeniesiona do kosza');
-      },
+    // rozmowę można schować do kosza: przytrzymaj kartę
+    return GestureDetector(
+      onLongPress: () => _confirmTrash(it, chatService),
       child: card,
     );
+  }
+
+  Future<void> _confirmTrash(ActivityItem it, ChatService chatService) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Przenieść rozmowę do kosza?'),
+        content: Text(it.name),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Zostaw')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Do kosza',
+                  style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await chatService.hideChat(it.personId);
+    showToast(text: 'Rozmowa przeniesiona do kosza');
   }
 }
 

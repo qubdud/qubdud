@@ -128,7 +128,7 @@ class _ChatPageMobState extends State<ChatPageMob>
               ),
             ),
             Expanded(
-              child: _views[_tab.index],
+              child: TabBarView(controller: _tab, children: _views),
             ),
           ],
         );
