@@ -124,6 +124,11 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
             isScrollable: true,
             tabAlignment: TabAlignment.center,
             labelColor: Colors.black,
+            labelStyle: const TextStyle(
+                fontSize: 17, fontWeight: FontWeight.w700),
+            unselectedLabelStyle: const TextStyle(
+                fontSize: 17, fontWeight: FontWeight.w600),
+            indicatorWeight: 3,
             tabs: _isAnon
                 ? const [Tab(text: 'Odkrywaj')]
                 : _isCompany
@@ -154,28 +159,31 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
     );
   }
 
+  /// Zakładki w TabBarView — przełączanie tapnięciem albo przesunięciem
+  /// palcem w lewo/prawo.
   Widget _buildContent(StartPageState state) {
     if (_isAnon) return StartTabWyszukane(state: state);
 
-    final idx = _tabController.index;
-
+    final List<Widget> pages;
     if (_isCompany) {
       final myId = context.read<MainScreenBloc>().state.user?.id ?? '';
-      switch (idx) {
-        case 0: return MoiKlienciTab(key: const ValueKey(0), state: state);
-        case 1: return TabKalendarz(
-            key: const ValueKey(1), companyId: myId, showGenerator: false);
-        case 2: return StartTabOtrzymaneRecenzje(key: const ValueKey(2), state: state);
-      }
+      pages = [
+        MoiKlienciTab(key: const ValueKey(0), state: state),
+        TabKalendarz(
+            key: const ValueKey(1), companyId: myId, showGenerator: false),
+        StartTabOtrzymaneRecenzje(key: const ValueKey(2), state: state),
+      ];
     } else {
-      switch (idx) {
-        case 0: return StartTabWyszukane(key: const ValueKey(0), state: state);
-        case 1: return const StartTabRezerwacje(key: ValueKey(1));
-        case 2: return StartTabFavourites(key: const ValueKey(2), state: state);
-        case 3: return ShowRequestsComponent(key: const ValueKey(3));
-      }
+      pages = [
+        StartTabWyszukane(key: const ValueKey(0), state: state),
+        const StartTabRezerwacje(key: ValueKey(1)),
+        StartTabFavourites(key: const ValueKey(2), state: state),
+        ShowRequestsComponent(key: const ValueKey(3)),
+      ];
     }
-
-    return const SizedBox.shrink();
+    if (pages.length != _tabController.length) {
+      return const SizedBox.shrink();
+    }
+    return TabBarView(controller: _tabController, children: pages);
   }
 }
