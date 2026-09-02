@@ -8,6 +8,8 @@ class AppUser {
   final String? email;
   final String? phone;
   final String? bio;
+  /// Czym są terminy w kalendarzu (konsultacja, strzyżenie, rozmowa…)
+  final String? slotsInfo;
   final bool? firma;
   final String? nip;
   final String? companyName;
@@ -25,6 +27,7 @@ class AppUser {
     this.email,
     this.phone,
     this.bio,
+    this.slotsInfo,
     this.firma,
     this.nip,
     this.companyName,
@@ -49,6 +52,7 @@ class AppUser {
       email: data['email'] as String?,
       phone: data['phone'] as String?,
       bio: data['bio'] as String?,
+      slotsInfo: data['slotsInfo'] as String?,
       firma: (data['firma'] as bool?) ?? (data['isCompany'] as bool?) ?? false,
       nip: data['nip'] as String?,
       companyName: data['companyName'] as String?,
@@ -75,6 +79,7 @@ class AppUser {
       if (email != null) 'email': email,
       if (phone != null) 'phone': phone,
       if (bio != null) 'bio': bio,
+      if (slotsInfo != null) 'slotsInfo': slotsInfo,
       'firma': firma ?? false,
       'isCompany': firma ?? false,
       if (nip != null) 'nip': nip,

@@ -38,11 +38,31 @@ class _TabKalendarzState extends State<TabKalendarz> {
   List<Map<String, dynamic>> _slots = [];
   bool _loading = true;
   StreamSubscription<List<Map<String, dynamic>>>? _sub;
+  final _infoCtrl = TextEditingController();
+  bool _infoDirty = false;
+
+  Future<void> _loadInfo() async {
+    final u = await context.read<FirebaseService>().fetchUser(widget.companyId);
+    if (mounted && u?.slotsInfo != null) _infoCtrl.text = u!.slotsInfo!;
+  }
+
+  Future<void> _saveInfo() async {
+    try {
+      await context
+          .read<FirebaseService>()
+          .updateUserData(widget.companyId, {'slotsInfo': _infoCtrl.text.trim()});
+      if (mounted) setState(() => _infoDirty = false);
+      showToast(text: 'Zapisano opis terminów');
+    } catch (e) {
+      showToastError(text: 'Błąd: $e');
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     final firebase = context.read<FirebaseService>();
+    if (widget.showGenerator) _loadInfo();
     firebase.cleanupOldSlots(widget.companyId).catchError((_) {});
     // podgląd na żywo — rezerwacje klientów wpadają bez odświeżania
     _sub = firebase.slotsStream(widget.companyId).listen((slots) {
@@ -55,6 +75,7 @@ class _TabKalendarzState extends State<TabKalendarz> {
   @override
   void dispose() {
     _sub?.cancel();
+    _infoCtrl.dispose();
     super.dispose();
   }
 
@@ -410,6 +431,34 @@ class _TabKalendarzState extends State<TabKalendarz> {
             icon: const Icon(Icons.auto_awesome_outlined, size: 18),
             label: const Text('Generuj sloty (start, długość, ilość, dni)'),
             onPressed: _generateSlots,
+          ),
+          const SizedBox(height: 14),
+          // czym są terminy — klient zobaczy to nad kropkami na Twoim profilu
+          const Text('Czym są Twoje terminy?',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _infoCtrl,
+            maxLength: 200,
+            maxLines: 3,
+            minLines: 2,
+            onChanged: (_) {
+              if (!_infoDirty) setState(() => _infoDirty = true);
+            },
+            decoration: const InputDecoration(
+              hintText:
+                  'np. Konsultacja telefoniczna 30 min / Strzyżenie męskie / Wizyta u klienta',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              icon: const Icon(Icons.save_outlined, size: 18),
+              label: const Text('Zapisz opis'),
+              onPressed: _infoDirty ? _saveInfo : null,
+            ),
           ),
           const SizedBox(height: 8),
         ],

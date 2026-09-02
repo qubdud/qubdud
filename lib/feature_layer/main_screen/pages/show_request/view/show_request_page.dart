@@ -171,23 +171,54 @@ class _ViewState extends State<View> {
             children: [
           WSmallLabel(text: 'Widok zgłoszenia'),
           if(Globals.instance.selectedRequest!.fileName.contains('.jpg'))
-            Container(
-              height: MediaQuery.of(context).size.width-32,
-
-              child: SingleChildScrollView(
-                child: CachedNetworkImage(
-                  imageUrl: Globals.instance.selectedRequest!.fileUrl,
-                  fit: BoxFit.fitWidth,
-                ),
+            GestureDetector(
+              onTap: () => _openImageFullscreen(
+                  context, Globals.instance.selectedRequest!.fileUrl),
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      height: MediaQuery.of(context).size.width - 32,
+                      width: double.infinity,
+                      child: CachedNetworkImage(
+                        imageUrl: Globals.instance.selectedRequest!.fileUrl,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  const Positioned(
+                    right: 10,
+                    bottom: 10,
+                    child: _ZoomHint(icon: Icons.zoom_out_map),
+                  ),
+                ],
               ),
             ),
 
               if(Globals.instance.selectedRequest!.fileName.contains('.mp4'))
-
-                Container(
-                  height: MediaQuery.of(context).size.width-32,
-
-                  child: VideoPlayerItem(videoUrl: Globals.instance.selectedRequest!.fileUrl),
+                GestureDetector(
+                  onTap: () => _openVideoFullscreen(
+                      context, Globals.instance.selectedRequest!.fileUrl),
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(
+                          height: MediaQuery.of(context).size.width - 32,
+                          width: double.infinity,
+                          child: VideoPlayerItem(
+                              videoUrl:
+                                  Globals.instance.selectedRequest!.fileUrl),
+                        ),
+                      ),
+                      const Positioned(
+                        right: 10,
+                        bottom: 10,
+                        child: _ZoomHint(icon: Icons.fullscreen),
+                      ),
+                    ],
+                  ),
                 ),
 
 
@@ -397,9 +428,86 @@ class _ViewState extends State<View> {
   }
 }
 
+/// Pełny ekran zdjęcia: zoom palcami, tap w tło zamyka.
+void _openImageFullscreen(BuildContext context, String url) {
+  showDialog(
+    context: context,
+    barrierColor: Colors.black,
+    builder: (ctx) => Stack(
+      children: [
+        Positioned.fill(
+          child: InteractiveViewer(
+            minScale: 1,
+            maxScale: 5,
+            child: Center(
+              child: CachedNetworkImage(imageUrl: url, fit: BoxFit.contain),
+            ),
+          ),
+        ),
+        Positioned(
+          top: MediaQuery.of(ctx).padding.top + 8,
+          right: 12,
+          child: IconButton(
+            icon: const Icon(Icons.close, color: Colors.white, size: 30),
+            onPressed: () => Navigator.pop(ctx),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Pełny ekran wideo z dźwiękiem i pauzą.
+void _openVideoFullscreen(BuildContext context, String url) {
+  showDialog(
+    context: context,
+    barrierColor: Colors.black,
+    builder: (ctx) => Stack(
+      children: [
+        Positioned.fill(
+          child: VideoPlayerItem(videoUrl: url, contain: true, controls: true),
+        ),
+        Positioned(
+          top: MediaQuery.of(ctx).padding.top + 8,
+          right: 12,
+          child: IconButton(
+            icon: const Icon(Icons.close, color: Colors.white, size: 30),
+            onPressed: () => Navigator.pop(ctx),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ZoomHint extends StatelessWidget {
+  final IconData icon;
+  const _ZoomHint({required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: const BoxDecoration(
+          color: Colors.black54, shape: BoxShape.circle),
+      child: Icon(icon, color: Colors.white, size: 20),
+    );
+  }
+}
+
 class VideoPlayerItem extends StatefulWidget {
   final String videoUrl;
-  const VideoPlayerItem({super.key, required this.videoUrl});
+  /// contain = całe wideo widoczne (pełny ekran); false = wypełnia kafelek.
+  final bool contain;
+
+  /// controls = tap pauzuje/wznawia, dźwięk włączony.
+  final bool controls;
+
+  const VideoPlayerItem(
+      {super.key,
+      required this.videoUrl,
+      this.contain = false,
+      this.controls = false});
 
   @override
   State<VideoPlayerItem> createState() => _VideoPlayerItemState();
@@ -442,22 +550,32 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    return Stack(
-      children: [
-        // Wideo wypełniające cały widget
-        Positioned.fill(
-          child: FittedBox(
-            fit: BoxFit.cover,
-            clipBehavior: Clip.hardEdge, // ważne, żeby nie wychodził poza obszar
-            child: SizedBox(
-              width: _controller.value.size.width,
-              height: _controller.value.size.height,
-              child: VideoPlayer(_controller),
+    return GestureDetector(
+      onTap: widget.controls
+          ? () => setState(() => _controller.value.isPlaying
+              ? _controller.pause()
+              : _controller.play())
+          : null,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: FittedBox(
+              fit: widget.contain ? BoxFit.contain : BoxFit.cover,
+              clipBehavior: Clip.hardEdge,
+              child: SizedBox(
+                width: _controller.value.size.width,
+                height: _controller.value.size.height,
+                child: VideoPlayer(_controller),
+              ),
             ),
           ),
-        ),
-
-      ],
+          if (widget.controls && !_controller.value.isPlaying)
+            const Center(
+              child: Icon(Icons.play_circle_fill,
+                  color: Colors.white70, size: 72),
+            ),
+        ],
+      ),
     );
   }
 }

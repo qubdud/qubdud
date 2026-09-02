@@ -4,6 +4,9 @@ import '../domain_layer/domain_models/promoVideo.dart';
 
 class Globals {
   Request? selectedRequest;
+
+  /// Jednorazowe: który tab Startu otworzyć po GoToHomeEvent (np. Kalendarz).
+  int? startTab;
   Promo? selectedPromo;
   Promo? selectedReview;
 

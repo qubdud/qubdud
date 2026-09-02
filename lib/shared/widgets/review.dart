@@ -278,16 +278,20 @@ class _CommentBubble extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      comment.authorName,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: comment.isOwner
-                            ? (isDark
-                                ? Colors.blue.shade300
-                                : Colors.blue.shade700)
-                            : (isDark ? Colors.white : Colors.black87),
+                    Flexible(
+                      child: Text(
+                        comment.authorName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: comment.isOwner
+                              ? (isDark
+                                  ? Colors.blue.shade300
+                                  : Colors.blue.shade700)
+                              : (isDark ? Colors.white : Colors.black87),
+                        ),
                       ),
                     ),
                     if (comment.isOwner) ...[

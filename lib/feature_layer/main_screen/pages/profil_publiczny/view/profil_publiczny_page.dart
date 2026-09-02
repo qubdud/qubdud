@@ -47,6 +47,35 @@ class _ProfilView extends StatefulWidget {
 
 class _ProfilViewState extends State<_ProfilView> {
   final _slotsKey = GlobalKey();
+  final _scroll = ScrollController();
+  bool _showCta = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_updateCta);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateCta());
+  }
+
+  @override
+  void dispose() {
+    _scroll.removeListener(_updateCta);
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// Przycisk ma sens tylko wtedy, gdy sloty zniknęły z ekranu.
+  void _updateCta() {
+    final ctx = _slotsKey.currentContext;
+    if (!mounted || ctx == null) return;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null || !box.attached) return;
+    final top = box.localToGlobal(Offset.zero).dy;
+    final bottom = top + box.size.height;
+    final screenH = MediaQuery.of(context).size.height;
+    final slotsVisible = bottom > 140 && top < screenH - 180;
+    if (_showCta == slotsVisible) setState(() => _showCta = !slotsVisible);
+  }
 
   void _scrollToSlots() {
     final ctx = _slotsKey.currentContext;
@@ -75,6 +104,7 @@ class _ProfilViewState extends State<_ProfilView> {
           return Stack(
             children: [
               SingleChildScrollView(
+            controller: _scroll,
             padding: EdgeInsets.only(bottom: canBook ? 88 : 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -84,7 +114,10 @@ class _ProfilViewState extends State<_ProfilView> {
                 if (state.targetUser != null)
                   KeyedSubtree(
                     key: _slotsKey,
-                    child: _SlotsSection(companyId: state.targetUser!.id, companyName: state.targetUser!.companyName ?? "Firma"),
+                    child: _SlotsSection(
+                        companyId: state.targetUser!.id,
+                        companyName: state.targetUser!.companyName ?? "Firma",
+                        info: state.targetUser!.slotsInfo),
                   ),
 
                 Padding(
@@ -109,7 +142,7 @@ class _ProfilViewState extends State<_ProfilView> {
             ),
           ),
               // przyklejone CTA — sloty są w środku strony, przycisk zawsze widoczny
-              if (canBook)
+              if (canBook && _showCta)
                 Positioned(
                   left: 16,
                   right: 16,
@@ -119,7 +152,7 @@ class _ProfilViewState extends State<_ProfilView> {
                     child: ElevatedButton.icon(
                       onPressed: _scrollToSlots,
                       icon: const Icon(Icons.event_available, size: 22),
-                      label: const Text('Umów wizytę',
+                      label: const Text('Umów',
                           style: TextStyle(
                               fontSize: 16, fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(
@@ -382,7 +415,9 @@ class _RealizationsSectionState extends State<_RealizationsSection> {
 class _SlotsSection extends StatefulWidget {
   final String companyId;
   final String companyName;
-  const _SlotsSection({required this.companyId, required this.companyName});
+  final String? info;
+  const _SlotsSection(
+      {required this.companyId, required this.companyName, this.info});
 
   @override
   State<_SlotsSection> createState() => _SlotsSectionState();
@@ -505,7 +540,12 @@ class _SlotsSectionState extends State<_SlotsSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          WSmallLabel(text: 'Umów wizytę (7 dni)'),
+          WSmallLabel(text: 'Umów (najbliższe 7 dni)'),
+          if (widget.info?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 4),
+            Text(widget.info!.trim(),
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+          ],
           const SizedBox(height: 8),
           ...byDay.entries.map((e) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),

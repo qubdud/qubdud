@@ -11,6 +11,7 @@ import 'package:geolocator/geolocator.dart';
 import 'domain_models/app_user.dart';
 import 'domain_models/company_info.dart';
 import 'domain_models/promoVideo.dart';
+import 'domain_models/relation_link.dart';
 
 class FirebaseService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -1047,35 +1048,150 @@ class FirebaseService {
     final userData = userDoc.data() ?? {};
     final companyData = companyDoc.data() ?? {};
 
+    // rezerwacje przychodzą jako 'slot_<id>' — trzymamy osobno, żeby lista
+    // klientów mogła pokazać „skąd ta osoba" i dać odnośnik
+    final isSlot = requestId.startsWith('slot_');
+    final linkFields = <String, dynamic>{
+      if (isSlot)
+        'slotIds': FieldValue.arrayUnion([requestId.substring(5)])
+      else
+        'requestIds': FieldValue.arrayUnion([requestId]),
+      'lastAt': FieldValue.serverTimestamp(),
+    };
+    final clientRef = _firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('clients')
+        .doc(userId);
+    final companyRef = _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('myCompanies')
+        .doc(companyId);
+    final firstTime = !(await clientRef.get()).exists;
+
     final batch = _firestore.batch();
     batch.set(
-      _firestore
-          .collection('users')
-          .doc(companyId)
-          .collection('clients')
-          .doc(userId),
+      clientRef,
       {
         'userId': userId,
         'name':
             '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}'.trim(),
-        'requestId': requestId,
-        'addedAt': FieldValue.serverTimestamp(),
+        if (firstTime) 'addedAt': FieldValue.serverTimestamp(),
+        ...linkFields,
       },
+      SetOptions(merge: true),
     );
     batch.set(
-      _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('myCompanies')
-          .doc(companyId),
+      companyRef,
       {
         'companyId': companyId,
         'name': companyData['companyName'] ?? 'Firma',
-        'requestId': requestId,
-        'addedAt': FieldValue.serverTimestamp(),
+        if (firstTime) 'addedAt': FieldValue.serverTimestamp(),
+        ...linkFields,
       },
+      SetOptions(merge: true),
     );
     await batch.commit();
+  }
+
+  /// Zgłoszenie po id (do odnośników z listy klientów).
+  Future<Request?> getRequestById(String id) async {
+    final doc = await _firestore.collection('requests').doc(id).get();
+    if (!doc.exists) return null;
+    return Request.fromDoc(doc);
+  }
+
+  /// Pojedynczy slot firmy (start + status) — do odnośnika „Rezerwacja".
+  Future<SlotRef?> getSlotRef(String companyId, String slotId) async {
+    final doc = await _firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('slots')
+        .doc(slotId)
+        .get();
+    final d = doc.data();
+    if (d == null || d['start'] == null) return null;
+    return SlotRef(
+      id: doc.id,
+      companyId: companyId,
+      start: (d['start'] as Timestamp).toDate(),
+      status: (d['status'] as String?) ?? 'free',
+    );
+  }
+
+  /// Zbiera relację z dokumentu clients/myCompanies: nowe pola tablicowe
+  /// + stare pojedyncze `requestId` (może być 'slot_<id>').
+  Future<RelationLink?> _linkFromDoc(
+      DocumentSnapshot<Map<String, dynamic>> d, String personId, String companyId) async {
+    final u = await fetchUser(personId);
+    if (u == null) return null;
+    final data = d.data() ?? {};
+    final reqIds = <String>{
+      ...((data['requestIds'] as List?)?.cast<String>() ?? const []),
+    };
+    final slotIds = <String>{
+      ...((data['slotIds'] as List?)?.cast<String>() ?? const []),
+    };
+    final legacy = data['requestId'] as String?;
+    if (legacy != null && legacy.isNotEmpty) {
+      if (legacy.startsWith('slot_')) {
+        slotIds.add(legacy.substring(5));
+      } else {
+        reqIds.add(legacy);
+      }
+    }
+    final requests = <Request>[];
+    for (final id in reqIds) {
+      final r = await getRequestById(id);
+      if (r != null) requests.add(r);
+    }
+    final slots = <SlotRef>[];
+    for (final id in slotIds) {
+      final s = await getSlotRef(companyId, id);
+      if (s != null) slots.add(s);
+    }
+    slots.sort((a, b) => b.start.compareTo(a.start));
+    return RelationLink(
+      user: u,
+      requests: requests,
+      slots: slots,
+      addedAt: (data['addedAt'] as Timestamp?)?.toDate(),
+    );
+  }
+
+  /// Klienci firmy wraz ze źródłem relacji (zgłoszenia, rezerwacje).
+  Future<List<RelationLink>> getClientLinks(String companyId) async {
+    final snap = await _firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('clients')
+        .get();
+    final out = <RelationLink>[];
+    for (final d in snap.docs) {
+      final l = await _linkFromDoc(d, d.id, companyId);
+      if (l != null) out.add(l);
+    }
+    out.sort((a, b) =>
+        (b.addedAt ?? DateTime(2000)).compareTo(a.addedAt ?? DateTime(2000)));
+    return out;
+  }
+
+  /// Firmy użytkownika wraz ze źródłem relacji.
+  Future<List<RelationLink>> getMyCompanyLinks(String userId) async {
+    final snap = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('myCompanies')
+        .get();
+    final out = <RelationLink>[];
+    for (final d in snap.docs) {
+      final l = await _linkFromDoc(d, d.id, d.id);
+      if (l != null) out.add(l);
+    }
+    out.sort((a, b) =>
+        (b.addedAt ?? DateTime(2000)).compareTo(a.addedAt ?? DateTime(2000)));
+    return out;
   }
 
   // ── KLIENCI FIRMY / MOJE FIRMY ───────────────────────────────────────────

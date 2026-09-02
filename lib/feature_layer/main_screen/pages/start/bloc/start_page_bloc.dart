@@ -12,8 +12,7 @@ part 'start_page_event.dart';
 part 'start_page_state.dart';
 
 
-const kDefaultOfferMessage =
-    'Jestem zainteresowany tym zleceniem — mogę się nim zająć. Proszę o kontakt.';
+const kDefaultOfferMessage = 'Jestem zainteresowany. Proszę o kontakt.';
 
 class StartPageBloc extends Bloc<StartPageEvent, StartPageState> {
   StartPageBloc({

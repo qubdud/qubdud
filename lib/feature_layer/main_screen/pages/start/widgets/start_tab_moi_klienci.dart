@@ -732,35 +732,74 @@ Future<String?> showOfferDialog(BuildContext context, String clientName) {
   final ctrl = TextEditingController(text: kDefaultOfferMessage);
   return showDialog<String>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(clientName.isEmpty ? 'Oferta' : 'Oferta dla: $clientName'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            controller: ctrl,
-            maxLines: 4,
-            maxLength: 300,
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'Napisz, co oferujesz, cenę, termin…',
-              border: OutlineInputBorder(),
+    builder: (ctx) => Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.local_offer_outlined, color: cDarkBlue),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                      clientName.isEmpty ? 'Oferta' : 'Oferta dla: $clientName',
+                      style: const TextStyle(
+                          fontSize: 19, fontWeight: FontWeight.w700)),
+                ),
+              ],
             ),
-          ),
-          const Text('Klient zobaczy ofertę przy swoim zgłoszeniu i zdecyduje ✔ / ? / ✖.',
-              style: TextStyle(fontSize: 11, color: Colors.grey)),
-        ],
-      ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('Anuluj')),
-        FilledButton.icon(
-          icon: const Icon(Icons.send, size: 16),
-          label: const Text('Wyślij'),
-          onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            const SizedBox(height: 14),
+            TextField(
+              controller: ctrl,
+              maxLines: 7,
+              minLines: 5,
+              maxLength: 400,
+              autofocus: true,
+              style: const TextStyle(fontSize: 16),
+              decoration: const InputDecoration(
+                hintText: 'Co oferujesz, cena, termin…',
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.all(14),
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+                'Klient zobaczy ofertę przy swoim zgłoszeniu i zdecyduje ✔ / ? / ✖.',
+                style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14)),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Anuluj'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: cDarkBlue,
+                        padding: const EdgeInsets.symmetric(vertical: 14)),
+                    icon: const Icon(Icons.send, size: 18),
+                    label: const Text('Wyślij ofertę',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w600)),
+                    onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ],
+      ),
     ),
   );
 }

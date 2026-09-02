@@ -49,7 +49,12 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
     _isCompany = (!_isAnon) && isCompanyMode(user);
 
     final length = _isAnon ? 1 : (_isCompany ? 3 : 4);
-    _tabController = TabController(length: length, vsync: this);
+    final wanted = Globals.instance.startTab;
+    Globals.instance.startTab = null;
+    _tabController = TabController(
+        length: length,
+        vsync: this,
+        initialIndex: (wanted ?? 0).clamp(0, length - 1));
     // Listener żeby setState przy zmianie taba → rebuild
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) setState(() {});
