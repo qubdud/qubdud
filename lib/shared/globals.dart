@@ -7,6 +7,8 @@ class Globals {
 
   /// Jednorazowe: który tab Startu otworzyć po GoToHomeEvent (np. Kalendarz).
   int? startTab;
+  int lastStartTab = 0;
+  int? contactsTab;
   Promo? selectedPromo;
   Promo? selectedReview;
 

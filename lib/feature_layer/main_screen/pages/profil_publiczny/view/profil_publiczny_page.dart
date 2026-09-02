@@ -675,9 +675,17 @@ class _SlotsSectionState extends State<_SlotsSection> {
         children: [
           WSmallLabel(text: 'Umów (najbliższe 7 dni)'),
           if (widget.info?.trim().isNotEmpty == true) ...[
-            const SizedBox(height: 4),
-            Text(widget.info!.trim(),
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+            const SizedBox(height: 10),
+            Center(
+              child: Text(widget.info!.trim(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: cDarkBlue,
+                      height: 1.3)),
+            ),
+            const SizedBox(height: 6),
           ],
           const SizedBox(height: 8),
           ...byDay.entries.map((e) => Padding(

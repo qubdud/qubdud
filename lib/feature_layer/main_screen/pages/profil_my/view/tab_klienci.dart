@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../domain_layer/domain_models/relation_link.dart';
@@ -253,6 +254,18 @@ class _RelationListState extends State<_RelationList> {
                         text: 'Zgłoszenie · ${_short(r.description.isNotEmpty ? r.description : r.sector)}',
                         onTap: () => _openRequest(r),
                       ),
+                      if (l.contact != null)
+                        _SourceChip(
+                          icon: Icons.phone_callback_outlined,
+                          color: l.contact!.status == 'done'
+                              ? Colors.green.shade700
+                              : Colors.amber.shade800,
+                          text: 'Prośba o telefon · ${l.contact!.phone}'
+                              '${l.contact!.status == 'done' ? ' · załatwione' : ' · czeka'}',
+                          onTap: widget.companyView
+                              ? () => _contactActions(l.contact!)
+                              : null,
+                        ),
                       if (l.isManual)
                         _SourceChip(
                           icon: Icons.sticky_note_2_outlined,
@@ -270,6 +283,43 @@ class _RelationListState extends State<_RelationList> {
         );
       },
     );
+  }
+
+  /// Firma: zadzwoń pod numer z prośby albo oznacz, że już się odezwała.
+  Future<void> _contactActions(ContactRef c) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (c.note.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.notes_outlined),
+                title: Text(c.note),
+              ),
+            ListTile(
+              leading: const Icon(Icons.phone_outlined),
+              title: Text('Zadzwoń: ${c.phone}'),
+              onTap: () => Navigator.pop(ctx, 'call'),
+            ),
+            if (c.status != 'done')
+              ListTile(
+                leading: const Icon(Icons.check_circle_outline),
+                title: const Text('Oznacz: skontaktowałem się'),
+                onTap: () => Navigator.pop(ctx, 'done'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || choice == null) return;
+    if (choice == 'call') {
+      await launchUrl(Uri(scheme: 'tel', path: c.phone.replaceAll(RegExp(r'[^0-9+]'), '')));
+    } else {
+      await context.read<FirebaseService>().setContactRequestDone(c.id);
+      setState(() => c.status = 'done');
+    }
   }
 
   void _openProfile(String id, bool isCompany) {

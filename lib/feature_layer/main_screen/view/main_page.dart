@@ -85,7 +85,11 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     return BlocConsumer<MainScreenBloc, MainScreenState>(
       listener: (context, state) {
+        // dolny pasek podąża za ekranem także przy nawigacji z alertów/pushy
         if (state is StartMainScreenState) _selectedIndex = 0;
+        if (state is ChatMainScreenState && state.id.isEmpty) _selectedIndex = 3;
+        if (state is PowiadomieniaMainScreenState) _selectedIndex = 5;
+        if (state is ProfilFirmaMainScreenState) _selectedIndex = 4;
 
         if (state is LogoutMainScreenState) {
           context.read<CoreScreenBloc>().add(CoreScreenCheckAuthenticationEvent());
@@ -174,7 +178,7 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
                 onPopInvokedWithResult: (didPop, res){
 
                   if(!didPop){
-                   context.read<MainScreenBloc>().add(GoToHomeEvent());
+                   context.read<MainScreenBloc>().add(GoBackEvent());
                   }
                 },
 

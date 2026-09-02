@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:qb/shared/widgets/anonim_gate.dart';
+import 'package:qb/shared/widgets/contact_request_button.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
@@ -232,6 +233,12 @@ class _VideoItemState extends State<_VideoItem> {
                       myUserId: myUid, contactUserId: widget.promo.userId);
                   showToast(text: 'Dodano do kontaktów');
                 },
+              ),
+              const SizedBox(height: 16),
+              ContactRequestButton(
+                companyId: widget.promo.userId,
+                companyName:
+                    _author?.companyName ?? widget.promo.companyName,
               ),
               const SizedBox(height: 16),
               _ActionIcon(

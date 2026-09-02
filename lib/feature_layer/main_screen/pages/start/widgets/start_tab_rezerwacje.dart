@@ -147,78 +147,20 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
               onTap: () => context.read<MainScreenBloc>().add(
                   GoToProfilPublicznyFirmyEvent(b['companyId'] as String)),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
-                child: Row(
+                padding: const EdgeInsets.fromLTRB(14, 6, 6, 12),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('${b['companyName']}',
+                    // nazwa + X (odwołaj) w rogu
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Text('${b['companyName']}',
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                   fontSize: 15, fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 8),
-                          // balonik z terminem — ten sam wzór co na filmie
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: color.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: color, width: 1.2),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 9,
-                                  height: 9,
-                                  decoration: BoxDecoration(
-                                      color: color, shape: BoxShape.circle),
-                                ),
-                                const SizedBox(width: 7),
-                                Text(dayPart,
-                                    style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: dark)),
-                                const SizedBox(width: 6),
-                                Text(timePart,
-                                    style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w800,
-                                        color: dark)),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(statusText,
-                              style: TextStyle(fontSize: 12, color: dark)),
-                        ],
-                      ),
-                    ),
-                    // akcje w kolumnie
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_phones[b['companyId']] != null)
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            icon: const Icon(Icons.phone_outlined, size: 20),
-                            tooltip: 'Zadzwoń',
-                            onPressed: () =>
-                                _call(_phones[b['companyId']]!),
-                          ),
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          icon: const Icon(Icons.chat_bubble_outline, size: 20),
-                          tooltip: 'Napisz',
-                          onPressed: () => context.read<MainScreenBloc>().add(
-                              GoToChatEvent(b['companyId'] as String,
-                                  chatName: b['companyName'] as String?)),
                         ),
                         if (status != 'rejected')
                           IconButton(
@@ -227,7 +169,76 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
                                 size: 20, color: Colors.red.shade400),
                             tooltip: 'Odwołaj',
                             onPressed: () => _cancel(b),
+                          )
+                        else
+                          const SizedBox(width: 40, height: 40),
+                      ],
+                    ),
+                    // balonik z terminem + ikona statusu, po prawej telefon i czat
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: color, width: 1.2),
                           ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 9,
+                                height: 9,
+                                decoration: BoxDecoration(
+                                    color: color, shape: BoxShape.circle),
+                              ),
+                              const SizedBox(width: 7),
+                              Text(dayPart,
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: dark)),
+                              const SizedBox(width: 6),
+                              Text(timePart,
+                                  style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      color: dark)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Tooltip(
+                          message: statusText,
+                          triggerMode: TooltipTriggerMode.tap,
+                          child: Icon(
+                            switch (status) {
+                              'accepted' => Icons.check_circle,
+                              'rejected' => Icons.cancel,
+                              _ => Icons.schedule,
+                            },
+                            color: color,
+                            size: 24,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (_phones[b['companyId']] != null)
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.phone_outlined, size: 22),
+                            tooltip: 'Zadzwoń',
+                            onPressed: () => _call(_phones[b['companyId']]!),
+                          ),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(Icons.chat_bubble_outline, size: 22),
+                          tooltip: 'Napisz',
+                          onPressed: () => context.read<MainScreenBloc>().add(
+                              GoToChatEvent(b['companyId'] as String,
+                                  chatName: b['companyName'] as String?)),
+                        ),
                       ],
                     ),
                   ],

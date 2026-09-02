@@ -1,6 +1,11 @@
 part of 'main_bloc.dart';
 
-abstract class MainScreenEvent {}
+abstract class MainScreenEvent {
+  /// true, gdy event odtwarza poprzedni ekran po „wstecz”
+  bool restoring = false;
+}
+
+class GoBackEvent extends MainScreenEvent {}
 
 class ShowToastEvent extends MainScreenEvent {
   final String message;

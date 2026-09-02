@@ -36,6 +36,25 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     return super.close();
   }
 
+  /// Historia ekranów „w głąb” — „wstecz” wraca tam, skąd się przyszło,
+  /// a nie zawsze na Start.
+  final List<MainScreenEvent> _backStack = [];
+  MainScreenEvent? _currentNav;
+
+  void _pushNav(MainScreenEvent event) {
+    if (!event.restoring && _currentNav != null) {
+      _backStack.add(_currentNav!);
+      if (_backStack.length > 20) _backStack.removeAt(0);
+    }
+    _currentNav = event;
+  }
+
+  /// Zakładka dolnego paska — historia od nowa.
+  void _rootNav(MainScreenEvent event) {
+    _backStack.clear();
+    _currentNav = event;
+  }
+
   MainScreenBloc({
     required MainScreenControlCubit appBarCubit,
     required ChatService appChatService,
@@ -71,7 +90,22 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
       state.menuIsVisible = event.isVisible;
     });
 
+    on<GoBackEvent>((event, emit) async {
+      if (_backStack.isEmpty) {
+        add(GoToHomeEvent());
+        return;
+      }
+      final prev = _backStack.removeLast();
+      prev.restoring = true;
+      // Start ma wrócić na tę samą zakładkę, z której użytkownik wyszedł
+      if (prev is GoToHomeEvent) {
+        Globals.instance.startTab = Globals.instance.lastStartTab;
+      }
+      add(prev);
+    });
+
     on<GoToHomeEvent>((event, emit) async {
+      _rootNav(event);
       if (!Globals.instance.anonim && (state.user?.id.isNotEmpty ?? false)) {
         try {
           state.chatCounter = await appChatService.getTotalUnreadCount();
@@ -84,45 +118,48 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
           height: 56,
           child: SizedBox.shrink(),
           onBackPressed: () {
-            add(GoToHomeEvent());
+            add(GoBackEvent());
           });
 
       emit(StartMainScreenState());
     });
 
     on<GoToProfilPublicznyFirmyEvent>((event, emit) async {
+      _pushNav(event);
       appBarCubit.updateAppBar(
           showBack: true,
           backgroundColor: Colors.transparent,
           title: 'Profil firmy',
           isVisible: true,
           onBackPressed: () {
-            add(GoToHomeEvent());
+            add(GoBackEvent());
           });
 
       emit(ProfilPublicznyFirmyMainScreenState(event.id));
     });
 
     on<GoToProfilPublicznyUseraEvent>((event, emit) async {
+      _pushNav(event);
       appBarCubit.updateAppBar(
           showBack: true,
           backgroundColor: Colors.transparent,
           title: 'Profil użytkownika',
           isVisible: true,
           onBackPressed: () {
-            add(GoToHomeEvent());
+            add(GoBackEvent());
           });
       emit(ProfilPublicznyUseraMainScreenState(event.userId));
     });
 
     on<GoToPromoFirmyEvent>((event, emit) async {
+      _pushNav(event);
       appBarCubit.updateAppBar(
           showBack: true,
           backgroundColor: Colors.transparent,
           title: 'Wideo',
           isVisible: true,
           onBackPressed: () {
-            add(GoToHomeEvent());
+            add(GoBackEvent());
           });
 
       emit(VideoFirmyMainScreenState(event.promo,
@@ -130,6 +167,11 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     });
 
     on<GoToWyszukajFirmyEvent>((event, emit) async {
+      _pushNav(event);
+      if (!event.restoring) {
+        Globals.instance.lastSearch = [];
+        Globals.instance.lastSearchIndex = 0;
+      }
       appBarCubit.updateAppBar(
           showBack: true,
           backgroundColor: Colors.transparent,
@@ -138,7 +180,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
           height: 56,
           child: SizedBox.shrink(),
           onBackPressed: () {
-            add(GoToHomeEvent());
+            add(GoBackEvent());
           });
 
       emit(WyszukajFirmyMainScreenState(
@@ -146,10 +188,16 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
         autoSector: event.autoSector,
         autoLat: event.autoLat,
         autoLng: event.autoLng,
+        restore: event.restoring,
       ));
     });
 
     on<GoToChatEvent>((event, emit) async {
+      if (event.id.isEmpty) {
+        _rootNav(event);
+      } else {
+        _pushNav(event);
+      }
       appBarCubit.updateAppBar(
           showBack: event.id.isNotEmpty,
           title: event.chatName?.isNotEmpty == true
@@ -162,12 +210,13 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
           height: 56,
           backgroundColor: Colors.transparent,
           onBackPressed: () {
-            add(GoToHomeEvent());
+            add(GoBackEvent());
           });
       emit(ChatMainScreenState(event.id));
     });
 
     on<GoToPowiadomieniaEvent>((event, emit) async {
+      _rootNav(event);
       if (Globals.instance.anonim) return;
       appBarCubit.updateAppBar(
           showBack: false,
@@ -179,12 +228,13 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
           height: 56,
           backgroundColor: Colors.transparent,
           onBackPressed: () {
-            add(GoToHomeEvent());
+            add(GoBackEvent());
           });
       emit(PowiadomieniaMainScreenState());
     });
 
     on<GoToProfilFirmaEvent>((event, emit) async {
+      _rootNav(event);
       appBarCubit.updateAppBar(
           showBack: false,
           title: 'Profil',
@@ -195,12 +245,13 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
           height: 56,
           backgroundColor: Colors.transparent,
           onBackPressed: () {
-            add(GoToHomeEvent());
+            add(GoBackEvent());
           });
       emit(ProfilFirmaMainScreenState());
     });
 
     on<GoToShowRequestEvent>((event, emit) async {
+      _pushNav(event);
       appBarCubit.updateAppBar(
           showBack: true,
           title: 'Zgłoszenie',
@@ -208,12 +259,13 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
           height: 56,
           child: SizedBox(height: 1),
           onBackPressed: () {
-            add(GoToHomeEvent());
+            add(GoBackEvent());
           });
       emit(ShowRequestMainScreenState());
     });
 
     on<GoToDodajEvent>((event, emit) async {
+      _pushNav(event);
       appBarCubit.updateAppBar(
           showBack: false,
           title: 'Dodaj',
@@ -222,12 +274,13 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
           child: SizedBox.shrink(),
           backgroundColor: Colors.transparent,
           onBackPressed: () {
-            add(GoToHomeEvent());
+            add(GoBackEvent());
           });
       emit(DodajMainScreenState());
     });
 
     on<GoToDodajReviewEvent>((event, emit) async {
+      _pushNav(event);
       appBarCubit.updateAppBar(
           showBack: true,
           title: 'Dodaj recenzje',
@@ -236,19 +289,20 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
           child: SizedBox.shrink(),
           backgroundColor: Colors.transparent,
           onBackPressed: () {
-            add(GoToHomeEvent());
+            add(GoBackEvent());
           });
       emit(DodajReviewMainScreenState());
     });
 
     on<GoToRulesEvent>((event, emit) async {
+      _pushNav(event);
       appBarCubit.updateAppBar(
           showBack: true,
           title: 'Regulamin',
           isVisible: true,
           backgroundColor: Colors.transparent,
           onBackPressed: () {
-            add(GoToHomeEvent());
+            add(GoBackEvent());
           });
       emit(RulesMainScreenState());
     });
@@ -343,6 +397,10 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
           case 'booking_decision': // decyzja firmy → Start → Rezerwacje (user)
             Globals.instance.startTab = 1;
             add(GoToHomeEvent());
+            break;
+          case 'contact_request': // prośba o telefon → Kontakty → Aktywność
+            Globals.instance.contactsTab = 0;
+            add(GoToChatEvent(''));
             break;
           case 'chat':           // nowa wiadomość → rozmowa
             final from = data['from'] as String?;

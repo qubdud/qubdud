@@ -1,17 +1,17 @@
 import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:flutter/material.dart';
+import 'package:qb/shared/globals.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/feature_layer/main_screen/bloc/main_appbar_cubit.dart';
 import 'package:qb/shared/constants.dart';
 import 'package:qb/shared/client_notes.dart';
 import 'package:qb/shared/functions/show_toast.dart';
-import 'package:qb/shared/functions/effective_role.dart';
 import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../domain_layer/chat_service.dart';
 import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../bloc/main_bloc.dart';
-import '../../profil_my/view/tab_klienci.dart';
+import 'tab_activity.dart';
 import '../bloc/chat_page_bloc.dart';
 import '../functions/format_timestamp.dart';
 import '../pages/messaging_page_mob.dart';
@@ -32,33 +32,22 @@ class _ChatPageMobState extends State<ChatPageMob>
   @override
   void initState() {
     super.initState();
-    // Rezerwacje i Firmy to perspektywa klienta — w trybie firmowym
-    // zostają Rozmowy + Ludzie (klienci).
-    final privateMode =
-        !isCompanyMode(context.read<MainScreenBloc>().state.user);
-    _tabs = [
-      const Tab(icon: Icon(Icons.chat_outlined, size: 20), text: 'Rozmowy'),
-      if (!privateMode)
-        const Tab(
-            icon: Icon(Icons.groups_outlined, size: 20), text: 'Klienci'),
-      if (privateMode)
-        const Tab(
-            icon: Icon(Icons.handshake_outlined, size: 20),
-            text: 'Moje firmy'),
-      if (privateMode)
-        const Tab(
-            icon: Icon(Icons.business_outlined, size: 20), text: 'Firmy'),
-      const Tab(icon: Icon(Icons.person_outline, size: 20), text: 'Ludzie'),
+    // Aktywność = feed wszystkiego, co dzieje się z kontaktami (rozmowy,
+    // rezerwacje, zgłoszenia, prośby o telefon). Zapisani = dodani na stałe.
+    _tabs = const [
+      Tab(icon: Icon(Icons.bolt_outlined, size: 20), text: 'Aktywność'),
+      Tab(icon: Icon(Icons.bookmark_outline, size: 20), text: 'Zapisani'),
     ];
-    _views = [
-      const _ConversationsList(key: ValueKey('rozmowy')),
-      if (!privateMode) _MyClientsTab(key: const ValueKey('klienci')),
-      if (privateMode) _MyCompaniesTab(key: const ValueKey('mojefirmy')),
-      if (privateMode)
-        const _ContactsList(isCompany: true, key: ValueKey('firmy')),
-      const _ContactsList(isCompany: false, key: ValueKey('ludzie')),
+    _views = const [
+      TabActivity(key: ValueKey('aktywnosc')),
+      _ContactsList(key: ValueKey('zapisani')),
     ];
-    _tab = TabController(length: _tabs.length, vsync: this);
+    final wantedTab = Globals.instance.contactsTab;
+    Globals.instance.contactsTab = null;
+    _tab = TabController(
+        length: _tabs.length,
+        vsync: this,
+        initialIndex: (wantedTab ?? 0).clamp(0, _tabs.length - 1));
     _tab.addListener(() {
       if (!_tab.indexIsChanging) setState(() {});
     });
@@ -132,7 +121,7 @@ class _ChatPageMobState extends State<ChatPageMob>
               child: TabBar(
                 controller: _tab,
                 labelStyle:
-                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
                 labelPadding: const EdgeInsets.symmetric(horizontal: 2),
                 dividerColor: Colors.transparent,
                 tabs: _tabs,
@@ -149,164 +138,8 @@ class _ChatPageMobState extends State<ChatPageMob>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Lista wszystkich rozmów (z nazwami z dokumentu rozmowy)
-// ─────────────────────────────────────────────────────────────────────────────
-class _ConversationsList extends StatelessWidget {
-  const _ConversationsList({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final chatService = context.read<ChatService>();
-
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: chatService.getChatOverviews(),
-      builder: (context, snap) {
-        if (!snap.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final chats = snap.data!;
-        if (chats.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.chat_outlined, size: 56, color: Colors.black12),
-                SizedBox(height: 12),
-                Text('Brak rozmów', style: TextStyle(color: Colors.grey)),
-                SizedBox(height: 6),
-                Text('Napisz do firmy lub użytkownika z zakładek obok',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
-                    textAlign: TextAlign.center),
-              ],
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(10),
-          itemCount: chats.length,
-          itemBuilder: (context, i) {
-            final chat = chats[i];
-            final name = (chat['name'] as String?)?.isNotEmpty == true
-                ? chat['name'] as String
-                : 'Rozmowa';
-            final isCompany = chat['isCompany'] == true;
-            final unread = chat['unreadCount'] as int? ?? 0;
-            final timestamp = chat['timestamp'] as int? ?? 0;
-
-            return Dismissible(
-              key: ValueKey('chat_${chat['from']}'),
-              direction: DismissDirection.endToStart,
-              background: Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 24),
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade400,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Do kosza',
-                        style: TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold)),
-                    SizedBox(width: 8),
-                    Icon(Icons.delete_outline, color: Colors.white),
-                  ],
-                ),
-              ),
-              onDismissed: (_) {
-                chatService.hideChat(chat['from'] as String);
-                showToast(text: 'Rozmowa przeniesiona do kosza');
-              },
-              child: Card(
-                margin: const EdgeInsets.only(bottom: 10),
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-                child: ListTile(
-                  onTap: () => context
-                      .read<ChatPageBloc>()
-                      .add(StartUserChatChatPageEvent(chat['from'] as String)),
-                  // avatar → profil rozmówcy (firma lub osoba)
-                  leading: GestureDetector(
-                    onTap: () => context.read<MainScreenBloc>().add(isCompany
-                        ? GoToProfilPublicznyFirmyEvent(chat['from'] as String)
-                        : GoToProfilPublicznyUseraEvent(chat['from'] as String)),
-                    child: CircleAvatar(
-                      backgroundColor:
-                          isCompany ? Colors.blue.shade700 : Colors.grey.shade600,
-                      child: Text(name[0].toUpperCase(),
-                          style: const TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                  title: Text(name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontWeight:
-                              unread > 0 ? FontWeight.bold : FontWeight.w600)),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ClientNoteBadge(
-                          userId: chat['from'] as String, personName: name),
-                      Text(
-                        (chat['lastMessage'] as String?)?.isNotEmpty == true
-                            ? chat['lastMessage'] as String
-                            : 'Brak wiadomości',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontWeight: unread > 0
-                                ? FontWeight.w600
-                                : FontWeight.normal),
-                      ),
-                    ],
-                  ),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      if (timestamp > 0)
-                        Text(formatTimestamp(timestamp),
-                            style: const TextStyle(
-                                fontSize: 11, color: Colors.grey)),
-                      if (unread > 0) ...[
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.pinkAccent,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text('$unread',
-                              style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 class _ContactsList extends StatefulWidget {
-  final bool isCompany;
-  const _ContactsList({super.key, required this.isCompany});
+  const _ContactsList({super.key});
 
   @override
   State<_ContactsList> createState() => _ContactsListState();
@@ -319,6 +152,7 @@ class _ContactsListState extends State<_ContactsList>
 
   List<AppUser> _contacts = [];
   bool _loading = true;
+  bool? _filter; // null = wszyscy, true = firmy, false = ludzie
 
   @override
   void initState() {
@@ -334,7 +168,7 @@ class _ContactsListState extends State<_ContactsList>
       final users = <AppUser>[];
       for (final uid in ids) {
         final u = await firebase.fetchUser(uid);
-        if (u != null && u.firma == widget.isCompany) users.add(u);
+        if (u != null) users.add(u);
       }
       if (mounted) setState(() { _contacts = users; _loading = false; });
     } catch (_) {
@@ -378,27 +212,46 @@ class _ContactsListState extends State<_ContactsList>
     super.build(context);
     if (_loading) return const Center(child: CircularProgressIndicator());
 
-    if (_contacts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(widget.isCompany ? Icons.business_outlined : Icons.person_outline,
-                size: 56, color: Colors.black12),
-            const SizedBox(height: 12),
-            Text(
-              widget.isCompany ? 'Brak firm w kontaktach' : 'Brak użytkowników w kontaktach',
-              style: const TextStyle(color: Colors.grey),
+    final shown = _contacts
+        .where((u) => _filter == null || (u.firma == true) == _filter)
+        .toList();
+
+    Widget chips() => Padding(
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+          child: Row(
+            children: [
+              for (final f in <(bool?, String)>[
+                (null, 'Wszyscy'),
+                (true, 'Firmy'),
+                (false, 'Ludzie'),
+              ]) ...[
+                ChoiceChip(
+                  label: Text(f.$2, style: const TextStyle(fontSize: 12)),
+                  selected: _filter == f.$1,
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (_) => setState(() => _filter = f.$1),
+                ),
+                const SizedBox(width: 6),
+              ],
+            ],
+          ),
+        );
+
+    if (shown.isEmpty) {
+      return Column(
+        children: [
+          chips(),
+          Expanded(
+            child: EmptyState(
+              icon: Icons.bookmark_outline,
+              title: 'Nikogo nie zapisano',
+              subtitle: 'Zapisuj firmy i osoby przyciskiem „Zapisz” w Aktywności '
+                  'albo ikoną +osoba na filmie. Zapisani zostają tu na stałe.',
             ),
-            const SizedBox(height: 6),
-            const Text('Dodaj kontakty przeglądając filmy lub zgłoszenia',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-                textAlign: TextAlign.center),
-          ],
-        ),
+          ),
+        ],
       );
     }
-
     final chatService = context.read<ChatService>();
 
     return StreamBuilder<Map<String, bool>>(
@@ -409,11 +262,15 @@ class _ContactsListState extends State<_ContactsList>
           stream: chatService.getChatOverviews(),
           builder: (context, chatSnap) {
             final chats = chatSnap.data ?? [];
-            return ListView.builder(
+            return Column(
+              children: [
+                chips(),
+                Expanded(
+                  child: ListView.builder(
               padding: const EdgeInsets.all(10),
-              itemCount: _contacts.length,
+              itemCount: shown.length,
               itemBuilder: (context, i) {
-                final user = _contacts[i];
+                final user = shown[i];
                 final isOnline = online[user.id] ?? false;
                 final chat = chats.firstWhere(
                       (c) => c['from'] == user.id,
@@ -428,6 +285,9 @@ class _ContactsListState extends State<_ContactsList>
                   onRemove: () => _removeContact(user),
                 );
               },
+                  ),
+                ),
+              ],
             );
           },
         );
@@ -672,22 +532,3 @@ class _NotesListState extends State<_NotesList> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Klienci firmy / moje firmy — relacje po domkniętych zleceniach
 // ─────────────────────────────────────────────────────────────────────────────
-class _MyClientsTab extends StatelessWidget {
-  const _MyClientsTab({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final myId = context.read<MainScreenBloc>().state.user?.id ?? '';
-    return TabKlienci(companyId: myId);
-  }
-}
-
-class _MyCompaniesTab extends StatelessWidget {
-  const _MyCompaniesTab({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final myId = context.read<MainScreenBloc>().state.user?.id ?? '';
-    return TabMojeFirmy(userId: myId);
-  }
-}

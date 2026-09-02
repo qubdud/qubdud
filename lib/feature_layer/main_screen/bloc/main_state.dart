@@ -68,7 +68,10 @@ class WyszukajFirmyMainScreenState extends MainScreenState {
   final String? autoSector;
   final double? autoLat;
   final double? autoLng;
-  WyszukajFirmyMainScreenState({this.autoCategory, this.autoSector, this.autoLat, this.autoLng});
+  /// powrót „wstecz” — strona ma pokazać ostatnie wyniki bez szukania
+  final bool restore;
+  WyszukajFirmyMainScreenState(
+      {this.autoCategory, this.autoSector, this.autoLat, this.autoLng, this.restore = false});
 }
 
 class ProfilPublicznyUseraMainScreenState extends MainScreenState {

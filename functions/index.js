@@ -1,6 +1,6 @@
 // Powiadomienia push QUBDUD — Cloud Functions v2 (Firestore triggers + cron).
 // Region = lokalizacja bazy Firestore (europe-central2).
-const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentUpdated, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { initializeApp } = require('firebase-admin/app');
@@ -329,6 +329,23 @@ exports.autoCloseRequests = onSchedule(
     }
     console.log(`autoClose: zamknięto ${closed} zgłoszeń`);
   });
+
+// ── 7b) prośba o telefon → firma ─────────────────────────────────────────────
+exports.notifyContactRequest = onDocumentWritten('contactRequests/{id}', async (event) => {
+  const after = event.data.after.exists ? event.data.after.data() : null;
+  if (!after || after.status !== 'pending') return;
+  const before = event.data.before.exists ? event.data.before.data() : null;
+  // ponowna prośba ma nowy createdAt; sama zmiana statusu nic nie wysyła
+  if (before && before.status === 'pending' && before.createdAt && after.createdAt
+      && before.createdAt.isEqual(after.createdAt)) return;
+  const who = after.userName || await userName(after.userId);
+  const note = after.note ? ' · ' + short(after.note, 60) : '';
+  await pushTo(after.companyId, {
+    title: '📞 Prośba o kontakt',
+    body: `${who} prosi o telefon · ${after.phone}${note}`,
+    data: { type: 'contact_request', from: after.userId, audience: 'company' },
+  });
+});
 
 // ── 8) cron: prośby o recenzję po zrealizowanej usłudze ─────────────────────
 exports.askForReview = onSchedule({ schedule: 'every 60 minutes', timeZone: 'Europe/Warsaw' }, async () => {

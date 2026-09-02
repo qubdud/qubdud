@@ -56,10 +56,12 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
         length: length,
         vsync: this,
         initialIndex: (wanted ?? 0).clamp(0, length - 1));
+    Globals.instance.lastStartTab = _tabController.index;
     // Listener żeby setState przy zmianie taba → rebuild
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         _markSeen(_tabController.index);
+        Globals.instance.lastStartTab = _tabController.index;
         setState(() {});
       }
     });
@@ -105,6 +107,7 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
       _tabController.addListener(() {
         if (!_tabController.indexIsChanging) {
           _markSeen(_tabController.index);
+          Globals.instance.lastStartTab = _tabController.index;
           setState(() {});
         }
       });

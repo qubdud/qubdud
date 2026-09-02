@@ -23,6 +23,7 @@ class PowiadomieniaPage extends StatelessWidget {
         'realization' => (icon: Icons.photo_camera_back_outlined, color: Colors.amber),
         'realization_from_user' => (icon: Icons.add_photo_alternate_outlined, color: Colors.amber),
         'realization_decision' => (icon: Icons.verified_outlined, color: Colors.green),
+        'contact_request' => (icon: Icons.phone_callback_outlined, color: Colors.orange),
         'review' => (icon: Icons.star_outline, color: Colors.amber),
         'request_expired' => (icon: Icons.timer_off_outlined, color: Colors.grey),
         _ => (icon: Icons.notifications_none, color: Colors.grey),
@@ -53,6 +54,11 @@ class PowiadomieniaPage extends StatelessWidget {
     switch (type) {
       case 'chat':
         if (from.isNotEmpty) bloc.add(GoToChatEvent(from));
+        return;
+      case 'contact_request':
+        // firma: Kontakty → Aktywność (tam numer i „skontaktowałem się”)
+        Globals.instance.contactsTab = 0;
+        bloc.add(GoToChatEvent(''));
         return;
       case 'review':
         if (companyId.isNotEmpty) bloc.add(GoToProfilPublicznyFirmyEvent(companyId));

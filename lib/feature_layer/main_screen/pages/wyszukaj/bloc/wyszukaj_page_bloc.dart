@@ -38,6 +38,8 @@ class WyszukajPageBloc extends Bloc<WyszukajPageEvent, WyszukajPageState> {
       await prefs.setStringList('search_history', history);
 
       state.videos = await firebase.getNearbyPromos(category: event.category, sector: event.sector, myLocation: event.location);
+      Globals.instance.lastSearch = state.videos;
+      Globals.instance.lastSearchIndex = 0;
       emit(WyszukajPageResultsState());
     });
 

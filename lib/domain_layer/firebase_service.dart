@@ -521,6 +521,51 @@ class FirebaseService {
   }
 
 
+  // ── PROŚBA O KONTAKT (klient czeka na telefon od firmy) ─────────────────
+
+  String _contactRequestId(String companyId, String userId) => '${companyId}_$userId';
+
+  Future<Map<String, dynamic>?> getContactRequest(
+      {required String myUid, required String companyId}) async {
+    final d = await _firestore
+        .collection('contactRequests')
+        .doc(_contactRequestId(companyId, myUid))
+        .get();
+    return d.data();
+  }
+
+  /// Jedna aktywna prośba na parę klient–firma; ponowna nadpisuje poprzednią.
+  /// Obie strony trafiają do siebie w kontakty (Klienci / Moje firmy).
+  Future<void> sendContactRequest({
+    required String myUid,
+    required String companyId,
+    required String companyName,
+    required String phone,
+    required String note,
+  }) async {
+    final me = await fetchUser(myUid);
+    final id = _contactRequestId(companyId, myUid);
+    await _firestore.collection('contactRequests').doc(id).set({
+      'userId': myUid,
+      'companyId': companyId,
+      'userName': '${me?.firstName ?? ''} ${me?.lastName ?? ''}'.trim(),
+      'companyName': companyName,
+      'phone': phone,
+      'note': note,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+      'doneAt': null,
+    });
+    await _linkClient(companyId: companyId, userId: myUid, requestId: 'contact_$id');
+  }
+
+  Future<void> setContactRequestDone(String id) async {
+    await _firestore.collection('contactRequests').doc(id).update({
+      'status': 'done',
+      'doneAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   // ── KONTAKTY ─────────────────────────────────────────────────────────────
 
   Future<void> addContact({
@@ -1090,9 +1135,12 @@ class FirebaseService {
     // rezerwacje przychodzą jako 'slot_<id>' — trzymamy osobno, żeby lista
     // klientów mogła pokazać „skąd ta osoba" i dać odnośnik
     final isSlot = requestId.startsWith('slot_');
+    final isContact = requestId.startsWith('contact_');
     final linkFields = <String, dynamic>{
       if (isSlot)
         'slotIds': FieldValue.arrayUnion([requestId.substring(5)])
+      else if (isContact)
+        'contactRequestId': requestId.substring(8)
       else
         'requestIds': FieldValue.arrayUnion([requestId]),
       'lastAt': FieldValue.serverTimestamp(),
@@ -1191,10 +1239,26 @@ class FirebaseService {
       if (s != null) slots.add(s);
     }
     slots.sort((a, b) => b.start.compareTo(a.start));
+    ContactRef? contact;
+    final contactId = data['contactRequestId'] as String?;
+    if (contactId != null && contactId.isNotEmpty) {
+      final c = await _firestore.collection('contactRequests').doc(contactId).get();
+      final cd = c.data();
+      if (cd != null) {
+        contact = ContactRef(
+          id: contactId,
+          phone: cd['phone'] as String? ?? '',
+          note: cd['note'] as String? ?? '',
+          status: cd['status'] as String? ?? 'pending',
+          createdAt: (cd['createdAt'] as Timestamp?)?.toDate(),
+        );
+      }
+    }
     return RelationLink(
       user: u,
       requests: requests,
       slots: slots,
+      contact: contact,
       addedAt: (data['addedAt'] as Timestamp?)?.toDate(),
     );
   }

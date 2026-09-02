@@ -82,6 +82,18 @@ service cloud.firestore {
       }
     }
 
+    // ── prośby o telefon: klient tworzy/ponawia, firma oznacza załatwione ──
+    match /contactRequests/{id} {
+      allow read: if signedIn()
+          && (resource.data.userId == request.auth.uid
+              || resource.data.companyId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn()
+          && (resource.data.userId == request.auth.uid
+              || resource.data.companyId == request.auth.uid);
+      allow delete: if false;
+    }
+
     // ── profil rozszerzony (kolekcja `profile`) ──
     match /profile/{userId} {
       allow read: if signedIn();

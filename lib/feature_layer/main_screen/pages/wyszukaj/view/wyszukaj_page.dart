@@ -11,6 +11,7 @@ import 'package:qb/shared/widgets/w_input_field.dart';
 import 'package:qb/shared/widgets/w_label.dart';
 import 'package:qb/shared/widgets/w_small_label.dart';
 import 'package:flutter/material.dart';
+import 'package:qb/shared/widgets/contact_request_button.dart';
 import 'package:qb/shared/widgets/anonim_gate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -45,8 +46,11 @@ class WyszukajPage extends StatelessWidget {
           firebase: context.read<FirebaseService>(),
           user: context.read<MainScreenBloc>().state.user!,
         );
-        // Jeśli przyszły parametry z historii — od razu wyszukaj
-        if (autoState?.autoCategory != null &&
+        // powrót „wstecz” z filmu/profilu — te same wyniki, bez szukania
+        if (autoState?.restore == true &&
+            Globals.instance.lastSearch.isNotEmpty) {
+          bloc.add(GoToLastWyszukajPageEvent());
+        } else if (autoState?.autoCategory != null &&
             autoState?.autoSector != null &&
             autoState?.autoLat != null &&
             autoState?.autoLng != null) {
@@ -398,8 +402,12 @@ class _ViewState extends State<View> {
       return const Center(child: Text('Brak dostępnych filmów'));
     }
 
+    // po powrocie „wstecz” feed staje na filmie, na którym użytkownik był
+    final startAt = Globals.instance.lastSearchIndex.clamp(0, videos.length - 1);
     return PageView.builder(
       key: const ValueKey('VideoFeed'),
+      controller: PageController(initialPage: startAt),
+      onPageChanged: (i) => Globals.instance.lastSearchIndex = i,
       scrollDirection: Axis.vertical,
       itemCount: videos.length,
       itemBuilder: (context, index) {
@@ -676,6 +684,11 @@ class VideoFeedPage extends StatelessWidget {
                   context.read<WyszukajPageBloc>()
                       .add(TryAddContactEvent(promo.userId));
                 },
+              ),
+              const SizedBox(height: 16),
+              ContactRequestButton(
+                companyId: promo.userId,
+                companyName: promo.companyName,
               ),
             ],
           ),
