@@ -1038,6 +1038,31 @@ class FirebaseService {
           .doc(companyId)
           .update({'status': 'pending'});
     } catch (_) {}
+
+    // zerwana realizacja: kasujemy prośby o potwierdzenie i zdjęcia tej firmy
+    try {
+      final photos = await _firestore
+          .collection('realizations')
+          .where('requestId', isEqualTo: request.id)
+          .where('companyId', isEqualTo: companyId)
+          .get();
+      for (final d in photos.docs) {
+        await d.reference.delete();
+      }
+    } catch (_) {}
+
+    // i powiadomienia o tej realizacji, żeby nie wisiały w dzwonku
+    try {
+      final notifs = await _firestore
+          .collection('notifications')
+          .where('userId', isEqualTo: request.userId)
+          .where('requestId', isEqualTo: request.id)
+          .get();
+      for (final d in notifs.docs) {
+        final t = d.data()['type'] as String? ?? '';
+        if (t.startsWith('realization')) await d.reference.delete();
+      }
+    } catch (_) {}
     final batch = _firestore.batch();
     batch.delete(_firestore
         .collection('users')
