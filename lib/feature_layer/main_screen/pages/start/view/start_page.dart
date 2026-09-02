@@ -155,7 +155,7 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
                 : _isCompany
                 ? [
               _tab('Zgłoszenia', 'zgloszenia'),
-              _tab('Kalendarz', 'kalendarz'),
+              const Tab(text: 'Kalendarz'),
               _tab('Recenzje', 'recenzje'),
             ]
                 : [
