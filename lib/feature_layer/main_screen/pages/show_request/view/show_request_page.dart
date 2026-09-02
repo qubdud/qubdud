@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../../../../shared/widgets/loading.dart';
@@ -46,6 +47,17 @@ class View extends StatefulWidget {
 }
 
 class _ViewState extends State<View> {
+  Future<void> _dial(String phone) async {
+    final uri = Uri(scheme: 'tel', path: phone.replaceAll(RegExp(r'[^0-9+]'), ''));
+    if (!await launchUrl(uri)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Nie można otworzyć dialera')));
+      }
+    }
+  }
+
+
   String? messageError;
   String? nameError;
   late final TextEditingController name = TextEditingController();
@@ -299,7 +311,17 @@ class _ViewState extends State<View> {
                     fontSize: 14,
                   ),
                 ),
-                Text(state.appUser?.phone?.isNotEmpty == true ? state.appUser!.phone! : 'brak'),
+                if (state.appUser?.phone?.isNotEmpty == true)
+                  GestureDetector(
+                    onTap: () => _dial(state.appUser!.phone!),
+                    child: Text(state.appUser!.phone!,
+                        style: const TextStyle(
+                            color: cDarkBlue,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline)),
+                  )
+                else
+                  const Text('brak'),
 
                 SizedBox(height: 24,),
 
@@ -330,9 +352,9 @@ class _ViewState extends State<View> {
                       icon: const Icon(Icons.phone, color: Colors.white, size: 18),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                      onPressed: () {
-                       // context.read<MainScreenBloc>().add(GoToChatEvent(video.userId));
-                      },
+                      onPressed: state.appUser?.phone?.isNotEmpty == true
+                          ? () => _dial(state.appUser!.phone!)
+                          : null,
                     ),
                   ),
 

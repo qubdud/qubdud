@@ -693,7 +693,8 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
 // ─────────────────────────────────────────────────────────────────────────────
 class ReviewCard extends StatelessWidget {
   final Review review;
-  const ReviewCard({required this.review});
+  final String? subjectName;
+  const ReviewCard({super.key, required this.review, this.subjectName});
 
   @override
   Widget build(BuildContext context) {
@@ -727,7 +728,9 @@ class ReviewCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                 ],
-                Expanded(child: ReviewWithComments(review: review)),
+                Expanded(
+                    child: ReviewWithComments(
+                        review: review, subjectName: subjectName)),
               ],
             ),
           ],

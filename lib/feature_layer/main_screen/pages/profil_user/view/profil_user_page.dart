@@ -22,6 +22,7 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
   bool _loading = true;
   AppUser? _user;
   List<Review> _reviews = [];
+  final Map<String, String> _companyNames = {};
   int _requestCount = 0;
   int _contactCount = 0;
 
@@ -38,6 +39,11 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
       final reviews = await firebase.getReviewByUser(widget.userId);
       final requests = await firebase.getRequestsMetadataByUser(widget.userId);
       final contacts = await firebase.getContactIds(widget.userId);
+      for (final id in reviews.map((r) => r.reviewedUserId).toSet()) {
+        if (id.isEmpty) continue;
+        final c = await firebase.fetchUser(id);
+        if (c != null) _companyNames[id] = c.companyName ?? c.displayName;
+      }
 
       if (mounted) {
         setState(() {
@@ -235,8 +241,9 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
                     const Text('Wystawione recenzje',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
-                    ..._reviews.map((r) =>
-                        ReviewCard(review: r)),
+                    ..._reviews.map((r) => ReviewCard(
+                        review: r,
+                        subjectName: _companyNames[r.reviewedUserId] ?? 'Firma')),
                   ],
                 ),
               ),

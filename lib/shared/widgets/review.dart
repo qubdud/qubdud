@@ -11,10 +11,15 @@ class ReviewWithComments extends StatefulWidget {
   final Review review;
   final bool showCompanyActions; // czy pokazać "odpowiedz jako firma"
 
+  /// Nazwa firmy, której dotyczy recenzja — podawana na profilu użytkownika
+  /// (tam autor jest oczywisty, ważne jest KOGO ocenił).
+  final String? subjectName;
+
   const ReviewWithComments({
     super.key,
     required this.review,
     this.showCompanyActions = false,
+    this.subjectName,
   });
 
   @override
@@ -128,11 +133,29 @@ class _ReviewWithCommentsState extends State<ReviewWithComments> {
                   child:
 
 
-                  Text(_authorName.isNotEmpty ? _authorName : widget.review.authorName,
-
-
-
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  widget.subjectName != null
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.storefront_outlined,
+                                size: 14, color: Colors.grey),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(widget.subjectName!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13)),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          _authorName.isNotEmpty
+                              ? _authorName
+                              : widget.review.authorName,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 13)),
                 ),
               ),
               if (widget.review.timestamp != null)
@@ -169,8 +192,10 @@ class _ReviewWithCommentsState extends State<ReviewWithComments> {
               )),
             ],
 
-            // Przycisk "Dodaj komentarz" — tylko jeśli nie ma jeszcze komentarza
-            if (!_alreadyCommented) ...[
+            // Komentować może autor recenzji albo oceniona firma — nikt postronny
+            if (!_alreadyCommented &&
+                (uid == widget.review.userId ||
+                    uid == widget.review.reviewedUserId)) ...[
               const SizedBox(height: 6),
               GestureDetector(
                 onTap: () => setState(() => _showInput = !_showInput),
