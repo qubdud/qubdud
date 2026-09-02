@@ -206,12 +206,14 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
                       children: [
                         if (_phones[b['companyId']] != null)
                           IconButton(
+                            visualDensity: VisualDensity.compact,
                             icon: const Icon(Icons.phone_outlined, size: 20),
                             tooltip: 'Zadzwoń',
                             onPressed: () =>
                                 _call(_phones[b['companyId']]!),
                           ),
                         IconButton(
+                          visualDensity: VisualDensity.compact,
                           icon: const Icon(Icons.chat_bubble_outline, size: 20),
                           tooltip: 'Napisz',
                           onPressed: () => context.read<MainScreenBloc>().add(
@@ -220,6 +222,7 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
                         ),
                         if (status != 'rejected')
                           IconButton(
+                            visualDensity: VisualDensity.compact,
                             icon: Icon(Icons.close,
                                 size: 20, color: Colors.red.shade400),
                             tooltip: 'Odwołaj',
