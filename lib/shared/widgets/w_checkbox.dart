@@ -46,10 +46,9 @@ class WCheckbox extends StatelessWidget {
           child: value
               ? Padding(
                   padding: const EdgeInsets.fromLTRB(0, 0, 1, 1),
-                  child: Image.asset(
-                    'assets/icons/v.png',
-                    color: isEnabled ? Colors.white : cDisabledBorderColor,
-                  ),
+                  child: Icon(Icons.check,
+                      size: 18,
+                      color: isEnabled ? Colors.white : cDisabledBorderColor),
                 )
               : null,
         ),

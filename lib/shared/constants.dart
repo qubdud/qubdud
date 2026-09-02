@@ -37,17 +37,7 @@ final cDisabledColor = Colors.grey.withOpacity(0.5);
 const double minWideScreen = 1200.0;
 const double maxColumnSize = 600.0;
 
-final Map<String, String> countryFlagImages = {
-  "HR": "assets/images/flags/croatia.png",
-  "GR": "assets/images/flags/greece.png",
-  "HU": "assets/images/flags/hungary.png",
-  "IT": "assets/images/flags/italy.png",
-  "PL": "assets/images/flags/poland.png",
-  "RS": "assets/images/flags/serbia.png",
-  "SK": "assets/images/flags/slovakia.png",
-  "SI": "assets/images/flags/slovenia.png",
-  "CZ": "assets/images/flags/czech.png",
-};
+
 
 final Map<String, List<String>> categories = {
   'Budowlane i Remontowe': [

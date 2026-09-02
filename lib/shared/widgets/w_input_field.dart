@@ -137,7 +137,7 @@ class _WInputFieldState extends State<WInputField> {
                     border: InputBorder.none,
                     hintText: widget.hintText ?? 'Wpisz...',
                     hintStyle: TextStyle(
-                      fontFamily: 'FiraSans',
+                      fontFamily: 'Poppins',
                       fontWeight: FontWeight.w400,
                       fontSize: 16,
                       color: _isFocused ? cDarkBrown : cDarkBrown.withOpacity(0.7),

@@ -31,7 +31,7 @@ class StartPageBloc extends Bloc<StartPageEvent, StartPageState> {
 
       emit(StartPageLoadingState());
       try {
-        if(user.firma!){
+        if (user.firma == true) {
           state.requests = await firebase.getNearbyRequests(category: user.companyCategory!, sector: user.companySector!, myLocation: user.companyLocation!, userId: user.id);
           state.myOfferStatuses = await firebase.getMyOfferStatuses(
               state.requests.map((r) => r.id).toList(), user.id);

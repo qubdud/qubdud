@@ -116,7 +116,7 @@ class App extends StatelessWidget {
       splashColor: cDarkBlue.withOpacity(0.2),
       highlightColor: cDarkBlue.withOpacity(0.1),
       hoverColor: cDarkBlue.withOpacity(0.05),
-      fontFamily: 'FiraSans',
+      fontFamily: 'Poppins',
       tabBarTheme: const TabBarThemeData(
         labelColor: cDarkBlue,
         indicatorColor: cDarkBlue,
@@ -156,7 +156,7 @@ class App extends StatelessWidget {
       scaffoldBackgroundColor: const Color(0xFF16151A),
       splashColor: Colors.white12,
       highlightColor: Colors.white10,
-      fontFamily: 'FiraSans',
+      fontFamily: 'Poppins',
       colorScheme: const ColorScheme.dark(
         surface: Color(0xFF232228),
         primary: cDarkBlue,

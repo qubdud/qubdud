@@ -57,11 +57,6 @@ class NavBarComponent extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     const SizedBox(height: 12),
-                    //Image.asset(
-                    //  (item.isMenu & isSelected) ? 'assets/icons/x.png' : item.iconPath,
-                    //  scale: 2,
-                    //  color: color,
-                    //),
                     Stack(
                       clipBehavior: Clip.none,
                       children: [

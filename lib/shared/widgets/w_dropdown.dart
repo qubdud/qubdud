@@ -173,7 +173,7 @@ class _WAnimatedDropdownState extends State<WAnimatedDropdown> {
                       border: InputBorder.none,
                       hintText: isDropdownVisible ? (!widget.isSearchable ? widget.hintText : null) : widget.hintText,
                       hintStyle: TextStyle(
-                        fontFamily: 'FiraSans',
+                        fontFamily: 'Poppins',
                         fontWeight: FontWeight.w400,
                         fontSize: 16,
                         color: widget.isEnabled ? (_isFocused ? cDarkBrown : cDarkBrown.withOpacity(0.7)) : cDisabledColor,
