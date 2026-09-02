@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/shared/widgets/empty_state.dart';
 
@@ -17,7 +18,13 @@ class StartTabRezerwacje extends StatefulWidget {
 
 class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
   List<Map<String, dynamic>> _bookings = [];
+  final Map<String, String> _phones = {};
   bool _loading = true;
+
+  Future<void> _call(String phone) async {
+    final uri = Uri(scheme: 'tel', path: phone.replaceAll(RegExp(r'[^0-9+]'), ''));
+    await launchUrl(uri);
+  }
 
   @override
   void initState() {
@@ -28,8 +35,13 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
   Future<void> _load() async {
     final myUid = context.read<MainScreenBloc>().state.user?.id ?? '';
     try {
-      final bookings =
-          await context.read<FirebaseService>().getMyBookings(myUid);
+      final firebase = context.read<FirebaseService>();
+      final bookings = await firebase.getMyBookings(myUid);
+      for (final id in bookings.map((b) => b['companyId'] as String).toSet()) {
+        if (_phones.containsKey(id)) continue;
+        final u = await firebase.fetchUser(id);
+        if (u?.phone?.isNotEmpty == true) _phones[id] = u!.phone!;
+      }
       if (mounted) setState(() { _bookings = bookings; _loading = false; });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
@@ -107,46 +119,116 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
             'rejected' => 'odrzucona',
             _ => 'czeka na akceptację',
           };
-          final when =
-              '${wd[start.weekday - 1]} ${start.day}.${start.month.toString().padLeft(2, '0')}, ${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
+          final today = DateTime.now();
+          final isToday = start.year == today.year &&
+              start.month == today.month &&
+              start.day == today.day;
+          final tomorrow = today.add(const Duration(days: 1));
+          final isTomorrow = start.year == tomorrow.year &&
+              start.month == tomorrow.month &&
+              start.day == tomorrow.day;
+          final dayPart = isToday
+              ? 'Dziś'
+              : isTomorrow
+                  ? 'Jutro'
+                  : '${wd[start.weekday - 1]} ${start.day}.${start.month.toString().padLeft(2, '0')}';
+          final timePart =
+              '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
+          final dark = switch (status) {
+            'accepted' => Colors.green.shade800,
+            'rejected' => Colors.red.shade700,
+            _ => Colors.amber.shade900,
+          };
 
           return Card(
             margin: const EdgeInsets.only(bottom: 10),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: ListTile(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
               onTap: () => context.read<MainScreenBloc>().add(
                   GoToProfilPublicznyFirmyEvent(b['companyId'] as String)),
-              leading: Container(
-                width: 14,
-                height: 14,
-                margin: const EdgeInsets.only(top: 6),
-                decoration:
-                    BoxDecoration(color: color, shape: BoxShape.circle),
-              ),
-              title: Text('${b['companyName']} — $when',
-                  style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w600)),
-              subtitle: Text(statusText,
-                  style: TextStyle(fontSize: 12, color: color)),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                    tooltip: 'Napisz',
-                    onPressed: () => context.read<MainScreenBloc>().add(
-                        GoToChatEvent(b['companyId'] as String,
-                            chatName: b['companyName'] as String?)),
-                  ),
-                  if (status != 'rejected')
-                    IconButton(
-                      icon: Icon(Icons.close,
-                          size: 18, color: Colors.red.shade300),
-                      tooltip: 'Odwołaj',
-                      onPressed: () => _cancel(b),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${b['companyName']}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 8),
+                          // balonik z terminem — ten sam wzór co na filmie
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: color, width: 1.2),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 9,
+                                  height: 9,
+                                  decoration: BoxDecoration(
+                                      color: color, shape: BoxShape.circle),
+                                ),
+                                const SizedBox(width: 7),
+                                Text(dayPart,
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: dark)),
+                                const SizedBox(width: 6),
+                                Text(timePart,
+                                    style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w800,
+                                        color: dark)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(statusText,
+                              style: TextStyle(fontSize: 12, color: dark)),
+                        ],
+                      ),
                     ),
-                ],
+                    // akcje w kolumnie
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_phones[b['companyId']] != null)
+                          IconButton(
+                            icon: const Icon(Icons.phone_outlined, size: 20),
+                            tooltip: 'Zadzwoń',
+                            onPressed: () =>
+                                _call(_phones[b['companyId']]!),
+                          ),
+                        IconButton(
+                          icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                          tooltip: 'Napisz',
+                          onPressed: () => context.read<MainScreenBloc>().add(
+                              GoToChatEvent(b['companyId'] as String,
+                                  chatName: b['companyName'] as String?)),
+                        ),
+                        if (status != 'rejected')
+                          IconButton(
+                            icon: Icon(Icons.close,
+                                size: 20, color: Colors.red.shade400),
+                            tooltip: 'Odwołaj',
+                            onPressed: () => _cancel(b),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           );
