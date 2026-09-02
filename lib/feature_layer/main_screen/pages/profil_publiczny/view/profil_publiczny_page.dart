@@ -912,8 +912,7 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
               child: Center(
                 child: Text(
                   _canReview
-                      ? 'Ta firma nie ma jeszcze opinii.
-Bądź pierwszy!'
+                      ? 'Ta firma nie ma jeszcze opinii.\nBądź pierwszy!'
                       : 'Ta firma nie ma jeszcze opinii.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
