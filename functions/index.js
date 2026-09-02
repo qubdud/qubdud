@@ -41,11 +41,9 @@ const fmtWhen = (ts) => {
   });
 };
 
-/** Powiadomienie: wpis w bazie (dzwonek w apce) + push na urządzenia. */
-async function pushTo(uid, { title, body, data = {} }) {
+/** Wpis do dzwonka w apce (bez pushu). */
+async function logNotification(uid, { title, body, data = {} }) {
   if (!uid) return;
-
-  // wpis widoczny w apce nawet, gdy push nie dojdzie
   try {
     await db.collection('notifications').add({
       userId: uid,
@@ -61,6 +59,12 @@ async function pushTo(uid, { title, body, data = {} }) {
   } catch (e) {
     console.error('notification write failed', e);
   }
+}
+
+/** Powiadomienie: wpis w bazie (dzwonek w apce) + push na urządzenia. */
+async function pushTo(uid, { title, body, data = {} }) {
+  if (!uid) return;
+  await logNotification(uid, { title, body, data });
 
   const ref = db.collection('users').doc(uid);
   const snap = await ref.get();
@@ -270,19 +274,29 @@ exports.notifyNewMessage = onDocumentCreated('chats/{chatId}/messages/{msgId}', 
   if (!chat) return;
   const to = (chat.participants || []).find((p) => p !== m.from);
   if (!to) return;
+  const names = chat.names || {};
+  const payload = {
+    title: names[m.from] || 'Nowa wiadomość',
+    body: short(m.content, 100),
+    data: { type: 'chat', from: m.from, fromName: names[m.from] || '' },
+  };
+
+  let online = false;
   try {
     // „online" bywa nieaktualne (apka ubita bez onDisconnect) — ufamy mu
     // tylko przez 10 minut od ostatniej zmiany stanu
     const st = (await getDatabase().ref(`users/${to}`).get()).val() || {};
     const fresh = typeof st.last_seen === 'number' && Date.now() - st.last_seen < 10 * 60e3;
-    if (st.online === true && fresh) { console.log(`chat → ${to}: online, bez push`); return; }
-  } catch (_) { /* brak RTDB = wysyłamy */ }
-  const names = chat.names || {};
-  await pushTo(to, {
-    title: names[m.from] || 'Nowa wiadomość',
-    body: short(m.content, 100),
-    data: { type: 'chat', from: m.from, fromName: names[m.from] || '' },
-  });
+    online = st.online === true && fresh;
+  } catch (_) { /* brak RTDB = wysyłamy push */ }
+
+  // wpis w dzwonku zawsze; push tylko, gdy odbiorca nie patrzy na apkę
+  if (online) {
+    console.log(`chat → ${to}: online, tylko wpis w powiadomieniach`);
+    await logNotification(to, payload);
+  } else {
+    await pushTo(to, payload);
+  }
 });
 
 // ── 7) cron: zgłoszenia starsze niż 10 dni zamykają się same ────────────────

@@ -448,7 +448,7 @@ class _RealizationRequestState extends State<_RealizationRequest> {
   Widget build(BuildContext context) {
     final pending = _all
         .where((r) =>
-            r['addedByRole'] != 'user' && (r['status'] ?? '') == 'pending')
+            r['addedByRole'] != 'user' && (r['status'] ?? 'pending') == 'pending')
         .toList();
     final mine = _all.where((r) => r['addedByRole'] == 'user').toList();
     final canAddOwn = widget.request.status == 'taken' && mine.isEmpty;
