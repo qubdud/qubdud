@@ -162,7 +162,8 @@ class _RegisterPageState extends State<RegisterPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Błąd: $e')),
+          const SnackBar(
+              content: Text('Nie udało się założyć konta. Sprawdź połączenie i spróbuj ponownie.')),
         );
       }
     } finally {
@@ -174,7 +175,10 @@ class _RegisterPageState extends State<RegisterPage> {
     if (e.contains('email-already-in-use')) return 'Ten e-mail jest już zarejestrowany.';
     if (e.contains('invalid-email')) return 'Nieprawidłowy adres e-mail.';
     if (e.contains('weak-password')) return 'Hasło za słabe (min. 6 znaków).';
-    return e;
+    if (e.contains('network-request-failed')) return 'Brak połączenia z internetem.';
+    if (e.contains('too-many-requests')) return 'Za dużo prób — spróbuj za chwilę.';
+    if (e.contains('operation-not-allowed')) return 'Rejestracja e-mailem jest wyłączona.';
+    return 'Rejestracja nie powiodła się ($e).';
   }
 
   void _onCityChanged(String value) {

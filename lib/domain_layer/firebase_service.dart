@@ -74,7 +74,8 @@ class FirebaseService {
 
       return null;
     } on FirebaseAuthException catch (e) {
-      return e.message;
+      // kod (np. email-already-in-use) — strona mapuje go na polski komunikat
+      return e.code;
     }
   }
 

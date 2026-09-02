@@ -1,6 +1,7 @@
 import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:qb/shared/widgets/swipe_right_to_hide.dart';
 import 'package:qb/shared/functions/show_toast.dart';
 import 'package:qb/shared/functions/show_toast_error.dart';
 import 'package:qb/domain_layer/chat_service.dart';
@@ -174,16 +175,15 @@ class _RequestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final frame = _frameColor;
-    final canOffer = offerStatus == 'none' && !isTrash;
 
-    // ← w lewo: szybka oferta · → w prawo: ukryj
-    return Dismissible(
+    // → w prawo: ukryj. W lewo karta nic nie robi — ten gest przełącza
+    // zakładkę na Kalendarz (oferta jest pod przyciskiem).
+    return SwipeRightToHide(
       key: ValueKey('req_${request.id}'),
-      direction: isTrash
-          ? DismissDirection.none
-          : (canOffer
-              ? DismissDirection.horizontal
-              : DismissDirection.startToEnd),
+      enabled: !isTrash,
+      onHide: () => context
+          .read<StartPageBloc>()
+          .add(TryHideRequestEvent(request.id)),
       background: Container(
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 24),
@@ -203,38 +203,6 @@ class _RequestCard extends StatelessWidget {
           ],
         ),
       ),
-      secondaryBackground: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 24),
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Colors.green.shade500,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Wyślij ofertę',
-                style: TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
-            SizedBox(width: 8),
-            Icon(Icons.local_offer, color: Colors.white),
-          ],
-        ),
-      ),
-      confirmDismiss: (dir) async {
-        if (dir == DismissDirection.endToStart) {
-          // szybka oferta — karta zostaje (zmieni się na żółtą)
-          context
-              .read<StartPageBloc>()
-              .add(TryQuickOfferEvent(request.id));
-          return false;
-        }
-        return true; // w prawo → ukryj
-      },
-      onDismissed: (_) => context
-          .read<StartPageBloc>()
-          .add(TryHideRequestEvent(request.id)),
       child: Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
