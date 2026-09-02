@@ -586,14 +586,6 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
 }
 
 
-void _showAnonimSnackbar(BuildContext context) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('Zaloguj się aby korzystać z tej funkcji'),
-      duration: Duration(seconds: 2),
-    ),
-  );
-}
 
 const _textShadow = [
   Shadow(offset: Offset(0, 0), blurRadius: 5, color: Colors.black),
@@ -664,7 +656,7 @@ class VideoFeedPage extends StatelessWidget {
                 tooltip: 'Ulubione',
                 onTap: () {
                   if (Globals.instance.anonim) {
-                    _showAnonimSnackbar(context);
+                    showLoginPrompt(context, 'dodać do ulubionych');
                     return;
                   }
                   context.read<WyszukajPageBloc>()
@@ -678,7 +670,7 @@ class VideoFeedPage extends StatelessWidget {
                 tooltip: 'Dodaj do kontaktów',
                 onTap: () {
                   if (Globals.instance.anonim) {
-                    _showAnonimSnackbar(context);
+                    showLoginPrompt(context, 'zapisać firmę w kontaktach');
                     return;
                   }
                   context.read<WyszukajPageBloc>()

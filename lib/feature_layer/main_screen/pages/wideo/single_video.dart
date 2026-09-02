@@ -208,7 +208,7 @@ class _VideoItemState extends State<_VideoItem> {
                 tooltip: 'Ulubione',
                 onTap: () async {
                   if (Globals.instance.anonim) {
-                    showToast(text: 'Zaloguj się, aby dodać do ulubionych');
+                    showLoginPrompt(context, 'dodać do ulubionych');
                     return;
                   }
                   final myUid =
@@ -224,7 +224,7 @@ class _VideoItemState extends State<_VideoItem> {
                 tooltip: 'Dodaj do kontaktów',
                 onTap: () async {
                   if (Globals.instance.anonim) {
-                    showToast(text: 'Zaloguj się, aby dodać kontakt');
+                    showLoginPrompt(context, 'zapisać firmę w kontaktach');
                     return;
                   }
                   final myUid =
@@ -246,7 +246,7 @@ class _VideoItemState extends State<_VideoItem> {
                 tooltip: 'Udostępnij',
                 onTap: () {
                   if (Globals.instance.anonim) {
-                    showToast(text: 'Zaloguj się, aby udostępnić firmę');
+                    showLoginPrompt(context, 'udostępnić firmę');
                     return;
                   }
                   final name =

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../../../../shared/widgets/anonim_gate.dart';
 import 'package:qb/domain_layer/domain_models/app_user.dart';
 import 'package:qb/shared/globals.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -588,14 +589,73 @@ class _SlotsSectionState extends State<_SlotsSection> {
 
   Future<void> _tapSlot(Map<String, dynamic> s) async {
     if (Globals.instance.anonim || _myUid.isEmpty) {
-      showToast(text: 'Zaloguj się, aby zarezerwować termin');
+      showLoginPrompt(context, 'zarezerwować termin');
       return;
     }
     final status = s['status'] as String;
     final mine = s['bookedBy'] == _myUid;
 
-    // wolny → rezerwuj jednym tapnięciem
+    // wolny → popup z terminem i opisem firmy, potem rezerwacja
     if (status == 'free') {
+      final st = s['start'] as DateTime;
+      final when = '${dayLabel(st)}, '
+          '${st.hour.toString().padLeft(2, '0')}:${st.minute.toString().padLeft(2, '0')}';
+      final info = widget.info?.trim() ?? '';
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Zarezerwować termin?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.companyName,
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.event_available, size: 20, color: cDarkBlue),
+                  const SizedBox(width: 8),
+                  Text(when,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w800)),
+                ],
+              ),
+              if (info.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: cDarkBlue.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(info,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          color: cDarkBlue,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3)),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Text('Firma potwierdzi albo odrzuci rezerwację — dostaniesz powiadomienie.',
+                  style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600)),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Anuluj')),
+            FilledButton.icon(
+              icon: const Icon(Icons.check, size: 18),
+              label: const Text('Rezerwuj'),
+              onPressed: () => Navigator.pop(ctx, true),
+            ),
+          ],
+        ),
+      );
+      if (go != true || !mounted) return;
       final me = context.read<MainScreenBloc>().state.user;
       final myName = me?.firma == true
           ? (me?.companyName ?? 'Firma')

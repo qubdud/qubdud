@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'anonim_gate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
@@ -61,7 +62,7 @@ class _MiniSlotsBarState extends State<MiniSlotsBar> {
 
   Future<void> _tap(Map<String, dynamic> s) async {
     if (Globals.instance.anonim || _myUid.isEmpty) {
-      showToast(text: 'Zaloguj się, aby zarezerwować termin');
+      showLoginPrompt(context, 'zarezerwować termin');
       return;
     }
     final status = s['status'] as String;

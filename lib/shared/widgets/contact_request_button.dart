@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'anonim_gate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain_layer/firebase_service.dart';
@@ -47,7 +48,7 @@ class _ContactRequestButtonState extends State<ContactRequestButton> {
 
   Future<void> _tap() async {
     if (Globals.instance.anonim) {
-      showToast(text: 'Zaloguj się, aby poprosić o kontakt');
+      showLoginPrompt(context, 'poprosić o kontakt');
       return;
     }
     if (_myUid == widget.companyId) return;

@@ -62,3 +62,48 @@ class AnonimGateView extends StatelessWidget {
 
 /// Podpis zamiast nazwy firmy, gdy oglądający nie jest zalogowany.
 const String kAnonimCompanyLabel = 'Zaloguj się, aby zobaczyć firmę';
+
+/// Jeden wspólny komunikat dla anonima przy każdej akcji wymagającej konta
+/// (ulubione, kontakt, rezerwacja, prośba o telefon…). Zamiast toastów
+/// i snackbarów w różnych stylach — dolna karta z przyciskiem logowania.
+Future<void> showLoginPrompt(BuildContext context, String action) {
+  final bloc = context.read<MainScreenBloc>();
+  return showModalBottomSheet<void>(
+    context: context,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_outline, size: 40, color: Colors.grey.shade500),
+            const SizedBox(height: 10),
+            const Text('Przeglądasz aplikację anonimowo',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Text('Aby $action, zaloguj się lub załóż konto.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13.5, color: Colors.grey.shade600)),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  bloc.add(LogoutEvent());
+                },
+                child: const Text('Zaloguj się'),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Nie teraz'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
