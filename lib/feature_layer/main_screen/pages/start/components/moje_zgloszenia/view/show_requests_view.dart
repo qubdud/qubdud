@@ -150,7 +150,7 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
         icon: Icons.inbox_outlined,
         title: 'Brak zgłoszeń',
         subtitle:
-            'Dodaj zgłoszenie w zakładce „Dodaj" — firmy z okolicy je zobaczą.',
+            'Użyj przycisku powyżej — firmy z okolicy zobaczą Twoje zgłoszenie i przyślą oferty.',
       );
     }
 
