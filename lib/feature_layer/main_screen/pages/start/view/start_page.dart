@@ -79,7 +79,7 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
             tabAlignment: TabAlignment.center,
             labelColor: Colors.black,
             tabs: _isAnon
-                ? const [Tab(text: 'Wyszukane')]
+                ? const [Tab(text: 'Odkrywaj')]
                 : _isCompany
                 ? const [
               Tab(text: 'Zgłoszenia'),

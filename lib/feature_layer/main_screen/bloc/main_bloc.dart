@@ -256,7 +256,8 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
       if (currentUser == null || currentUser.isAnonymous || Globals.instance.anonim == true) {
         Globals.instance.anonim = true;
         state.user = AppUser(id: '');
-        add(GoToWyszukajFirmyEvent());
+        // anonim startuje na Odkrywaj (siatka prezentacji + szukaj)
+        add(GoToHomeEvent());
         return;
       }
 
