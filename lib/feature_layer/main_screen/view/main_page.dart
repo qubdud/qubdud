@@ -108,7 +108,6 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
               label: "Kontakty",
               iconPath: Icons.chat_outlined,
               locked: Globals.instance.anonim,
-              count: state.chatCounter,
               onTap: () {
                 context.read<MainScreenBloc>().add(GoToChatEvent(''));
               }),
