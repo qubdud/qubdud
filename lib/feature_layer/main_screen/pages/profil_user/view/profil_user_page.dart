@@ -38,7 +38,11 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
       final user = await firebase.fetchUser(widget.userId);
       final reviews = await firebase.getReviewByUser(widget.userId);
       final requests = await firebase.getRequestsMetadataByUser(widget.userId);
-      final contacts = await firebase.getContactIds(widget.userId);
+      // cudza lista kontaktów jest prywatna (reguły) — wtedy pokazujemy 0
+      List<String> contacts = const [];
+      try {
+        contacts = await firebase.getContactIds(widget.userId);
+      } catch (_) {}
       for (final id in reviews.map((r) => r.reviewedUserId).toSet()) {
         if (id.isEmpty) continue;
         final c = await firebase.fetchUser(id);
