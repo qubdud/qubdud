@@ -53,7 +53,15 @@ class UpdateCompanyDataEvent extends MyProfilPageEvent {
   final String companyCity;
   final LatLng? companyLocation;
   final Map<String, String> companyAddress;
+  final String www;
+  final String contactEmail;
+  final bool showPhone;
+  final bool showAddress;
   UpdateCompanyDataEvent({
+    this.www = '',
+    this.contactEmail = '',
+    this.showPhone = true,
+    this.showAddress = true,
     required this.companyName,
     required this.bio,
     required this.phone,

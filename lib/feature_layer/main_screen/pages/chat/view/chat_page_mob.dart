@@ -458,217 +458,115 @@ class _ContactCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isUnread = unreadCount > 0;
     final isCompany = user.firma == true;
-
-    final initials = isCompany
-        ? (user.companyName?.isNotEmpty == true ? user.companyName![0].toUpperCase() : 'F')
-        : ((user.firstName?.isNotEmpty == true ? user.firstName![0] : '') +
-        (user.lastName?.isNotEmpty == true ? user.lastName![0] : ''))
-        .toUpperCase();
+    final name = isCompany
+        ? (user.companyName ?? 'Firma')
+        : '${user.firstName ?? ''} ${user.lastName ?? ''}'.trim();
+    final subtitle = isCompany
+        ? [user.companyCategory, user.companyCity]
+            .whereType<String>()
+            .where((e) => e.isNotEmpty)
+            .join(' · ')
+        : (user.phone ?? '');
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          // Kliknięcie w kartę → profil
-          if (isCompany) {
-            context.read<MainScreenBloc>().add(GoToProfilPublicznyFirmyEvent(user.id));
-          } else {
-            context.read<MainScreenBloc>().add(GoToProfilPublicznyUseraEvent(user.id));
-          }
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-
-              // ── Górna część: avatar + dane + online ──────────
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Avatar z kropką online
-                  Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundColor: isCompany
-                            ? Colors.blue.shade700
-                            : Colors.grey.shade600,
-                        child: Text(initials,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold)),
-                      ),
-                      Positioned(
-                        bottom: 0, right: 0,
-                        child: Container(
-                          width: 14, height: 14,
-                          decoration: BoxDecoration(
-                            color: isOnline ? Colors.green : Colors.grey.shade400,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                        ),
-                      ),
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        onTap: () => context.read<MainScreenBloc>().add(isCompany
+            ? GoToProfilPublicznyFirmyEvent(user.id)
+            : GoToProfilPublicznyUseraEvent(user.id)),
+        onLongPress: onRemove == null
+            ? null
+            : () async {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Usunąć z kontaktów?'),
+                    content: Text(name),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Anuluj')),
+                      TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Usuń',
+                              style: TextStyle(color: Colors.red))),
                     ],
                   ),
-                  const SizedBox(width: 12),
-
-                  // Dane profilowe
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isCompany
-                              ? (user.companyName ?? 'Firma')
-                              : '${user.firstName ?? ''} ${user.lastName ?? ''}'.trim(),
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (isCompany && user.companyCategory != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            '${user.companyCategory} · ${user.companyCity ?? ''}',
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                        if (!isCompany && user.bio != null && user.bio!.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(user.bio!,
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis),
-                        ],
-                        ClientNoteBadge(
-                          userId: user.id,
-                          personName: isCompany
-                              ? (user.companyName ?? '')
-                              : '${user.firstName ?? ''} ${user.lastName ?? ''}'
-                                  .trim(),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          isOnline ? 'Online' : 'Offline',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isOnline ? Colors.green : Colors.grey,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (onRemove != null)
-                    IconButton(
-                      icon: Icon(Icons.person_remove_outlined,
-                          size: 20, color: Colors.red.shade300),
-                      tooltip: 'Usuń z kontaktów',
-                      onPressed: onRemove,
-                    ),
-                  const Icon(Icons.chevron_right, color: Colors.grey),
-                ],
+                );
+                if (ok == true) onRemove!();
+              },
+        leading: Stack(
+          children: [
+            CircleAvatar(
+              backgroundColor:
+                  isCompany ? Colors.blue.shade700 : Colors.grey.shade600,
+              child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+            if (isOnline)
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  width: 11,
+                  height: 11,
+                  decoration: BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2)),
+                ),
               ),
-
-              // ── Separator ─────────────────────────────────────
-              const Divider(height: 20),
-
-              // ── Dolna część: ostatnia wiadomość + przycisk ───
-              Row(
-                children: [
-                  // Ikonka czatu + ostatnia wiadomość
-                  const Icon(Icons.chat_bubble_outline, size: 16, color: Colors.grey),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      lastMessage.isEmpty ? 'Brak wiadomości' : lastMessage,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: isUnread ? Colors.black87 : Colors.grey.shade500,
-                        fontWeight: isUnread ? FontWeight.w600 : FontWeight.normal,
-                        fontStyle: lastMessage.isEmpty ? FontStyle.italic : FontStyle.normal,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-
-                  // Czas lub badge nieprzeczytanych
-                  if (isUnread)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.pinkAccent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.notifications_active,
-                              size: 10, color: Colors.white),
-                          const SizedBox(width: 3),
-                          Text('$unreadCount',
-                              style: const TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    )
-                  else if (timestamp > 0)
-                    Text(formatTimestamp(timestamp),
-                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
-
-                  const SizedBox(width: 8),
-
-                  // Przycisk "Napisz"
-                  GestureDetector(
-                    onTap: () => context.read<ChatPageBloc>().add(
-                      StartUserChatChatPageEvent(user.id),
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black87,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.send, size: 13, color: Colors.white),
-                          SizedBox(width: 4),
-                          Text('Napisz',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+          ],
+        ),
+        title: Text(name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight:
+                    unreadCount > 0 ? FontWeight.w800 : FontWeight.w600)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (subtitle.isNotEmpty)
+              Text(subtitle, style: const TextStyle(fontSize: 12)),
+            ClientNoteBadge(userId: user.id, personName: name),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (unreadCount > 0)
+              Container(
+                margin: const EdgeInsets.only(right: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                    color: Colors.red.shade600,
+                    borderRadius: BorderRadius.circular(10)),
+                child: Text('$unreadCount',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold)),
               ),
-            ],
-          ),
+            IconButton(
+              icon: const Icon(Icons.chat_bubble_outline, size: 20),
+              tooltip: 'Napisz',
+              onPressed: () => context
+                  .read<MainScreenBloc>()
+                  .add(GoToChatEvent(user.id, chatName: name)),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Notatki o klientach (tylko firma) — lista karteczek z edycją
-// ─────────────────────────────────────────────────────────────────────────────
 class _NotesList extends StatefulWidget {
   const _NotesList({super.key});
 

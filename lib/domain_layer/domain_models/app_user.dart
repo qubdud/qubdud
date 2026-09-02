@@ -10,6 +10,11 @@ class AppUser {
   final String? bio;
   /// Czym są terminy w kalendarzu (konsultacja, strzyżenie, rozmowa…)
   final String? slotsInfo;
+  final String? www;
+  final String? contactEmail;
+  /// firma decyduje, co pokazać publicznie (domyślnie: wszystko)
+  final bool showPhone;
+  final bool showAddress;
   final bool? firma;
   final String? nip;
   final String? companyName;
@@ -28,6 +33,10 @@ class AppUser {
     this.phone,
     this.bio,
     this.slotsInfo,
+    this.www,
+    this.contactEmail,
+    this.showPhone = true,
+    this.showAddress = true,
     this.firma,
     this.nip,
     this.companyName,
@@ -53,6 +62,10 @@ class AppUser {
       phone: data['phone'] as String?,
       bio: data['bio'] as String?,
       slotsInfo: data['slotsInfo'] as String?,
+      www: data['www'] as String?,
+      contactEmail: data['contactEmail'] as String?,
+      showPhone: data['showPhone'] != false,
+      showAddress: data['showAddress'] != false,
       firma: (data['firma'] as bool?) ?? (data['isCompany'] as bool?) ?? false,
       nip: data['nip'] as String?,
       companyName: data['companyName'] as String?,

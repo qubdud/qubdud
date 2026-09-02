@@ -2,6 +2,9 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:qb/domain_layer/domain_models/app_user.dart';
+import 'package:qb/shared/globals.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:qb/shared/constants.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -70,6 +73,11 @@ class _ProfilViewState extends State<_ProfilView> {
     if (!mounted || ctx == null) return;
     final box = ctx.findRenderObject() as RenderBox?;
     if (box == null || !box.attached) return;
+    // firma bez terminów (np. hydraulik) → brak sekcji i brak przycisku
+    if (box.size.height < 40) {
+      if (_showCta) setState(() => _showCta = false);
+      return;
+    }
     final top = box.localToGlobal(Offset.zero).dy;
     final bottom = top + box.size.height;
     final screenH = MediaQuery.of(context).size.height;
@@ -213,6 +221,8 @@ class _ProfilViewState extends State<_ProfilView> {
                       Text(user!.companyCategory!,
                           style: TextStyle(
                               color: Colors.grey.shade500, fontSize: 12)),
+                    if (user != null && !Globals.instance.anonim)
+                      _CompanyContact(user: user),
                     if (user != null)
                       FutureBuilder<int>(
                         future: context
@@ -779,6 +789,7 @@ class _ReviewsSection extends StatefulWidget {
 
 class _ReviewsSectionState extends State<_ReviewsSection> {
   bool _alreadyReviewed = false;
+  bool _canReview = false;
   bool _checked = false;
 
   @override
@@ -796,7 +807,17 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
     final firebase = context.read<FirebaseService>();
     final reviews = await firebase.getReviewsMetadataByReviewedUser(widget.companyId);
     final already = reviews.any((r) => r.userId == myUid);
-    if (mounted) setState(() { _alreadyReviewed = already; _checked = true; });
+    bool can = false;
+    try {
+      can = await firebase.canReviewCompany(myUid, widget.companyId);
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _alreadyReviewed = already;
+        _canReview = can;
+        _checked = true;
+      });
+    }
   }
 
   @override
@@ -823,7 +844,7 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
               ),
               const Spacer(),
               // Przycisk Dodaj opinię
-              if (_checked && !isAnon && !_alreadyReviewed)
+              if (_checked && !isAnon && !_alreadyReviewed && _canReview)
                 TextButton.icon(
                   icon: const Icon(Icons.add, size: 16),
                   label: const Text('Dodaj opinię', style: TextStyle(fontSize: 13)),
@@ -952,4 +973,80 @@ class ReviewCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Telefon / adres / www / e-mail firmy — to, co firma zgodziła się pokazać.
+class _CompanyContact extends StatelessWidget {
+  final AppUser user;
+  const _CompanyContact({required this.user});
+
+  Future<void> _open(Uri uri) async {
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final addr = user.companyAddress ?? const {};
+    final street = [addr['street'], addr['buildingNr']]
+        .whereType<String>()
+        .where((e) => e.isNotEmpty)
+        .join(' ');
+    final flat = (addr['flatNr'] ?? '').toString();
+    final line1 = flat.isNotEmpty ? '$street/$flat' : street;
+    final line2 = [addr['postCode'], addr['city']]
+        .whereType<String>()
+        .where((e) => e.isNotEmpty)
+        .join(' ');
+    final address = [line1, line2].where((e) => e.isNotEmpty).join(', ');
+    final phone = (user.phone ?? '').trim();
+    final www = (user.www ?? '').trim();
+    final email = (user.contactEmail ?? '').trim();
+
+    final rows = <Widget>[];
+    if (user.showPhone && phone.isNotEmpty) {
+      rows.add(_row(Icons.phone_outlined, phone,
+          () => _open(Uri(scheme: 'tel', path: phone.replaceAll(RegExp(r'[^0-9+]'), '')))));
+    }
+    if (user.showAddress && address.isNotEmpty) {
+      rows.add(_row(Icons.place_outlined, address,
+          () => _open(Uri.parse('https://maps.google.com/?q=${Uri.encodeComponent(address)}'))));
+    }
+    if (www.isNotEmpty) {
+      rows.add(_row(Icons.language, www.replaceFirst(RegExp(r'^https?://'), ''),
+          () => _open(Uri.parse(www.startsWith('http') ? www : 'https://$www'))));
+    }
+    if (email.isNotEmpty) {
+      rows.add(_row(Icons.mail_outline, email,
+          () => _open(Uri(scheme: 'mailto', path: email))));
+    }
+    if (rows.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: rows),
+    );
+  }
+
+  Widget _row(IconData icon, String text, VoidCallback onTap) => InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            children: [
+              Icon(icon, size: 14, color: cDarkBlue),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(text,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 12.5,
+                        color: cDarkBlue,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+        ),
+      );
 }

@@ -151,6 +151,10 @@ class MyProfilPageBloc extends Bloc<MyProfilPageEvent, MyProfilPageState> {
           'phone': event.phone,
           'companyCity': event.companyCity,
           'companyAddress': event.companyAddress,
+          'www': event.www,
+          'contactEmail': event.contactEmail,
+          'showPhone': event.showPhone,
+          'showAddress': event.showAddress,
           if (event.companyLocation != null)
             'companyLocation': {
               'lat': event.companyLocation!.latitude,

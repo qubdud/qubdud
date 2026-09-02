@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qb/shared/constants.dart';
 import 'package:qb/shared/globals.dart';
 import 'package:qb/shared/widgets/empty_state.dart';
+import 'package:qb/shared/widgets/promo_tile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
@@ -140,7 +141,7 @@ class _StartTabWyszukaneState extends State<StartTabWyszukane> {
               mainAxisSpacing: 10,
             ),
             itemCount: videos.length,
-            itemBuilder: (context, i) => _PromoTile(
+            itemBuilder: (context, i) => PromoTile(
               promo: videos[i],
               onTap: () => context.read<MainScreenBloc>().add(
                   GoToPromoFirmyEvent(videos[i],
@@ -168,96 +169,6 @@ class _SectionTitle extends StatelessWidget {
           Text(subtitle!,
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
       ],
-    );
-  }
-}
-
-/// Kafelek prezentacji: miniatura + nazwa firmy + branża na gradiencie.
-class _PromoTile extends StatelessWidget {
-  final Promo promo;
-  final VoidCallback onTap;
-  const _PromoTile({required this.promo, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (promo.thumbUrl.isNotEmpty)
-              CachedNetworkImage(
-                imageUrl: promo.thumbUrl,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => Container(color: Colors.grey.shade200),
-                errorWidget: (_, __, ___) => Container(
-                    color: Colors.grey.shade200,
-                    child: const Icon(Icons.videocam_off_outlined,
-                        color: Colors.grey)),
-              )
-            else
-              Container(
-                  color: Colors.grey.shade200,
-                  child: const Icon(Icons.videocam_outlined,
-                      color: Colors.grey, size: 40)),
-            // gradient pod tekstem
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(10, 28, 10, 10),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black87],
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      Globals.instance.anonim
-                          ? 'Firma · zaloguj się'
-                          : (promo.companyName.isNotEmpty
-                              ? promo.companyName
-                              : 'Firma'),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          height: 1.15),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      promo.sector,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // ikona play
-            const Positioned(
-              top: 8,
-              right: 8,
-              child: CircleAvatar(
-                radius: 14,
-                backgroundColor: Colors.black45,
-                child: Icon(Icons.play_arrow, color: Colors.white, size: 18),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

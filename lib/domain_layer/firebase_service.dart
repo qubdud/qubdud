@@ -1401,6 +1401,29 @@ class FirebaseService {
     await _firestore.collection('notifications').doc(id).delete();
   }
 
+  /// Recenzję może wystawić tylko klient z potwierdzoną realizacją
+  /// albo przyjętym terminem w tej firmie.
+  Future<bool> canReviewCompany(String myUid, String companyId) async {
+    if (myUid.isEmpty) return false;
+    final bookings = await _firestore
+        .collection('users')
+        .doc(myUid)
+        .collection('myBookings')
+        .where('companyId', isEqualTo: companyId)
+        .where('status', isEqualTo: 'accepted')
+        .limit(1)
+        .get();
+    if (bookings.docs.isNotEmpty) return true;
+    final jobs = await _firestore
+        .collection('requests')
+        .where('userId', isEqualTo: myUid)
+        .where('takenBy', isEqualTo: companyId)
+        .where('realizationStatus', isEqualTo: 'approved')
+        .limit(1)
+        .get();
+    return jobs.docs.isNotEmpty;
+  }
+
   /// Klient zamyka zgłoszenie ręcznie (bez usuwania historii).
   Future<void> closeRequest(String requestId) async {
     await _firestore.collection('requests').doc(requestId).update({

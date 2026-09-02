@@ -2,6 +2,7 @@ import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:qb/shared/widgets/promo_tile.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../shared/widgets/w_small_label.dart';
 import '../../../bloc/main_bloc.dart';
@@ -29,74 +30,29 @@ class StartTabFavourites extends StatelessWidget {
     return GridView.builder(
       padding: const EdgeInsets.all(12),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2, // Dwie kolumny
-        childAspectRatio: 0.7, // Proporcje pionowe (jak w TikTok/Reels)
+        crossAxisCount: 2,
+        childAspectRatio: 0.7,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
       ),
       itemCount: state.favVideo.length,
       itemBuilder: (context, index) {
-        final videofav = state.favVideo[index];
-
-        return GestureDetector(
-          onTap: (){context.read<MainScreenBloc>().add(GoToPromoFirmyEvent(videofav, playlist: state.favVideo, initialIndex: index));},
-          child: Stack(
-            children: [
-              // 1. Miniaturka jako tło
-              Positioned.fill(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: CachedNetworkImage(
-                    imageUrl: videofav.thumbUrl,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-
-              // 2. Inicjały Firmy (Górny lewy róg)
-              Positioned(
-                top: 8,
-                left: 8,
-                child: GestureDetector(
-
-
-                    onTap: (){context.read<MainScreenBloc>().add(GoToProfilPublicznyFirmyEvent(videofav.userId));},
-
-                    child: UserInfoComponent(id: videofav.userId, simpleMode: true)),
-              ),
-
-              // 3. Przycisk usuwania (Górny prawy róg)
-              Positioned(
-                top: 4,
-                right: 4,
-                child: IconButton(
-                  icon: const Icon(Icons.remove_circle, color: Colors.white, size: 24),
-                  onPressed: () {
-                    context.read<StartPageBloc>().add(
-                      TryRemoveFavStartPageEvent(videofav.id),
-                    );
-                  },
-                ),
-              ),
-
-              // 4. Dolny gradient dla czytelności (opcjonalnie)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  height: 40,
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Colors.black.withOpacity(0.6)],
-                    ),
-                  ),
-                ),
-              ),
-            ],
+        final promo = state.favVideo[index];
+        return PromoTile(
+          promo: promo,
+          onTap: () => context.read<MainScreenBloc>().add(GoToPromoFirmyEvent(
+              promo,
+              playlist: state.favVideo,
+              initialIndex: index)),
+          cornerAction: GestureDetector(
+            onTap: () => context
+                .read<StartPageBloc>()
+                .add(TryRemoveFavStartPageEvent(promo.id)),
+            child: const CircleAvatar(
+              radius: 14,
+              backgroundColor: Colors.black45,
+              child: Icon(Icons.favorite, color: Colors.redAccent, size: 16),
+            ),
           ),
         );
       },

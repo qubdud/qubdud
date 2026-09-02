@@ -173,6 +173,10 @@ class _TabDaneState extends State<_TabDane> {
   late final TextEditingController _city;
   late final TextEditingController _postCode;
   late final TextEditingController _businessCity;
+  late final TextEditingController _www;
+  late final TextEditingController _contactEmail;
+  bool _showPhone = true;
+  bool _showAddress = true;
   final MapController _mapController = MapController();
 
   LatLng? _selectedLocation;
@@ -195,6 +199,10 @@ class _TabDaneState extends State<_TabDane> {
     _city = TextEditingController(text: addr['city'] ?? '');
     _postCode = TextEditingController(text: addr['postCode'] ?? '');
     _businessCity = TextEditingController(text: u?.companyCity ?? '');
+    _www = TextEditingController(text: u?.www ?? '');
+    _contactEmail = TextEditingController(text: u?.contactEmail ?? '');
+    _showPhone = u?.showPhone ?? true;
+    _showAddress = u?.showAddress ?? true;
     final loc = u?.companyLocation;
     if (loc != null && (loc.latitude != 0 || loc.longitude != 0)) {
       _selectedLocation = loc;
@@ -206,7 +214,7 @@ class _TabDaneState extends State<_TabDane> {
     _debounce?.cancel();
     for (final c in [
       _firstName, _lastName, _phone, _bio, _companyName,
-      _street, _buildingNr, _flatNr, _city, _postCode, _businessCity,
+      _street, _buildingNr, _flatNr, _city, _postCode, _businessCity, _www, _contactEmail,
     ]) {
       c.dispose();
     }
@@ -316,6 +324,33 @@ class _TabDaneState extends State<_TabDane> {
               hintText: 'Wpisz miejscowość (do mapy)',
               onChanged: _onCityChanged,
             ),
+            const SizedBox(height: 20),
+            WSmallLabel(text: 'Kontakt na profilu publicznym'),
+            const SizedBox(height: 8),
+            WInputField(
+              controller: _www,
+              label: 'Strona www (opcjonalnie)',
+              isPassword: false,
+            ),
+            WInputField(
+              controller: _contactEmail,
+              label: 'E-mail kontaktowy (opcjonalnie)',
+              isPassword: false,
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Pokazuj telefon na profilu',
+                  style: TextStyle(fontSize: 14)),
+              value: _showPhone,
+              onChanged: (v) => setState(() => _showPhone = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Pokazuj adres na profilu',
+                  style: TextStyle(fontSize: 14)),
+              value: _showAddress,
+              onChanged: (v) => setState(() => _showAddress = v),
+            ),
             const SizedBox(height: 8),
             const Text('lub zaznacz lokalizację na mapie:',
                 style: TextStyle(fontSize: 13)),
@@ -374,6 +409,10 @@ class _TabDaneState extends State<_TabDane> {
                   phone: _phone.text.trim(),
                   companyCity: _businessCity.text.trim(),
                   companyLocation: _selectedLocation,
+                  www: _www.text.trim(),
+                  contactEmail: _contactEmail.text.trim(),
+                  showPhone: _showPhone,
+                  showAddress: _showAddress,
                   companyAddress: {
                     'street': _street.text.trim(),
                     'buildingNr': _buildingNr.text.trim(),

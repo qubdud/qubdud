@@ -17,6 +17,7 @@ import '../widgets/backdrop_blur.dart';
 import '../widgets/build_from_state.dart';
 import '../widgets/menu_component.dart';
 import '../widgets/nav_bar_component.dart';
+import '../../../shared/widgets/offline_banner.dart';
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
@@ -200,7 +201,8 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
                 )
                     : null,
                 backgroundColor: Colors.transparent,
-                body: Column(
+                body: OfflineBanner(
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     AppBarComponent(key: ValueKey('AppBarCompKey')),
@@ -235,6 +237,7 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
                       ),
                     ),
                   ],
+                ),
                 ),
                             ),
               );
