@@ -94,11 +94,26 @@ class _ProfilViewState extends State<_ProfilView>
 
         return Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: TabBar(
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(kTextTabBarHeight),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF1C1B21)
+                    : Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3)),
+                ],
+              ),
+              child: TabBar(
             controller: _tabController,
             isScrollable: true,
             tabAlignment: TabAlignment.start,
-            labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            dividerColor: Colors.transparent,
+            labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
             tabs: [
               const Tab(text: 'Moje dane'),
               if (isCompany) const Tab(text: 'Kalendarz'),
@@ -107,6 +122,8 @@ class _ProfilViewState extends State<_ProfilView>
               if (isCompany) const Tab(text: 'Prezentacje'),
               if (isCompany) const Tab(icon: Icon(Icons.delete_outline, size: 18)),
             ],
+          ),
+            ),
           ),
           body: TabBarView(
             controller: _tabController,

@@ -117,12 +117,26 @@ class _ChatPageMobState extends State<ChatPageMob>
 
         return Column(
           children: [
-            TabBar(
-              controller: _tab,
-              labelStyle:
-                  const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-              labelPadding: const EdgeInsets.symmetric(horizontal: 2),
-              tabs: _tabs,
+            Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF1C1B21)
+                    : Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3)),
+                ],
+              ),
+              child: TabBar(
+                controller: _tab,
+                labelStyle:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                dividerColor: Colors.transparent,
+                tabs: _tabs,
+              ),
             ),
             Expanded(
               child: _views[_tab.index],

@@ -117,13 +117,27 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
     _syncTabs();
     return Column(
       children: [
-        SafeArea(
+        // biała belka z cieniem — odcina zakładki od treści strony
+        Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF1C1B21)
+                : Colors.white,
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3)),
+            ],
+          ),
+          child: SafeArea(
           bottom: false,
           child: TabBar(
             controller: _tabController,
             isScrollable: true,
             tabAlignment: TabAlignment.center,
             labelColor: Colors.black,
+            dividerColor: Colors.transparent,
             labelStyle: const TextStyle(
                 fontSize: 17, fontWeight: FontWeight.w700),
             unselectedLabelStyle: const TextStyle(
@@ -143,6 +157,7 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
               const Tab(text: 'Ulubione'),
               const Tab(text: 'Zgłoszenia'),
             ],
+          ),
           ),
         ),
         Expanded(
