@@ -61,6 +61,7 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
           child: SizedBox(
             height: 56,
+            width: double.infinity,
             child: ElevatedButton.icon(
               icon: const Icon(Icons.add_circle_outline, size: 26),
               label: const Text('Dodaj zgłoszenie',
