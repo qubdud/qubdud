@@ -50,6 +50,9 @@ async function logNotification(uid, { title, body, data = {} }) {
       title,
       body,
       type: data.type || 'info',
+      // 'company' = widoczne w trybie firmowym, 'user' = w trybie klienta,
+      // 'both' = zawsze (np. rozmowy)
+      audience: data.audience || 'both',
       requestId: data.requestId || '',
       companyId: data.companyId || '',
       from: data.from || '',
@@ -124,7 +127,7 @@ exports.notifyUrgentRequest = onDocumentCreated('requests/{id}', async (event) =
     jobs.push(pushTo(f.id, {
       title: '🔴 Pilne zgłoszenie w pobliżu',
       body,
-      data: { type: 'urgent_request', requestId: event.params.id },
+      data: { type: 'urgent_request', requestId: event.params.id , audience: 'company' },
     }));
   }
   await Promise.all(jobs);
@@ -139,7 +142,7 @@ exports.notifyNewOffer = onDocumentCreated('requests/{id}/offers/{companyId}', a
   await pushTo(req.userId, {
     title: `Nowa oferta: ${offer.companyName || 'firma'}`,
     body: short(offer.message, 100),
-    data: { type: 'offer', requestId: event.params.id },
+    data: { type: 'offer', requestId: event.params.id , audience: 'user' },
   });
 });
 
@@ -160,7 +163,7 @@ exports.notifyOfferDecision = onDocumentUpdated('requests/{id}/offers/{companyId
   if (t) {
     await pushTo(event.params.companyId, {
       title: t[0], body: t[1],
-      data: { type: 'offer_decision', requestId: event.params.id, status: after.status },
+      data: { type: 'offer_decision', requestId: event.params.id, status: after.status , audience: 'company' },
     });
   }
 
@@ -188,7 +191,7 @@ exports.notifySlot = onDocumentUpdated('users/{companyId}/slots/{slotId}', async
     await pushTo(event.params.companyId, {
       title: '📅 Nowa rezerwacja',
       body: `${after.bookedByName || 'Klient'} · ${when}. Potwierdź lub odrzuć w kalendarzu.`,
-      data: { type: 'booking', slotId: event.params.slotId },
+      data: { type: 'booking', slotId: event.params.slotId , audience: 'company' },
     });
     return;
   }
@@ -201,7 +204,7 @@ exports.notifySlot = onDocumentUpdated('users/{companyId}/slots/{slotId}', async
     await pushTo(client, {
       title: '✅ Termin potwierdzony',
       body: `${company} · ${when}`,
-      data: { type: 'booking_decision', companyId: event.params.companyId, status: 'accepted' },
+      data: { type: 'booking_decision', companyId: event.params.companyId, status: 'accepted' , audience: 'user' },
     });
     const startMs = after.start && after.start.toMillis ? after.start.toMillis() : Date.now();
     await db.collection('reviewReminders').doc(`slot_${event.params.slotId}`).set({
@@ -216,7 +219,7 @@ exports.notifySlot = onDocumentUpdated('users/{companyId}/slots/{slotId}', async
     await pushTo(client, {
       title: 'Termin odrzucony',
       body: `${company} nie może przyjąć Cię ${when}. Wybierz inny termin.`,
-      data: { type: 'booking_decision', companyId: event.params.companyId, status: 'rejected' },
+      data: { type: 'booking_decision', companyId: event.params.companyId, status: 'rejected' , audience: 'user' },
     });
   }
 });
@@ -232,7 +235,7 @@ exports.notifyRealizationAdded = onDocumentCreated('realizations/{id}', async (e
     await pushTo(d.companyId, {
       title: `📷 ${client} dodał zdjęcia z realizacji`,
       body: 'Możesz opublikować je w swoim portfolio.',
-      data: { type: 'realization_from_user', requestId: d.requestId || '' },
+      data: { type: 'realization_from_user', requestId: d.requestId || '' , audience: 'company' },
     });
     return;
   }
@@ -242,7 +245,7 @@ exports.notifyRealizationAdded = onDocumentCreated('realizations/{id}', async (e
   await pushTo(d.userId, {
     title: `📷 ${company} prosi o potwierdzenie realizacji`,
     body: 'Potwierdź wykonanie — zdjęcia trafią do portfolio firmy, a zgłoszenie zostanie zamknięte.',
-    data: { type: 'realization', requestId: d.requestId || '' },
+    data: { type: 'realization', requestId: d.requestId || '' , audience: 'user' },
   });
 });
 
@@ -255,13 +258,13 @@ exports.notifyRealizationDecision = onDocumentUpdated('realizations/{id}', async
     await pushTo(after.companyId, {
       title: '✅ Klient potwierdził realizację',
       body: `${client} potwierdził wykonanie — zdjęcia są już na Twoim profilu.`,
-      data: { type: 'realization_decision', requestId: after.requestId || '', status: 'approved' },
+      data: { type: 'realization_decision', requestId: after.requestId || '', status: 'approved' , audience: 'company' },
     });
   } else if (after.status === 'rejected') {
     await pushTo(after.companyId, {
       title: 'Zdjęcia realizacji odrzucone',
       body: `${client} nie potwierdził zdjęć. Usuń je w zgłoszeniu i dodaj właściwe.`,
-      data: { type: 'realization_decision', requestId: after.requestId || '', status: 'rejected' },
+      data: { type: 'realization_decision', requestId: after.requestId || '', status: 'rejected' , audience: 'company' },
     });
   }
 });
@@ -321,7 +324,7 @@ exports.autoCloseRequests = onSchedule(
       await pushTo(d.userId, {
         title: 'Zgłoszenie zamknięte',
         body: `Twoje zgłoszenie (${d.sector || d.category}) wygasło po ${REQUEST_TTL_DAYS} dniach. Dodaj nowe, jeśli sprawa jest aktualna.`,
-        data: { type: 'request_expired', requestId: doc.id },
+        data: { type: 'request_expired', requestId: doc.id , audience: 'user' },
       });
     }
     console.log(`autoClose: zamknięto ${closed} zgłoszeń`);
@@ -340,7 +343,7 @@ exports.askForReview = onSchedule({ schedule: 'every 60 minutes', timeZone: 'Eur
       await pushTo(r.userId, {
         title: `Jak było w ${r.companyName}?`,
         body: 'Wystaw recenzję — zajmie chwilę, a pomoże innym wybrać.',
-        data: { type: 'review', companyId: r.companyId },
+        data: { type: 'review', companyId: r.companyId , audience: 'user' },
       });
     }
     await doc.ref.update({ sent: true, sentAt: FieldValue.serverTimestamp() });

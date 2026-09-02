@@ -1323,13 +1323,24 @@ class FirebaseService {
 
   // ── POWIADOMIENIA (dzwonek) ───────────────────────────────────────────────
 
-  Stream<List<Map<String, dynamic>>> notificationsStream(String uid) {
+  /// [companyMode] filtruje alerty do aktualnego trybu konta
+  /// (firma widzi swoje, klient swoje; rozmowy widać zawsze).
+  Stream<List<Map<String, dynamic>>> notificationsStream(String uid,
+      {bool? companyMode}) {
     return _firestore
         .collection('notifications')
         .where('userId', isEqualTo: uid)
         .snapshots()
         .map((snap) {
-      final list = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      final list = snap.docs
+          .map((d) => {'id': d.id, ...d.data()})
+          .where((n) {
+            if (companyMode == null) return true;
+            final aud = (n['audience'] as String?) ?? 'both';
+            if (aud == 'both') return true;
+            return companyMode ? aud == 'company' : aud == 'user';
+          })
+          .toList();
       list.sort((a, b) {
         final ta = a['createdAt'], tb = b['createdAt'];
         if (ta is! Timestamp || tb is! Timestamp) return 0;
@@ -1343,7 +1354,7 @@ class FirebaseService {
     await _firestore.collection('notifications').doc(id).update({'read': true});
   }
 
-  Future<void> markAllNotificationsRead(String uid) async {
+  Future<void> markAllNotificationsRead(String uid, {bool? companyMode}) async {
     final snap = await _firestore
         .collection('notifications')
         .where('userId', isEqualTo: uid)
@@ -1351,6 +1362,11 @@ class FirebaseService {
         .get();
     final batch = _firestore.batch();
     for (final d in snap.docs) {
+      if (companyMode != null) {
+        final aud = (d.data()['audience'] as String?) ?? 'both';
+        if (aud != 'both' &&
+            (companyMode ? aud != 'company' : aud != 'user')) continue;
+      }
       batch.update(d.reference, {'read': true});
     }
     await batch.commit();

@@ -318,7 +318,13 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
       // dzwonek: liczba nieprzeczytanych powiadomień na żywo
       _notifSub?.cancel();
       _notifSub = appFirebaseService.notificationsStream(userFB.id).listen((list) {
-        final n = list.where((e) => e['read'] != true).length;
+        final company = isCompanyMode(state.user);
+        final n = list.where((e) {
+          if (e['read'] == true) return false;
+          final aud = (e['audience'] as String?) ?? 'both';
+          if (aud == 'both') return true;
+          return company ? aud == 'company' : aud == 'user';
+        }).length;
         if (n != state.notifCounter) {
           state.notifCounter = n;
           add(RefreshBadgesEvent());

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../domain_layer/firebase_service.dart';
+import '../../../../../shared/functions/effective_role.dart';
 import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/empty_state.dart';
 import '../../../bloc/main_bloc.dart';
@@ -57,8 +58,20 @@ class PowiadomieniaPage extends StatelessWidget {
         if (companyId.isNotEmpty) bloc.add(GoToProfilPublicznyFirmyEvent(companyId));
         return;
       case 'booking':
-      case 'booking_decision':
+        // firma: Start → Kalendarz
         Globals.instance.startTab = 1;
+        bloc.add(GoToHomeEvent());
+        return;
+      case 'booking_decision':
+        // klient: Start → Rezerwacje
+        Globals.instance.startTab = 1;
+        bloc.add(GoToHomeEvent());
+        return;
+      case 'offer':
+      case 'request_expired':
+      case 'realization':
+        // klient: Start → Zgłoszenia (tam są oferty i prośby do potwierdzenia)
+        Globals.instance.startTab = 3;
         bloc.add(GoToHomeEvent());
         return;
       default:
@@ -80,21 +93,24 @@ class PowiadomieniaPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final firebase = context.read<FirebaseService>();
-    final uid = context.read<MainScreenBloc>().state.user?.id ?? '';
+    final user = context.read<MainScreenBloc>().state.user;
+    final uid = user?.id ?? '';
+    final companyMode = isCompanyMode(user);
 
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: firebase.notificationsStream(uid),
+      stream: firebase.notificationsStream(uid, companyMode: companyMode),
       builder: (context, snap) {
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
         final items = snap.data!;
         if (items.isEmpty) {
-          return const EmptyState(
+          return EmptyState(
             icon: Icons.notifications_none,
             title: 'Brak powiadomień',
-            subtitle:
-                'Tu pojawią się oferty, decyzje klientów, rezerwacje i wiadomości.',
+            subtitle: companyMode
+                ? 'Tu pojawią się zgłoszenia w pobliżu, decyzje klientów, rezerwacje i wiadomości.'
+                : 'Tu pojawią się oferty firm, potwierdzenia terminów i wiadomości.',
           );
         }
         final unread = items.where((n) => n['read'] != true).length;
@@ -113,7 +129,8 @@ class PowiadomieniaPage extends StatelessWidget {
                     TextButton.icon(
                       icon: const Icon(Icons.done_all, size: 18),
                       label: const Text('Oznacz wszystkie'),
-                      onPressed: () => firebase.markAllNotificationsRead(uid),
+                      onPressed: () => firebase.markAllNotificationsRead(uid,
+                          companyMode: companyMode),
                     ),
                   ],
                 ),
