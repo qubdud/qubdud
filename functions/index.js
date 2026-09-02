@@ -239,8 +239,11 @@ exports.notifyNewMessage = onDocumentCreated('chats/{chatId}/messages/{msgId}', 
   const to = (chat.participants || []).find((p) => p !== m.from);
   if (!to) return;
   try {
-    const online = (await getDatabase().ref(`users/${to}/online`).get()).val();
-    if (online === true) return; // widzi rozmowę na żywo — bez push
+    // „online" bywa nieaktualne (apka ubita bez onDisconnect) — ufamy mu
+    // tylko przez 10 minut od ostatniej zmiany stanu
+    const st = (await getDatabase().ref(`users/${to}`).get()).val() || {};
+    const fresh = typeof st.last_seen === 'number' && Date.now() - st.last_seen < 10 * 60e3;
+    if (st.online === true && fresh) { console.log(`chat → ${to}: online, bez push`); return; }
   } catch (_) { /* brak RTDB = wysyłamy */ }
   const names = chat.names || {};
   await pushTo(to, {
