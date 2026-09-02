@@ -50,6 +50,69 @@ class App extends StatelessWidget {
 
   ThemeData _lightTheme() {
     return ThemeData(
+      // bez własnego colorScheme Material 3 bierze fioletowy seed
+      // i podbarwia nim dialogi, karty i chipy — stąd „różowe popupy"
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: cDarkBlue,
+        primary: cDarkBlue,
+        surface: Colors.white,
+        surfaceTint: Colors.transparent,
+      ),
+      scaffoldBackgroundColor: cLighterBrown,
+      dialogTheme: DialogThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titleTextStyle: const TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: cDarkBrown),
+        contentTextStyle: const TextStyle(
+            fontFamily: 'Poppins', fontSize: 14, color: cDarkBrown),
+      ),
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 1,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        margin: EdgeInsets.zero,
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: Colors.white,
+        selectedColor: cDarkBlue.withOpacity(0.12),
+        surfaceTintColor: Colors.transparent,
+        side: BorderSide(color: Colors.grey.shade300),
+        labelStyle: const TextStyle(fontFamily: 'Poppins', color: cDarkBrown),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: cDarkBrown,
+        contentTextStyle:
+            const TextStyle(fontFamily: 'Poppins', color: Colors.white),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      dropdownMenuTheme: const DropdownMenuThemeData(
+        menuStyle: MenuStyle(
+          backgroundColor: WidgetStatePropertyAll(Colors.white),
+          surfaceTintColor: WidgetStatePropertyAll(Colors.transparent),
+        ),
+      ),
+      popupMenuTheme: const PopupMenuThemeData(
+        color: Colors.white,
+        surfaceTintColor: Colors.transparent,
+      ),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: cDarkBlue,
+        thumbColor: cDarkBlue,
+        inactiveTrackColor: Colors.grey.shade300,
+      ),
+      progressIndicatorTheme:
+          const ProgressIndicatorThemeData(color: cDarkBlue),
       splashColor: cDarkBlue.withOpacity(0.2),
       highlightColor: cDarkBlue.withOpacity(0.1),
       hoverColor: cDarkBlue.withOpacity(0.05),
@@ -97,8 +160,21 @@ class App extends StatelessWidget {
       colorScheme: const ColorScheme.dark(
         surface: Color(0xFF232228),
         primary: cDarkBlue,
+        surfaceTint: Colors.transparent,
       ),
       cardColor: const Color(0xFF232228),
+      dialogTheme: DialogThemeData(
+        backgroundColor: const Color(0xFF232228),
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      cardTheme: CardThemeData(
+        color: const Color(0xFF232228),
+        surfaceTintColor: Colors.transparent,
+        elevation: 1,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        margin: EdgeInsets.zero,
+      ),
       tabBarTheme: const TabBarThemeData(
         labelColor: cDarkBlue,
         indicatorColor: cDarkBlue,

@@ -379,7 +379,8 @@ class _TabDaneState extends State<_TabDane> {
           ],
 
           const SizedBox(height: 24),
-          WButton(
+          Center(
+            child: WButton(
             text: 'Zapisz',
             onPressed: () {
               if (widget.isCompany) {
@@ -406,6 +407,7 @@ class _TabDaneState extends State<_TabDane> {
                 ));
               }
             },
+          ),
           ),
 
           const SizedBox(height: 40),

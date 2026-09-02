@@ -137,6 +137,10 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
               : 'Kontakty',
           isVisible: true,
           isMenuVisible: true,
+          isChildTitle: false,
+          child: const SizedBox.shrink(),
+          height: 56,
+          backgroundColor: Colors.transparent,
           onBackPressed: () {
             add(GoToHomeEvent());
           });
@@ -148,6 +152,10 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
           title: 'Profil',
           isVisible: true,
           isMenuVisible: true,
+          isChildTitle: false,
+          child: const SizedBox.shrink(),
+          height: 56,
+          backgroundColor: Colors.transparent,
           onBackPressed: () {
             add(GoToHomeEvent());
           });

@@ -38,6 +38,9 @@ class _StartTabWyszukaneState extends State<StartTabWyszukane> {
         location: parts.length > 2 ? parts[2] : '',
       );
     }).whereType<_SearchEntry>().toList();
+    // jedna pozycja na kategorię+branżę (współrzędne różnią się co wyszukanie)
+    final seen = <String>{};
+    entries.retainWhere((e) => seen.add('${e.category}|${e.sector}'));
 
     if (mounted) setState(() { _history = entries; _loading = false; });
   }
@@ -58,7 +61,7 @@ class _StartTabWyszukaneState extends State<StartTabWyszukane> {
 
   Widget _bigSearchButton(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+      padding: const EdgeInsets.fromLTRB(16, 28, 16, 10),
       child: SizedBox(
         height: 56,
         child: ElevatedButton.icon(
@@ -131,13 +134,13 @@ class _StartTabWyszukaneState extends State<StartTabWyszukane> {
                     borderRadius: BorderRadius.circular(12)),
                 child: ListTile(
                   leading: Container(
-                    width: 40,
-                    height: 40,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
-                      color: Colors.black87,
-                      borderRadius: BorderRadius.circular(10),
+                      color: cDarkBlue.withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.history, color: Colors.white, size: 20),
+                    child: const Icon(Icons.history, color: cDarkBlue, size: 22),
                   ),
                   title: Text(
                     entry.category,
@@ -145,7 +148,7 @@ class _StartTabWyszukaneState extends State<StartTabWyszukane> {
                   ),
                   subtitle: Text(
                     entry.sector +
-                        (entry.location.isNotEmpty ? '  •  ${_formatLocation(entry.location)}' : ''),
+                        '',
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   trailing: IconButton(

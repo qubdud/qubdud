@@ -116,7 +116,9 @@ class _ChatPageMobState extends State<ChatPageMob>
           children: [
             TabBar(
               controller: _tab,
-              labelStyle: const TextStyle(fontSize: 12),
+              labelStyle:
+                  const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+              labelPadding: const EdgeInsets.symmetric(horizontal: 2),
               tabs: _tabs,
             ),
             Expanded(

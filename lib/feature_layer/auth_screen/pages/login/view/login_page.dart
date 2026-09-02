@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../../shared/constants.dart';
+import '../../../../../shared/demo_accounts.dart';
 import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/w_button.dart';
 import '../../../../../shared/widgets/w_checkbox.dart';
@@ -27,6 +28,8 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
   bool _isLoading = false;
   bool _rememberMe = false;
+
+  DemoAccount? _selectedDemo;
 
   String? _emailError;
   String? _passwordError;
@@ -152,7 +155,47 @@ class _LoginPageState extends State<LoginPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Center(child: WLabel(text: 'Logowanie')),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+
+                // ── WERSJA TESTOWA: szybki wybór konta ─────────
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange, width: 2),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<DemoAccount>(
+                      isExpanded: true,
+                      value: _selectedDemo,
+                      hint: const Text('⚡ Wybierz konto testowe',
+                          style: TextStyle(fontSize: 15)),
+                      items: demoAccounts
+                          .map((a) => DropdownMenuItem(
+                                value: a,
+                                child: Text(a.label,
+                                    style: const TextStyle(fontSize: 15),
+                                    overflow: TextOverflow.ellipsis),
+                              ))
+                          .toList(),
+                      onChanged: (a) {
+                        if (a == null) return;
+                        setState(() {
+                          _selectedDemo = a;
+                          _email.text = a.email;
+                          _password.text = a.password;
+                          _emailError = null;
+                          _passwordError = null;
+                          _generalError = null;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 WInputField(
                   controller: _email,
                   label: 'E-mail',

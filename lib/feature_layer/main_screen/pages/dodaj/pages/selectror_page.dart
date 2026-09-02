@@ -160,7 +160,7 @@ class _ViewState extends State<View> {
                   children: [
                     Text(
                       textAlign: TextAlign.center,
-                      'Tutaj dodasz zgłoszenie (zapotrzbowanie) na usługę.',
+                      'Tutaj dodasz zgłoszenie — opisz, czego potrzebujesz, a firmy z okolicy odpowiedzą.',
                       style: TextStyle(fontSize: 14),
                     ),
                     SizedBox(height: 16),
