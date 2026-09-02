@@ -6,6 +6,7 @@ const { setGlobalOptions } = require('firebase-functions/v2');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
+const { getDatabase } = require('firebase-admin/database');
 
 setGlobalOptions({ region: 'europe-central2', maxInstances: 5 });
 initializeApp();
@@ -197,7 +198,59 @@ exports.notifySlot = onDocumentUpdated('users/{companyId}/slots/{slotId}', async
   }
 });
 
-// ── 5) cron: prośby o recenzję po zrealizowanej usłudze ─────────────────────
+// ── 5) realizacje: firma dodała zdjęcia → klient; decyzja klienta → firma ──
+exports.notifyRealizationAdded = onDocumentCreated('realizations/{id}', async (event) => {
+  const d = event.data && event.data.data();
+  if (!d || !d.userId || d.status !== 'pending') return;
+  const company = await userName(d.companyId);
+  await pushTo(d.userId, {
+    title: `📷 ${company} dodała zdjęcia realizacji`,
+    body: 'Potwierdź, że to Twoje zlecenie — dopiero wtedy trafią do portfolio firmy.',
+    data: { type: 'realization', requestId: d.requestId || '' },
+  });
+});
+
+exports.notifyRealizationDecision = onDocumentUpdated('realizations/{id}', async (event) => {
+  const before = event.data.before.data() || {};
+  const after = event.data.after.data() || {};
+  if (before.status === after.status || !after.companyId) return;
+  const client = await userName(after.userId);
+  if (after.status === 'approved') {
+    await pushTo(after.companyId, {
+      title: '✅ Realizacja potwierdzona',
+      body: `${client} potwierdził zdjęcia — są już na Twoim profilu.`,
+      data: { type: 'realization_decision', requestId: after.requestId || '', status: 'approved' },
+    });
+  } else if (after.status === 'rejected') {
+    await pushTo(after.companyId, {
+      title: 'Zdjęcia realizacji odrzucone',
+      body: `${client} nie potwierdził zdjęć. Usuń je w zgłoszeniu i dodaj właściwe.`,
+      data: { type: 'realization_decision', requestId: after.requestId || '', status: 'rejected' },
+    });
+  }
+});
+
+// ── 6) nowa wiadomość → odbiorca (o ile nie ma apki na wierzchu) ────────────
+exports.notifyNewMessage = onDocumentCreated('chats/{chatId}/messages/{msgId}', async (event) => {
+  const m = event.data && event.data.data();
+  if (!m || !m.from) return;
+  const chat = (await db.collection('chats').doc(event.params.chatId).get()).data();
+  if (!chat) return;
+  const to = (chat.participants || []).find((p) => p !== m.from);
+  if (!to) return;
+  try {
+    const online = (await getDatabase().ref(`users/${to}/online`).get()).val();
+    if (online === true) return; // widzi rozmowę na żywo — bez push
+  } catch (_) { /* brak RTDB = wysyłamy */ }
+  const names = chat.names || {};
+  await pushTo(to, {
+    title: names[m.from] || 'Nowa wiadomość',
+    body: short(m.content, 100),
+    data: { type: 'chat', from: m.from, fromName: names[m.from] || '' },
+  });
+});
+
+// ── 7) cron: prośby o recenzję po zrealizowanej usłudze ─────────────────────
 exports.askForReview = onSchedule({ schedule: 'every 60 minutes', timeZone: 'Europe/Warsaw' }, async () => {
   const due = await db.collection('reviewReminders')
     .where('sent', '==', false)

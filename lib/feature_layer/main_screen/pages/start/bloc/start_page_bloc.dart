@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart' hide User;
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/shared/functions/show_toast.dart';
 import 'package:qb/shared/functions/show_toast_error.dart';
+import 'package:qb/shared/functions/effective_role.dart';
+import 'package:qb/shared/new_counts.dart';
 import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
 
@@ -54,6 +56,16 @@ class StartPageBloc extends Bloc<StartPageEvent, StartPageState> {
         if (user.firma ?? false) {
           state.trashedRequests = await firebase.getTrashedRequests(userId: user.id);
         }
+
+        // liczniki „co nowego" na zakładkach
+        await NewCounts.refresh(
+          firebase: firebase,
+          user: user,
+          companyMode: isCompanyMode(user),
+          requests: state.requests,
+          myRequests: state.myRequests,
+          reviews: state.myReview,
+        );
 
         emit(StartPageMainState());
       } catch (e) {

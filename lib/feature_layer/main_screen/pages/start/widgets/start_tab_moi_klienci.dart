@@ -1,6 +1,11 @@
 import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:qb/shared/functions/show_toast.dart';
+import 'package:qb/shared/functions/show_toast_error.dart';
+import 'package:qb/domain_layer/chat_service.dart';
+import 'package:qb/shared/widgets/before_after.dart';
+import 'package:qb/shared/realizations.dart';
 import 'package:qb/shared/constants.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -478,6 +483,9 @@ class _RequestCard extends StatelessWidget {
                                 ],
                               ),
                       ),
+              // zaakceptowana oferta → zdjęcia realizacji prosto z karty
+              if (offerStatus == 'accepted' && !isTrash)
+                _RealizationRow(request: request),
             ],
           ),
         ),
@@ -671,6 +679,103 @@ class _BtnLabel extends StatelessWidget {
                   fontSize: 13, fontWeight: FontWeight.w600)),
         ),
       ],
+    );
+  }
+}
+
+/// Po akceptacji oferty: dodanie zdjęć realizacji i prośba o potwierdzenie.
+class _RealizationRow extends StatefulWidget {
+  final Request request;
+  const _RealizationRow({required this.request});
+
+  @override
+  State<_RealizationRow> createState() => _RealizationRowState();
+}
+
+class _RealizationRowState extends State<_RealizationRow> {
+  Map<String, dynamic>? _real;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final list = await context
+          .read<FirebaseService>()
+          .getRealizationsForRequest(widget.request.id);
+      if (mounted) setState(() { _real = list.isEmpty ? null : list.first; _loaded = true; });
+    } catch (_) {
+      if (mounted) setState(() => _loaded = true);
+    }
+  }
+
+  Future<void> _remind() async {
+    try {
+      await context.read<ChatService>().sendMessage(
+            widget.request.userId,
+            'Dzień dobry! Dodałem zdjęcia z realizacji Twojego zgłoszenia (${widget.request.sector}). Proszę o ich potwierdzenie w aplikacji — w zgłoszeniu, przycisk „Potwierdzam".',
+          );
+      showToast(text: 'Wysłano przypomnienie na czacie');
+    } catch (e) {
+      showToastError(text: 'Błąd: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loaded) return const SizedBox(height: 8);
+    final status = (_real?['status'] as String?) ?? 'approved';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: _real == null
+          ? FilledButton.tonalIcon(
+              icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+              label: const Text('Dodaj zdjęcia realizacji'),
+              style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10))),
+              onPressed: () async {
+                final ok = await pickAndAddRealization(context, widget.request);
+                if (ok) _load();
+              },
+            )
+          : Row(
+              children: [
+                RealizationThumb(photo: _real!, size: 44),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    status == 'pending'
+                        ? 'Zdjęcia czekają na potwierdzenie klienta'
+                        : status == 'approved'
+                            ? 'Realizacja potwierdzona'
+                            : 'Klient odrzucił zdjęcia',
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: status == 'pending'
+                            ? Colors.amber.shade900
+                            : status == 'approved'
+                                ? Colors.green.shade700
+                                : Colors.red.shade700),
+                  ),
+                ),
+                if (status == 'pending')
+                  TextButton.icon(
+                    icon: const Icon(Icons.notifications_active_outlined, size: 16),
+                    label: const Text('Przypomnij'),
+                    style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact),
+                    onPressed: _remind,
+                  ),
+              ],
+            ),
     );
   }
 }

@@ -15,6 +15,7 @@ import '../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../domain_layer/firebase_service.dart';
 import '../../../shared/client_notes.dart';
 import '../../../shared/push_service.dart';
+import '../../../shared/new_counts.dart';
 import '../../../shared/functions/effective_role.dart';
 import '../../../shared/functions/show_toast.dart';
 import '../../../shared/globals.dart';
@@ -62,6 +63,11 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     });
 
     on<GoToHomeEvent>((event, emit) async {
+      if (!Globals.instance.anonim && (state.user?.id.isNotEmpty ?? false)) {
+        try {
+          state.chatCounter = await appChatService.getTotalUnreadCount();
+        } catch (_) {}
+      }
       appBarCubit.updateAppBar(
           backgroundColor: Colors.transparent,
           title: '',
@@ -228,6 +234,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
       // tryb widoku jest per sesja — nowe konto zaczyna jako Firma
       await setCompanyView(true);
       ClientNotes.clear();
+      NewCounts.clear();
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       prefs.setBool('remember_me', false);
       emit(LogoutMainScreenState());
@@ -292,6 +299,24 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
           case 'booking_decision': // decyzja firmy → Start → Rezerwacje (user)
             Globals.instance.startTab = 1;
             add(GoToHomeEvent());
+            break;
+          case 'chat':           // nowa wiadomość → rozmowa
+            final from = data['from'] as String?;
+            if (from != null && from.isNotEmpty) {
+              add(GoToChatEvent(from, chatName: data['fromName'] as String?));
+            }
+            break;
+          case 'realization':    // zdjęcia do potwierdzenia → widok zgłoszenia
+          case 'realization_decision':
+            final rid = data['requestId'] as String?;
+            if (rid != null && rid.isNotEmpty) {
+              appFirebaseService.getRequestById(rid).then((r) {
+                if (r != null) {
+                  Globals.instance.selectedRequest = r;
+                  add(GoToShowRequestEvent());
+                }
+              });
+            }
             break;
           case 'review':         // prośba o recenzję → profil firmy
             final id = data['companyId'] as String?;

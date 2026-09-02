@@ -141,7 +141,9 @@ service cloud.firestore {
     match /realizations/{realizationId} {
       allow read: if signedIn();
       allow create: if signedIn() && request.resource.data.companyId == request.auth.uid;
-      allow update, delete: if isMe(resource.data.companyId);
+      // klient (właściciel zgłoszenia) potwierdza lub odrzuca
+      allow update: if isMe(resource.data.userId) && onlyKeys(['status', 'decidedAt']);
+      allow delete: if isMe(resource.data.companyId);
     }
 
     // ── tylko Cloud Functions ──

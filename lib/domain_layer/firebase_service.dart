@@ -314,6 +314,7 @@ class FirebaseService {
         .map((doc) => Request.fromDoc(doc))
         .where((req) => !skippedIds.contains(req.id)) // Usuwamy te, które są na liście skipped
         // zadania podjęte (obustronnie potwierdzone) widzi tylko firma, która je wzięła
+        .where((req) => req.status != 'closed')
         .where((req) => req.status != 'taken' || req.takenBy == userId)
         .toList();
 
@@ -830,8 +831,10 @@ class FirebaseService {
         {'status': status});
     if (bookedBy != null && bookedBy.isNotEmpty) {
       // set+merge — stare rezerwacje mogą nie mieć kopii u klienta
-      batch.set(_myBookingRef(bookedBy, companyId, slotId),
-          {'status': status}, SetOptions(merge: true));
+      batch.set(
+          _myBookingRef(bookedBy, companyId, slotId),
+          {'status': status, 'decidedAt': FieldValue.serverTimestamp()},
+          SetOptions(merge: true));
     }
     await batch.commit();
   }
@@ -999,7 +1002,7 @@ class FirebaseService {
         .doc(request.id)
         .collection('offers')
         .doc(companyId)
-        .update({'status': status});
+        .update({'status': status, 'decidedAt': FieldValue.serverTimestamp()});
 
     if (status == 'accepted') {
       await _firestore.collection('requests').doc(request.id).update({
@@ -1275,6 +1278,7 @@ class FirebaseService {
   Future<void> addRealization({
     required String companyId,
     required String requestId,
+    required String requestOwnerId,
     required String category,
     required File image,
     File? beforeImage,
@@ -1294,19 +1298,46 @@ class FirebaseService {
     await _firestore.collection('realizations').add({
       'companyId': companyId,
       'requestId': requestId,
+      'userId': requestOwnerId,
       'category': category,
       'imageUrl': url,
       if (beforeUrl != null) 'beforeUrl': beforeUrl,
+      // klient musi potwierdzić, zanim zdjęcia trafią na profil firmy
+      'status': 'pending',
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
 
-  Future<List<Map<String, dynamic>>> getRealizations(String companyId) async {
+  /// Decyzja klienta o zdjęciach: 'approved' | 'rejected'.
+  /// Każda decyzja zamyka zlecenie definitywnie (znika z list aktywnych).
+  Future<void> setRealizationStatus(String id, String status,
+      {required String requestId}) async {
+    final batch = _firestore.batch();
+    batch.update(_firestore.collection('realizations').doc(id), {
+      'status': status,
+      'decidedAt': FieldValue.serverTimestamp(),
+    });
+    batch.update(_firestore.collection('requests').doc(requestId), {
+      'status': 'closed',
+      'realizationStatus': status,
+      'closedAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+  }
+
+  /// Realizacje firmy. Domyślnie tylko potwierdzone przez klienta
+  /// (stare wpisy bez pola `status` traktujemy jako potwierdzone).
+  Future<List<Map<String, dynamic>>> getRealizations(String companyId,
+      {bool includeUnapproved = false}) async {
     final snap = await _firestore
         .collection('realizations')
         .where('companyId', isEqualTo: companyId)
         .get();
-    final list = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+    final list = snap.docs
+        .map((d) => {'id': d.id, ...d.data()})
+        .where((r) =>
+            includeUnapproved || (r['status'] ?? 'approved') == 'approved')
+        .toList();
     list.sort((a, b) {
       final ta = a['timestamp'];
       final tb = b['timestamp'];

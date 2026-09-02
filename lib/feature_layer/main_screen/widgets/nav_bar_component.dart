@@ -61,6 +61,22 @@ class NavBarComponent extends StatelessWidget {
                       clipBehavior: Clip.none,
                       children: [
                         Icon((item.isMenu & isSelected) ? Icons.close : item.iconPath, color: color),
+                        if (item.count > 0 && !item.locked)
+                          Positioned(
+                            right: -12,
+                            top: -8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade600,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                item.count > 99 ? '99+' : '${item.count}',
+                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
                         if (item.locked)
                           Positioned(
                             right: -9,

@@ -13,6 +13,7 @@ import '../widgets/start_tab_rezerwacje.dart';
 import '../widgets/start_tab_moi_klienci.dart';
 import '../widgets/start_tab_otrzymane_rec.dart';
 import '../widgets/start_tab_wyszukane.dart';
+import '../../../../../shared/new_counts.dart';
 
 class StartPage extends StatelessWidget {
   const StartPage({super.key});
@@ -57,8 +58,55 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
         initialIndex: (wanted ?? 0).clamp(0, length - 1));
     // Listener żeby setState przy zmianie taba → rebuild
     _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) setState(() {});
+      if (!_tabController.indexIsChanging) {
+        _markSeen(_tabController.index);
+        setState(() {});
+      }
     });
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _markSeen(_tabController.index));
+  }
+
+  /// Zakładka otwarta → jej licznik znika (poza Kalendarzem: tam liczba
+  /// oczekujących rezerwacji ma zostać, dopóki firma ich nie rozstrzygnie).
+  void _markSeen(int index) {
+    final key = _isCompany
+        ? const ['zgloszenia', 'kalendarz', 'recenzje'][index]
+        : const ['', 'rezerwacje', '', 'zgloszenia'][index];
+    if (key.isEmpty || key == 'kalendarz') return;
+    if ((NewCounts.counts[key] ?? 0) > 0) {
+      NewCounts.markSeen(key).then((_) {
+        if (mounted) setState(() {});
+      });
+    } else {
+      NewCounts.markSeen(key);
+    }
+  }
+
+  /// Zakładka z licznikiem nowych rzeczy.
+  Widget _tab(String text, String key) {
+    final n = NewCounts.counts[key] ?? 0;
+    if (n == 0) return Tab(text: text);
+    return Tab(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(text),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(
+                color: Colors.red.shade600,
+                borderRadius: BorderRadius.circular(10)),
+            child: Text('$n',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -81,16 +129,16 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
             tabs: _isAnon
                 ? const [Tab(text: 'Odkrywaj')]
                 : _isCompany
-                ? const [
-              Tab(text: 'Zgłoszenia'),
-              Tab(text: 'Kalendarz'),
-              Tab(text: 'Recenzje'),
+                ? [
+              _tab('Zgłoszenia', 'zgloszenia'),
+              _tab('Kalendarz', 'kalendarz'),
+              _tab('Recenzje', 'recenzje'),
             ]
-                : const [
-              Tab(text: 'Odkrywaj'),
-              Tab(text: 'Rezerwacje'),
-              Tab(text: 'Ulubione'),
-              Tab(text: 'Zgłoszenia'),
+                : [
+              const Tab(text: 'Odkrywaj'),
+              _tab('Rezerwacje', 'rezerwacje'),
+              const Tab(text: 'Ulubione'),
+              _tab('Zgłoszenia', 'zgloszenia'),
             ],
           ),
         ),

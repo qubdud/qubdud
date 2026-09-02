@@ -363,15 +363,44 @@ class _RealizationsSection extends StatefulWidget {
 class _RealizationsSectionState extends State<_RealizationsSection> {
   List<Map<String, dynamic>> _photos = [];
 
+  bool get _isOwner =>
+      (FirebaseAuth.instance.currentUser?.uid ?? '') == widget.companyId;
+
   @override
   void initState() {
     super.initState();
-    context
-        .read<FirebaseService>()
-        .getRealizations(widget.companyId)
-        .then((p) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final p = await context
+          .read<FirebaseService>()
+          .getRealizations(widget.companyId, includeUnapproved: _isOwner);
       if (mounted) setState(() => _photos = p);
-    }).catchError((_) {});
+    } catch (_) {}
+  }
+
+  Future<void> _remove(Map<String, dynamic> photo) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Usunąć realizację z profilu?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Anuluj')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Usuń', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await context.read<FirebaseService>().deleteRealization(photo['id'] as String);
+      await _load();
+    } catch (_) {}
   }
 
   @override
@@ -391,16 +420,56 @@ class _RealizationsSectionState extends State<_RealizationsSection> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: _photos.length,
-            itemBuilder: (context, i) => Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: RealizationThumb(photo: _photos[i], size: 130),
-            ),
+            itemBuilder: (context, i) {
+              final photo = _photos[i];
+              final status = (photo['status'] as String?) ?? 'approved';
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Stack(
+                  children: [
+                    RealizationThumb(photo: photo, size: 130),
+                    if (_isOwner && status != 'approved')
+                      Positioned(
+                        left: 6,
+                        top: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: status == 'rejected' ? Colors.red.shade600 : Colors.amber.shade700,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            status == 'rejected' ? 'odrzucone' : 'czeka na klienta',
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    if (_isOwner)
+                      Positioned(
+                        right: 4,
+                        bottom: 4,
+                        child: GestureDetector(
+                          onTap: () => _remove(photo),
+                          child: Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: const BoxDecoration(
+                                color: Colors.black54, shape: BoxShape.circle),
+                            child: const Icon(Icons.delete_outline, size: 16, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
           child: Text(
-            'Zdjęcia z zadań zrealizowanych i potwierdzonych przez klientów.',
+            _isOwner
+                ? 'Klienci widzą tylko realizacje, które potwierdzili. Ikona kosza usuwa zdjęcia z profilu.'
+                : 'Zdjęcia z zadań zrealizowanych i potwierdzonych przez klientów.',
             style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
           ),
         ),

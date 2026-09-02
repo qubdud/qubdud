@@ -308,10 +308,89 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis),
             ],
-            RequestOffersBar(request: widget.req),
+            if (widget.req.status == 'closed')
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                        widget.req.realizationStatus == 'rejected'
+                            ? Icons.cancel_outlined
+                            : Icons.task_alt,
+                        size: 18,
+                        color: widget.req.realizationStatus == 'rejected'
+                            ? Colors.red.shade600
+                            : Colors.green.shade700),
+                    const SizedBox(width: 6),
+                    Text(
+                      widget.req.realizationStatus == 'rejected'
+                          ? 'Zakończone — zdjęcia odrzucone'
+                          : 'Zrealizowane i potwierdzone',
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: widget.req.realizationStatus == 'rejected'
+                              ? Colors.red.shade600
+                              : Colors.green.shade700),
+                    ),
+                  ],
+                ),
+              )
+            else ...[
+              RequestOffersBar(request: widget.req),
+              if (widget.req.status == 'taken')
+                _PendingRealizationHint(request: widget.req),
+            ],
           ],
         ),
       ),
+    );
+  }
+}
+
+/// „Firma dodała zdjęcia — potwierdź" na kafelku zgłoszenia.
+class _PendingRealizationHint extends StatelessWidget {
+  final Request request;
+  const _PendingRealizationHint({required this.request});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: context.read<FirebaseService>().getRealizationsForRequest(request.id),
+      builder: (context, snap) {
+        final pending = (snap.data ?? const [])
+            .any((r) => (r['status'] as String?) == 'pending');
+        if (!pending) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () {
+              Globals.instance.selectedRequest = request;
+              context.read<MainScreenBloc>().add(GoToShowRequestEvent());
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.amber.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.photo_library_outlined, size: 18, color: Colors.amber.shade900),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text('Firma dodała zdjęcia realizacji — potwierdź je',
+                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.amber.shade900)),
+                  ),
+                  Icon(Icons.chevron_right, size: 18, color: Colors.amber.shade900),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
