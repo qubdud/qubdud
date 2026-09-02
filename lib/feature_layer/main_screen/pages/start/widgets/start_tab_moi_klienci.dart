@@ -392,17 +392,14 @@ class _RequestCard extends StatelessWidget {
                                 children: [
                                   // Napisz
                                   Expanded(
-                                    child: OutlinedButton.icon(
-                                      icon: const Icon(
-                                          Icons.chat_bubble_outline,
-                                          size: 18),
-                                      label: const Text('Napisz'),
+                                    flex: 4,
+                                    child: OutlinedButton(
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: cDarkBlue,
                                         side: const BorderSide(
                                             color: cDarkBlue),
                                         padding: const EdgeInsets.symmetric(
-                                            vertical: 10),
+                                            vertical: 10, horizontal: 6),
                                         shape: RoundedRectangleBorder(
                                             borderRadius:
                                                 BorderRadius.circular(10)),
@@ -414,12 +411,14 @@ class _RequestCard extends StatelessWidget {
                                                         _requesterNameCache[
                                                             request.userId]),
                                               ),
+                                      child: const _BtnLabel(
+                                          Icons.chat_bubble_outline, 'Napisz'),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   // Wyślij ofertę / status oferty
                                   Expanded(
-                                    flex: 5,
+                                    flex: 6,
                                     child: _OfferButton(
                                       status: offerStatus,
                                       onSend: () => _sendOffer(context),
@@ -648,6 +647,34 @@ class _RequesterName extends StatelessWidget {
   }
 }
 
+/// Etykieta przycisku: ikona + tekst, który się przycina zamiast wychodzić
+/// poza obrys (domyślne Button.icon tego nie robi).
+class _BtnLabel extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _BtnLabel(this.icon, this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, size: 17),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
+              style: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w600)),
+        ),
+      ],
+    );
+  }
+}
+
 /// Przycisk oferty: aktywny gdy jeszcze nie odpowiedziano, inaczej status.
 class _OfferButton extends StatelessWidget {
   final String status;
@@ -658,63 +685,43 @@ class _OfferButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final shape =
         RoundedRectangleBorder(borderRadius: BorderRadius.circular(10));
+    const pad = EdgeInsets.symmetric(vertical: 10, horizontal: 6);
+
+    Widget tonal(Color bg, Color fg, IconData icon, String text) =>
+        FilledButton.tonal(
+          style: FilledButton.styleFrom(
+              backgroundColor: bg,
+              foregroundColor: fg,
+              disabledBackgroundColor: bg,
+              disabledForegroundColor: fg,
+              padding: pad,
+              shape: shape),
+          onPressed: null,
+          child: _BtnLabel(icon, text),
+        );
+
     switch (status) {
       case 'pending':
-        return FilledButton.tonalIcon(
-          icon: const Icon(Icons.hourglass_top, size: 18),
-          label: const Text('Oferta wysłana'),
-          style: FilledButton.styleFrom(
-              backgroundColor: Colors.amber.shade100,
-              foregroundColor: Colors.amber.shade900,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              shape: shape),
-          onPressed: null,
-        );
+        return tonal(Colors.amber.shade100, Colors.amber.shade900,
+            Icons.hourglass_top, 'Oferta wysłana');
       case 'maybe':
-        return FilledButton.tonalIcon(
-          icon: const Icon(Icons.help_outline, size: 18),
-          label: const Text('Klient się zastanawia'),
-          style: FilledButton.styleFrom(
-              backgroundColor: Colors.amber.shade100,
-              foregroundColor: Colors.amber.shade900,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              shape: shape),
-          onPressed: null,
-        );
+        return tonal(Colors.amber.shade100, Colors.amber.shade900,
+            Icons.help_outline, 'Zastanawia się');
       case 'accepted':
-        return FilledButton.icon(
-          icon: const Icon(Icons.check_circle, size: 18),
-          label: const Text('Zaakceptowana'),
-          style: FilledButton.styleFrom(
-              backgroundColor: Colors.green.shade600,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.green.shade600,
-              disabledForegroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              shape: shape),
-          onPressed: null,
-        );
+        return tonal(Colors.green.shade600, Colors.white, Icons.check_circle,
+            'Zaakceptowana');
       case 'rejected':
-        return FilledButton.tonalIcon(
-          icon: const Icon(Icons.cancel_outlined, size: 18),
-          label: const Text('Odrzucona'),
-          style: FilledButton.styleFrom(
-              backgroundColor: Colors.red.shade50,
-              foregroundColor: Colors.red.shade700,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              shape: shape),
-          onPressed: null,
-        );
+        return tonal(Colors.red.shade50, Colors.red.shade700,
+            Icons.cancel_outlined, 'Odrzucona');
       default:
-        return FilledButton.icon(
-          icon: const Icon(Icons.local_offer_outlined, size: 18),
-          label: const Text('Wyślij ofertę'),
+        return FilledButton(
           style: FilledButton.styleFrom(
               backgroundColor: cDarkBlue,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: pad,
               shape: shape),
           onPressed: onSend,
+          child: const _BtnLabel(Icons.local_offer_outlined, 'Wyślij ofertę'),
         );
     }
   }
