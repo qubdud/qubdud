@@ -16,6 +16,7 @@ import '../../../../../../domain_layer/firebase_service.dart';
 import '../../../../../../shared/constants.dart';
 import '../../../../../../shared/functions/effective_role.dart';
 import '../../../../../../shared/globals.dart';
+import '../../../../../../shared/widgets/anonim_gate.dart';
 import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../../shared/widgets/request_take_status.dart';
 import '../../../../../../shared/widgets/w_button.dart';
@@ -124,46 +125,9 @@ class _ProfilViewState extends State<_ProfilView>
     );
   }
 
-  Widget _buildAnonimView() {
-    return SizedBox(
-      width: double.infinity,
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(height: 60),
-            const Icon(Icons.account_circle_outlined, size: 80, color: Colors.grey),
-            const SizedBox(height: 24),
-            const Text('Przeglądasz aplikację anonimowo',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            const Text(
-                'Zarejestruj się lub zaloguj, aby korzystać z pełnych możliwości.',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-                textAlign: TextAlign.center),
-            const SizedBox(height: 40),
-            WButton(
-              text: 'Zaloguj się',
-              onPressed: () => context.read<MainScreenBloc>().add(LogoutEvent()),
-            ),
-            const SizedBox(height: 16),
-            GestureDetector(
-              onTap: () => context.read<MainScreenBloc>().add(LogoutEvent()),
-              child: const Text('lub zarejestruj się',
-                  style: TextStyle(
-                    color: cDarkBlue,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    decoration: TextDecoration.underline,
-                  )),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildAnonimView() => const AnonimGateView(
+      icon: Icons.account_circle_outlined,
+      what: 'Zarejestruj się lub zaloguj, aby korzystać z pełnych możliwości.');
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

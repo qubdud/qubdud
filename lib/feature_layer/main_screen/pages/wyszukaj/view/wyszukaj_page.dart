@@ -11,6 +11,7 @@ import 'package:qb/shared/widgets/w_input_field.dart';
 import 'package:qb/shared/widgets/w_label.dart';
 import 'package:qb/shared/widgets/w_small_label.dart';
 import 'package:flutter/material.dart';
+import 'package:qb/shared/widgets/anonim_gate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:latlong2/latlong.dart';
@@ -463,10 +464,17 @@ class _ViewState extends State<View> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(promo.companyName.isNotEmpty ? promo.companyName : 'Firma',
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
-                      maxLines: 1,
+                  Text(
+                      Globals.instance.anonim
+                          ? kAnonimCompanyLabel
+                          : (promo.companyName.isNotEmpty
+                              ? promo.companyName
+                              : 'Firma'),
+                      style: TextStyle(
+                          fontSize: Globals.instance.anonim ? 13 : 16,
+                          fontWeight: FontWeight.bold,
+                          color: Globals.instance.anonim ? cDarkBlue : null),
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis),
                   Text('${promo.category} · ${promo.sector}',
                       style:
@@ -784,11 +792,13 @@ class _CompanyBarState extends State<_CompanyBar> {
             CircleAvatar(
               radius: 22,
               backgroundColor: Colors.white24,
-              child: Text(
-                _companyName.isNotEmpty ? _companyName[0].toUpperCase() : 'F',
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+              child: Globals.instance.anonim
+                  ? const Icon(Icons.lock_outline, color: Colors.white)
+                  : Text(
+                      _companyName.isNotEmpty ? _companyName[0].toUpperCase() : 'F',
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
             ),
             const SizedBox(width: 12),
 
@@ -799,7 +809,9 @@ class _CompanyBarState extends State<_CompanyBar> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _loaded ? _companyName : '...',
+                    Globals.instance.anonim
+                        ? kAnonimCompanyLabel
+                        : (_loaded ? _companyName : '...'),
                     style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,

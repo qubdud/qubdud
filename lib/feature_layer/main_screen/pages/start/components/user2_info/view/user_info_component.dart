@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:qb/shared/globals.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/feature_layer/main_screen/bloc/main_bloc.dart';
@@ -136,6 +137,10 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
     if (cN.isNotEmpty){
       companyName = cN;
     }
+    if (Globals.instance.anonim) {
+      companyName = 'Firma · zaloguj się, aby zobaczyć';
+      userName = '?';
+    }
 
     final String initials = (state.user.firstName?[0] ?? '') + (state.user.lastName?[0] ?? '');
 
@@ -193,10 +198,11 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
           padding: const EdgeInsets.fromLTRB(4,0,0,0),
           child: Text( (state as UserInfoComponentMainState).user.companyCity??'Kielce'.toString(), style: TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold),),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4,0,0,0),
-          child: Text( (state as UserInfoComponentMainState).user.email??'abecadlo@example.pl'.toString(), style: TextStyle(color: Colors.black,fontSize: 12, fontWeight: FontWeight.bold)),
-        ),
+        if (!Globals.instance.anonim)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4,0,0,0),
+            child: Text( (state as UserInfoComponentMainState).user.email??'', style: TextStyle(color: Colors.black,fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
 
       ],
     );

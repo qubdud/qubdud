@@ -109,6 +109,7 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
                 label: "Dodaj",
                 iconPath: Icons.add_box_outlined,
                 isEnabled: isMenuEnabled,
+                locked: Globals.instance.anonim,
                 onTap: () {
                   context.read<MainScreenBloc>().add(GoToDodajEvent());
                 }),
@@ -116,6 +117,7 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
               index: 3,
               label: "Kontakty",
               iconPath: Icons.chat_outlined,
+              locked: Globals.instance.anonim,
               onTap: () {
                 context.read<MainScreenBloc>().add(GoToChatEvent(''));
               }),
@@ -124,6 +126,7 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
             index: 4,
             label: "Profil",
             iconPath: Icons.account_circle_outlined,
+            locked: Globals.instance.anonim,
               onTap: () {
                   context.read<MainScreenBloc>().add(GoToProfilFirmaEvent());
                 }

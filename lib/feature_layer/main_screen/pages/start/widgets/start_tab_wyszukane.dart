@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qb/shared/constants.dart';
+import 'package:qb/shared/globals.dart';
 import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -220,7 +221,11 @@ class _PromoTile extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      promo.companyName.isNotEmpty ? promo.companyName : 'Firma',
+                      Globals.instance.anonim
+                          ? 'Firma · zaloguj się'
+                          : (promo.companyName.isNotEmpty
+                              ? promo.companyName
+                              : 'Firma'),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(

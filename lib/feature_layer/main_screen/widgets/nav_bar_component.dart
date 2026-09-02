@@ -62,7 +62,25 @@ class NavBarComponent extends StatelessWidget {
                     //  scale: 2,
                     //  color: color,
                     //),
-                    Icon((item.isMenu & isSelected) ? Icons.close : item.iconPath,color: color,),
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Icon((item.isMenu & isSelected) ? Icons.close : item.iconPath, color: color),
+                        if (item.locked)
+                          Positioned(
+                            right: -9,
+                            top: -6,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1C1B21) : Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.lock, size: 12, color: color),
+                            ),
+                          ),
+                      ],
+                    ),
                     const SizedBox(height: 11),
                     Text(
                       maxLines: 1,
@@ -93,11 +111,15 @@ class NavItem {
   final bool isEnabled;
   final Function()? onTap;
 
+  /// Dostępne dopiero po zalogowaniu — pokazuje kłódkę (tryb anonimowy).
+  final bool locked;
+
   bool get isMenu => index == 10;
 
   NavItem({
     this.count = 0,
     this.isEnabled = true,
+    this.locked = false,
     required this.index,
     required this.label,
     required this.iconPath,

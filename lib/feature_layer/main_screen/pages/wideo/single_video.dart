@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qb/shared/widgets/anonim_gate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
@@ -231,6 +232,10 @@ class _VideoItemState extends State<_VideoItem> {
                 icon: Icons.share_outlined,
                 tooltip: 'Udostępnij',
                 onTap: () {
+                  if (Globals.instance.anonim) {
+                    showToast(text: 'Zaloguj się, aby udostępnić firmę');
+                    return;
+                  }
                   final name =
                       _author?.companyName ?? widget.promo.companyName;
                   Share.share(
@@ -286,17 +291,19 @@ class _VideoItemState extends State<_VideoItem> {
                   CircleAvatar(
                     radius: 22,
                     backgroundColor: Colors.white24,
-                    child: Text(
-                      (_author?.companyName ?? widget.promo.companyName)
-                              .isNotEmpty
-                          ? (_author?.companyName ?? widget.promo.companyName)[0]
-                              .toUpperCase()
-                          : 'F',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold),
-                    ),
+                    child: Globals.instance.anonim
+                        ? const Icon(Icons.lock_outline, color: Colors.white)
+                        : Text(
+                            (_author?.companyName ?? widget.promo.companyName)
+                                    .isNotEmpty
+                                ? (_author?.companyName ?? widget.promo.companyName)[0]
+                                    .toUpperCase()
+                                : 'F',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold),
+                          ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -305,7 +312,9 @@ class _VideoItemState extends State<_VideoItem> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          _author?.companyName ?? widget.promo.companyName,
+                          Globals.instance.anonim
+                              ? kAnonimCompanyLabel
+                              : (_author?.companyName ?? widget.promo.companyName),
                           style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,

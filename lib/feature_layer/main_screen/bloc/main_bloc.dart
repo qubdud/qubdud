@@ -135,7 +135,6 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     });
 
     on<GoToChatEvent>((event, emit) async {
-      if (Globals.instance.anonim) return;
       appBarCubit.updateAppBar(
           showBack: event.id.isNotEmpty,
           title: event.chatName?.isNotEmpty == true
@@ -183,7 +182,6 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     });
 
     on<GoToDodajEvent>((event, emit) async {
-      if (Globals.instance.anonim) return;
       appBarCubit.updateAppBar(
           showBack: false,
           title: 'Dodaj',
@@ -198,7 +196,6 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     });
 
     on<GoToDodajReviewEvent>((event, emit) async {
-      if (Globals.instance.anonim) return;
       appBarCubit.updateAppBar(
           showBack: true,
           title: 'Dodaj recenzje',
