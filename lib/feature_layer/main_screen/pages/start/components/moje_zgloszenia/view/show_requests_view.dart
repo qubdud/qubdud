@@ -301,14 +301,49 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                           size: 20),
                       onPressed: () => setState(() => _editing = !_editing),
                     ),
+                    if (widget.req.status != 'closed')
+                      IconButton(
+                        icon: Icon(Icons.lock_outline,
+                            size: 20, color: Colors.grey.shade600),
+                        tooltip: 'Zamknij zgłoszenie',
+                        onPressed: () async {
+                          final ok = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Zamknąć zgłoszenie?'),
+                              content: const Text(
+                                  'Zniknie z list firm i nikt nie wyśle już oferty. Zostanie u Ciebie jako zakończone.'),
+                              actions: [
+                                TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: const Text('Anuluj')),
+                                FilledButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    child: const Text('Zamknij')),
+                              ],
+                            ),
+                          );
+                          if (ok != true || !context.mounted) return;
+                          await context
+                              .read<FirebaseService>()
+                              .closeRequest(widget.req.id);
+                          if (context.mounted) {
+                            showToast(text: 'Zgłoszenie zamknięte');
+                            context
+                                .read<ShowRequestsComponentBloc>()
+                                .add(GetDataShowRequestsComponentEvent());
+                          }
+                        },
+                      ),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline,
-                          size: 20, color: Colors.red),
-                      onPressed: () => context
-                          .read<ShowRequestsComponentBloc>()
-                          .add(TryDeleteMyRequestShowRequestsComponentEvent(
-                              id: widget.req.id)),
-                    ),
+                        icon: const Icon(Icons.delete_outline,
+                            size: 20, color: Colors.red),
+                        tooltip: 'Usuń zgłoszenie',
+                        onPressed: () => context
+                            .read<ShowRequestsComponentBloc>()
+                            .add(TryDeleteMyRequestShowRequestsComponentEvent(
+                                id: widget.req.id)),
+                      ),
                   ],
                 ),
               ],
@@ -428,15 +463,32 @@ class _RealizationRequestState extends State<_RealizationRequest> {
   }
 
   Future<void> _decide(String id, String status) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Potwierdzasz wykonanie?'),
+        content: const Text(
+            'Zdjęcia pojawią się na profilu firmy, a zgłoszenie zostanie zamknięte. '
+            'Nie musisz nic robić — bez potwierdzenia zgłoszenie po prostu wygaśnie.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Anuluj')),
+          FilledButton(
+              style: FilledButton.styleFrom(
+                  backgroundColor: Colors.green.shade600),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Potwierdzam')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
     setState(() => _busy = true);
     try {
       await context
           .read<FirebaseService>()
           .setRealizationStatus(id, status, requestId: widget.request.id);
-      showToast(
-          text: status == 'approved'
-              ? 'Potwierdzono — zgłoszenie zamknięte'
-              : 'Odrzucono — zgłoszenie zamknięte');
+      showToast(text: 'Potwierdzone — zdjęcia są już na profilu firmy');
       if (mounted) context.read<ShowRequestsComponentBloc>().add(GetDataShowRequestsComponentEvent());
     } catch (e) {
       showToastError(text: 'Błąd: $e');
@@ -496,22 +548,6 @@ class _RealizationRequestState extends State<_RealizationRequest> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.close, size: 15),
-                          label: const Text('Odrzuć',
-                              style: TextStyle(fontSize: 13)),
-                          style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red.shade700,
-                              side: BorderSide(color: Colors.red.shade300),
-                              visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 4),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8))),
-                          onPressed: () =>
-                              _decide(pending.first['id'] as String, 'rejected'),
-                        ),
-                        const SizedBox(width: 8),
                         FilledButton.icon(
                           icon: const Icon(Icons.check, size: 15),
                           label: const Text('Potwierdź',

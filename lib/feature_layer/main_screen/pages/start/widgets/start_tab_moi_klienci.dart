@@ -769,9 +769,9 @@ class _RealizationStatusState extends State<_RealizationStatus> {
     final status = (_real!['status'] as String?) ?? 'pending';
     final (color, icon, text) = switch (status) {
       'approved' => (Colors.green.shade700, Icons.verified,
-          'Realizacja potwierdzona przez klienta'),
-      'rejected' => (Colors.red.shade700, Icons.cancel_outlined,
-          'Klient odrzucił zdjęcia realizacji'),
+          'Klient potwierdził — zdjęcia są na Twoim profilu'),
+      'rejected' => (Colors.grey.shade700, Icons.info_outline,
+          'Klient nie potwierdził tych zdjęć'),
       _ => (Colors.amber.shade900, Icons.hourglass_top,
           'Wysłano prośbę o akceptację realizacji'),
     };

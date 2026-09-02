@@ -253,8 +253,8 @@ exports.notifyRealizationDecision = onDocumentUpdated('realizations/{id}', async
   const client = await userName(after.userId);
   if (after.status === 'approved') {
     await pushTo(after.companyId, {
-      title: '✅ Realizacja potwierdzona',
-      body: `${client} potwierdził zdjęcia — są już na Twoim profilu.`,
+      title: '✅ Klient potwierdził realizację',
+      body: `${client} potwierdził wykonanie — zdjęcia są już na Twoim profilu.`,
       data: { type: 'realization_decision', requestId: after.requestId || '', status: 'approved' },
     });
   } else if (after.status === 'rejected') {

@@ -1360,6 +1360,15 @@ class FirebaseService {
     await _firestore.collection('notifications').doc(id).delete();
   }
 
+  /// Klient zamyka zgłoszenie ręcznie (bez usuwania historii).
+  Future<void> closeRequest(String requestId) async {
+    await _firestore.collection('requests').doc(requestId).update({
+      'status': 'closed',
+      'closedAt': FieldValue.serverTimestamp(),
+      'closedReason': 'byUser',
+    });
+  }
+
   /// Decyzja klienta o zdjęciach: 'approved' | 'rejected'.
   /// Każda decyzja zamyka zlecenie definitywnie (znika z list aktywnych).
   Future<void> setRealizationStatus(String id, String status,
