@@ -11,6 +11,7 @@ import 'package:nominatim_flutter/nominatim_flutter.dart';
 
 import '../../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../dodaj/view/dodaj_page.dart';
+import '../../../../../../domain_layer/chat_service.dart';
 import '../../../../../../domain_layer/firebase_service.dart';
 import '../../../../../../shared/constants.dart';
 import '../../../../../../shared/functions/effective_role.dart';
@@ -55,7 +56,7 @@ class _ProfilViewState extends State<_ProfilView>
     final user = context.read<MainScreenBloc>().state.user;
     final isCompany = isCompanyMode(user);
     _tabController = TabController(
-      length: isCompany ? 4 : 2,
+      length: isCompany ? 4 : 3,
       vsync: this,
     );
   }
@@ -101,6 +102,7 @@ class _ProfilViewState extends State<_ProfilView>
               const Tab(text: 'Moje dane'),
               if (isCompany) const Tab(text: 'Kalendarz'),
               if (!isCompany) const Tab(text: 'Recenzje'),
+              if (!isCompany) const Tab(icon: Icon(Icons.delete_outline, size: 18)),
               if (isCompany) const Tab(text: 'Prezentacje'),
               if (isCompany) const Tab(icon: Icon(Icons.delete_outline, size: 18)),
             ],
@@ -112,6 +114,7 @@ class _ProfilViewState extends State<_ProfilView>
               if (isCompany)
                 TabKalendarz(companyId: user.id, showBookings: false),
               if (!isCompany) _TabRecenzje(state: state),
+              if (!isCompany) const _TrashedChats(standalone: true),
               if (isCompany) _TabPrezentacje(state: state),
               if (isCompany) _TabKosz(state: state),
             ],
@@ -717,12 +720,93 @@ class _TabPrezentacje extends StatelessWidget {
 // Zgłoszenia ukryte przez firmę — można przywrócić lub trwale usunąć z widoku
 // WAŻNE: ukrycie nie usuwa zgłoszenia — inne firmy nadal je widzą
 // ──────────────────────────────────────────────────────────────────────────────
+/// Rozmowy w koszu (ukryte swipe'em w Kontaktach) z przyciskiem Przywróć.
+class _TrashedChats extends StatelessWidget {
+  /// true = własna zakładka (z pustym stanem); false = sekcja nad zgłoszeniami.
+  final bool standalone;
+  const _TrashedChats({this.standalone = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final chatService = context.read<ChatService>();
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: chatService.getChatOverviews(hidden: true),
+      builder: (context, snap) {
+        final chats = snap.data ?? const [];
+        if (chats.isEmpty) {
+          return standalone
+              ? const EmptyState(
+                  icon: Icons.delete_outline,
+                  title: 'Kosz jest pusty',
+                  subtitle:
+                      'Rozmowy usunięte w Kontaktach (przesunięcie w lewo) trafiają tutaj.',
+                )
+              : const SizedBox.shrink();
+        }
+        return ListView(
+          shrinkWrap: !standalone,
+          physics: standalone ? null : const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(left: 4, bottom: 6),
+              child: Text('Rozmowy',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            ),
+            ...chats.map((c) => Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: c['isCompany'] == true
+                          ? Colors.blue.shade700
+                          : Colors.grey.shade600,
+                      child: Text(
+                          ((c['name'] as String?)?.isNotEmpty == true
+                                  ? (c['name'] as String)[0]
+                                  : '?')
+                              .toUpperCase(),
+                          style: const TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                    title: Text((c['name'] as String?)?.isNotEmpty == true
+                        ? c['name'] as String
+                        : 'Rozmowa'),
+                    subtitle: Text(
+                        (c['lastMessage'] as String?)?.isNotEmpty == true
+                            ? c['lastMessage'] as String
+                            : '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                    trailing: TextButton.icon(
+                      icon: const Icon(Icons.restore, size: 16),
+                      label: const Text('Przywróć'),
+                      onPressed: () =>
+                          chatService.unhideChat(c['from'] as String),
+                    ),
+                  ),
+                )),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _TabKosz extends StatelessWidget {
   final MyProfilPageMainState state;
   const _TabKosz({required this.state});
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const _TrashedChats(),
+        Expanded(child: _buildRequests(context)),
+      ],
+    );
+  }
+
+  Widget _buildRequests(BuildContext context) {
     if (state.trashedRequests.isEmpty) {
       return Center(
         child: Column(

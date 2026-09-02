@@ -66,6 +66,8 @@ class ChatService {
       'lastMessage': content,
       'lastTimestamp': FieldValue.serverTimestamp(),
       'unread': {toUid: FieldValue.increment(1)},
+      // nowa wiadomość wyciąga rozmowę z kosza u obu stron
+      'hiddenFor': FieldValue.arrayRemove([user.uid, toUid]),
     }, SetOptions(merge: true));
 
     await chatRef.collection('messages').add({
@@ -132,7 +134,25 @@ class ChatService {
 
   /// Lista rozmów zalogowanego użytkownika, najnowsze pierwsze.
   /// Mapy: {from (uid rozmówcy), name, isCompany, lastMessage, timestamp (ms), unreadCount}
-  Stream<List<Map<String, dynamic>>> getChatOverviews() {
+  /// Rozmowa do kosza (tylko u mnie; druga strona widzi ją nadal).
+  Future<void> hideChat(String otherUid) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await _fs.collection('chats').doc(chatIdWith(otherUid)).set(
+        {'hiddenFor': FieldValue.arrayUnion([user.uid])},
+        SetOptions(merge: true));
+  }
+
+  Future<void> unhideChat(String otherUid) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await _fs.collection('chats').doc(chatIdWith(otherUid)).set(
+        {'hiddenFor': FieldValue.arrayRemove([user.uid])},
+        SetOptions(merge: true));
+  }
+
+  /// [hidden] = false → aktywne rozmowy, true → kosz.
+  Stream<List<Map<String, dynamic>>> getChatOverviews({bool hidden = false}) {
     final user = _auth.currentUser;
     if (user == null) return const Stream.empty();
 
@@ -145,7 +165,9 @@ class ChatService {
         // odfiltruj czaty "z samym sobą" (brak drugiego uczestnika)
         final participants =
             List<String>.from(d.data()['participants'] ?? []);
-        return participants.any((p) => p != user.uid);
+        final hiddenFor = List<String>.from(d.data()['hiddenFor'] ?? []);
+        return participants.any((p) => p != user.uid) &&
+            hiddenFor.contains(user.uid) == hidden;
       }).map((d) {
         final data = d.data();
         final participants = List<String>.from(data['participants'] ?? []);

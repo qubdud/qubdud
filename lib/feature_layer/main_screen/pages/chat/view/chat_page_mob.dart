@@ -5,6 +5,7 @@ import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/feature_layer/main_screen/bloc/main_appbar_cubit.dart';
 import 'package:qb/shared/constants.dart';
 import 'package:qb/shared/client_notes.dart';
+import 'package:qb/shared/functions/show_toast.dart';
 import 'package:qb/shared/functions/effective_role.dart';
 import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../domain_layer/chat_service.dart';
@@ -179,78 +180,105 @@ class _ConversationsList extends StatelessWidget {
             final unread = chat['unreadCount'] as int? ?? 0;
             final timestamp = chat['timestamp'] as int? ?? 0;
 
-            return Card(
-              margin: const EdgeInsets.only(bottom: 10),
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              child: ListTile(
-                onTap: () => context
-                    .read<ChatPageBloc>()
-                    .add(StartUserChatChatPageEvent(chat['from'] as String)),
-                // avatar → profil rozmówcy (firma lub osoba)
-                leading: GestureDetector(
-                  onTap: () => context.read<MainScreenBloc>().add(isCompany
-                      ? GoToProfilPublicznyFirmyEvent(chat['from'] as String)
-                      : GoToProfilPublicznyUseraEvent(chat['from'] as String)),
-                  child: CircleAvatar(
-                    backgroundColor:
-                        isCompany ? Colors.blue.shade700 : Colors.grey.shade600,
-                    child: Text(name[0].toUpperCase(),
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
+            return Dismissible(
+              key: ValueKey('chat_${chat['from']}'),
+              direction: DismissDirection.endToStart,
+              background: Container(
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 24),
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade400,
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                title: Text(name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontWeight:
-                            unread > 0 ? FontWeight.bold : FontWeight.w600)),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    ClientNoteBadge(
-                        userId: chat['from'] as String, personName: name),
-                    Text(
-                      (chat['lastMessage'] as String?)?.isNotEmpty == true
-                          ? chat['lastMessage'] as String
-                          : 'Brak wiadomości',
+                    Text('Do kosza',
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold)),
+                    SizedBox(width: 8),
+                    Icon(Icons.delete_outline, color: Colors.white),
+                  ],
+                ),
+              ),
+              onDismissed: (_) {
+                chatService.hideChat(chat['from'] as String);
+                showToast(text: 'Rozmowa przeniesiona do kosza');
+              },
+              child: Card(
+                margin: const EdgeInsets.only(bottom: 10),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                child: ListTile(
+                  onTap: () => context
+                      .read<ChatPageBloc>()
+                      .add(StartUserChatChatPageEvent(chat['from'] as String)),
+                  // avatar → profil rozmówcy (firma lub osoba)
+                  leading: GestureDetector(
+                    onTap: () => context.read<MainScreenBloc>().add(isCompany
+                        ? GoToProfilPublicznyFirmyEvent(chat['from'] as String)
+                        : GoToProfilPublicznyUseraEvent(chat['from'] as String)),
+                    child: CircleAvatar(
+                      backgroundColor:
+                          isCompany ? Colors.blue.shade700 : Colors.grey.shade600,
+                      child: Text(name[0].toUpperCase(),
+                          style: const TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  title: Text(name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontWeight: unread > 0
-                              ? FontWeight.w600
-                              : FontWeight.normal),
-                    ),
-                  ],
-                ),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (timestamp > 0)
-                      Text(formatTimestamp(timestamp),
-                          style: const TextStyle(
-                              fontSize: 11, color: Colors.grey)),
-                    if (unread > 0) ...[
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.pinkAccent,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text('$unread',
-                            style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold)),
+                          fontWeight:
+                              unread > 0 ? FontWeight.bold : FontWeight.w600)),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ClientNoteBadge(
+                          userId: chat['from'] as String, personName: name),
+                      Text(
+                        (chat['lastMessage'] as String?)?.isNotEmpty == true
+                            ? chat['lastMessage'] as String
+                            : 'Brak wiadomości',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontWeight: unread > 0
+                                ? FontWeight.w600
+                                : FontWeight.normal),
                       ),
                     ],
-                  ],
+                  ),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (timestamp > 0)
+                        Text(formatTimestamp(timestamp),
+                            style: const TextStyle(
+                                fontSize: 11, color: Colors.grey)),
+                      if (unread > 0) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.pinkAccent,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text('$unread',
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             );
