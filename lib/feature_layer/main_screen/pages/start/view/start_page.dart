@@ -83,32 +83,6 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
     }
   }
 
-  /// Zakładka z licznikiem nowych rzeczy.
-  Widget _tab(String text, String key) {
-    final n = NewCounts.counts[key] ?? 0;
-    if (n == 0) return Tab(text: text);
-    return Tab(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(text),
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-            decoration: BoxDecoration(
-                color: Colors.red.shade600,
-                borderRadius: BorderRadius.circular(10)),
-            child: Text('$n',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _tabController.dispose();
@@ -154,15 +128,15 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
                 ? const [Tab(text: 'Odkrywaj')]
                 : _isCompany
                 ? [
-              _tab('Zgłoszenia', 'zgloszenia'),
+              const Tab(text: 'Zgłoszenia'),
               const Tab(text: 'Kalendarz'),
-              _tab('Recenzje', 'recenzje'),
+              const Tab(text: 'Recenzje'),
             ]
                 : [
               const Tab(text: 'Odkrywaj'),
-              _tab('Rezerwacje', 'rezerwacje'),
+              const Tab(text: 'Rezerwacje'),
               const Tab(text: 'Ulubione'),
-              _tab('Zgłoszenia', 'zgloszenia'),
+              const Tab(text: 'Zgłoszenia'),
             ],
           ),
         ),
