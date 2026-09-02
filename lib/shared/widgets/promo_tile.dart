@@ -1,12 +1,15 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../domain_layer/firebase_service.dart';
 
 import '../../domain_layer/domain_models/promoVideo.dart';
 import '../globals.dart';
 
 /// Kafelek prezentacji firmy (Odkrywaj, Ulubione): miniatura, nazwa firmy
 /// i branża na gradiencie, ikona play. Opcjonalny przycisk w rogu (np. usuń).
-class PromoTile extends StatelessWidget {
+class PromoTile extends StatefulWidget {
   final Promo promo;
   final VoidCallback onTap;
   final Widget? cornerAction;
@@ -19,10 +22,44 @@ class PromoTile extends StatelessWidget {
   });
 
   @override
+  State<PromoTile> createState() => _PromoTileState();
+}
+
+class _PromoTileState extends State<PromoTile> {
+  static final Map<String, String> _nameCache = {};
+  String? _fetched;
+
+  @override
+  void initState() {
+    super.initState();
+    // starsze prezentacje nie mają zapisanej nazwy firmy — dociągamy raz
+    if (widget.promo.companyName.isEmpty && !Globals.instance.anonim) {
+      final cached = _nameCache[widget.promo.userId];
+      if (cached != null) {
+        _fetched = cached;
+      } else {
+        context
+            .read<FirebaseService>()
+            .fetchUser(widget.promo.userId)
+            .then((u) {
+          final n = u?.companyName ?? '';
+          _nameCache[widget.promo.userId] = n;
+          if (mounted && n.isNotEmpty) setState(() => _fetched = n);
+        }).catchError((_) {});
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final promo = widget.promo;
+    final onTap = widget.onTap;
+    final cornerAction = widget.cornerAction;
     final name = Globals.instance.anonim
         ? 'Firma · zaloguj się'
-        : (promo.companyName.isNotEmpty ? promo.companyName : 'Firma');
+        : (promo.companyName.isNotEmpty
+            ? promo.companyName
+            : (_fetched ?? 'Firma'));
 
     return GestureDetector(
       onTap: onTap,

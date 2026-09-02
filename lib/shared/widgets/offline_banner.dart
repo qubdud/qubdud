@@ -70,7 +70,13 @@ class _OfflineBannerState extends State<OfflineBanner> {
                 )
               : const SizedBox.shrink(),
         ),
-        Expanded(child: widget.child),
+        Expanded(
+          // baner już zajął pasek statusu — treść nie dokłada drugiego marginesu
+          child: _offline
+              ? MediaQuery.removePadding(
+                  context: context, removeTop: true, child: widget.child)
+              : widget.child,
+        ),
       ],
     );
   }

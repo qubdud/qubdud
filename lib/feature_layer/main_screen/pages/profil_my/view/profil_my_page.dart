@@ -324,33 +324,6 @@ class _TabDaneState extends State<_TabDane> {
               hintText: 'Wpisz miejscowość (do mapy)',
               onChanged: _onCityChanged,
             ),
-            const SizedBox(height: 20),
-            WSmallLabel(text: 'Kontakt na profilu publicznym'),
-            const SizedBox(height: 8),
-            WInputField(
-              controller: _www,
-              label: 'Strona www (opcjonalnie)',
-              isPassword: false,
-            ),
-            WInputField(
-              controller: _contactEmail,
-              label: 'E-mail kontaktowy (opcjonalnie)',
-              isPassword: false,
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Pokazuj telefon na profilu',
-                  style: TextStyle(fontSize: 14)),
-              value: _showPhone,
-              onChanged: (v) => setState(() => _showPhone = v),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Pokazuj adres na profilu',
-                  style: TextStyle(fontSize: 14)),
-              value: _showAddress,
-              onChanged: (v) => setState(() => _showAddress = v),
-            ),
             const SizedBox(height: 8),
             const Text('lub zaznacz lokalizację na mapie:',
                 style: TextStyle(fontSize: 13)),
@@ -397,6 +370,35 @@ class _TabDaneState extends State<_TabDane> {
             ),
           ],
 
+          if (widget.isCompany) ...[
+            const SizedBox(height: 20),
+            WSmallLabel(text: 'Kontakt na profilu publicznym'),
+            const SizedBox(height: 8),
+            WInputField(
+              controller: _www,
+              label: 'Strona www (opcjonalnie)',
+              isPassword: false,
+            ),
+            WInputField(
+              controller: _contactEmail,
+              label: 'E-mail kontaktowy (opcjonalnie)',
+              isPassword: false,
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Pokazuj telefon na profilu',
+                  style: TextStyle(fontSize: 14)),
+              value: _showPhone,
+              onChanged: (v) => setState(() => _showPhone = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Pokazuj adres na profilu',
+                  style: TextStyle(fontSize: 14)),
+              value: _showAddress,
+              onChanged: (v) => setState(() => _showAddress = v),
+            ),
+          ],
           const SizedBox(height: 24),
           Center(
             child: WButton(

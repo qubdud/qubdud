@@ -211,8 +211,10 @@ class _ProfilViewState extends State<_ProfilView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(user?.companyName ?? 'Firma',
-                        style: const TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.bold)),
+                        style: TextStyle(
+                            fontSize:
+                                (user?.companyName?.length ?? 0) > 40 ? 16 : 20,
+                            fontWeight: FontWeight.bold)),
                     if (user?.companyCity != null)
                       Text(user!.companyCity!,
                           style: TextStyle(
@@ -1038,7 +1040,7 @@ class _CompanyContact extends StatelessWidget {
               const SizedBox(width: 6),
               Flexible(
                 child: Text(text,
-                    maxLines: 2,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                         fontSize: 12.5,
