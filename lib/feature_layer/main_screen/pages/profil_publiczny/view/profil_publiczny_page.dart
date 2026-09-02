@@ -362,6 +362,7 @@ class _RealizationsSection extends StatefulWidget {
 
 class _RealizationsSectionState extends State<_RealizationsSection> {
   List<Map<String, dynamic>> _photos = [];
+  final Map<String, String> _authorInitials = {};
 
   bool get _isOwner =>
       (FirebaseAuth.instance.currentUser?.uid ?? '') == widget.companyId;
@@ -374,9 +375,17 @@ class _RealizationsSectionState extends State<_RealizationsSection> {
 
   Future<void> _load() async {
     try {
-      final p = await context
-          .read<FirebaseService>()
-          .getRealizations(widget.companyId, includeUnapproved: _isOwner);
+      final firebase = context.read<FirebaseService>();
+      final p = await firebase.getRealizations(widget.companyId,
+          includeUnapproved: _isOwner);
+      // inicjały klientów przy zdjęciach, które sami dodali
+      for (final r in p.where((r) => r['addedByRole'] == 'user')) {
+        final uid = r['userId'] as String? ?? '';
+        if (uid.isEmpty || _authorInitials.containsKey(uid)) continue;
+        final u = await firebase.fetchUser(uid);
+        final name = '${u?.firstName ?? ''}'.trim();
+        _authorInitials[uid] = name.isNotEmpty ? name[0] : '?';
+      }
       if (mounted) setState(() => _photos = p);
     } catch (_) {}
   }
@@ -427,8 +436,51 @@ class _RealizationsSectionState extends State<_RealizationsSection> {
                 padding: const EdgeInsets.only(right: 8),
                 child: Stack(
                   children: [
-                    RealizationThumb(photo: photo, size: 130),
-                    if (_isOwner && status != 'approved')
+                    RealizationThumb(
+                        photo: photo,
+                        size: 130,
+                        authorInitial:
+                            _authorInitials[photo['userId'] as String? ?? '']),
+                    // zdjęcia od klienta: firma decyduje o publikacji
+                    if (_isOwner && photo['addedByRole'] == 'user')
+                      Positioned(
+                        left: 4,
+                        bottom: 4,
+                        child: GestureDetector(
+                          onTap: () async {
+                            final publish = photo['publishedByCompany'] != true;
+                            await context
+                                .read<FirebaseService>()
+                                .setRealizationPublished(
+                                    photo['id'] as String, publish);
+                            showToast(
+                                text: publish
+                                    ? 'Opublikowano w portfolio'
+                                    : 'Ukryto w portfolio');
+                            _load();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: photo['publishedByCompany'] == true
+                                  ? Colors.green.shade600
+                                  : Colors.black54,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              photo['publishedByCompany'] == true
+                                  ? 'w portfolio'
+                                  : 'opublikuj',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (_isOwner && photo['addedByRole'] != 'user' && status != 'approved')
                       Positioned(
                         left: 6,
                         top: 6,
@@ -468,7 +520,7 @@ class _RealizationsSectionState extends State<_RealizationsSection> {
           padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
           child: Text(
             _isOwner
-                ? 'Klienci widzą tylko realizacje, które potwierdzili. Ikona kosza usuwa zdjęcia z profilu.'
+                ? 'Klienci widzą tylko realizacje, które potwierdzili. Zdjęcia dodane przez klientów pokazujesz przyciskiem „opublikuj".'
                 : 'Zdjęcia z zadań zrealizowanych i potwierdzonych przez klientów.',
             style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
           ),

@@ -12,41 +12,14 @@ import 'functions/show_toast_error.dart';
 /// Wybór trybu (zdjęcie / para Przed-Po), wybór plików i zapis realizacji.
 /// Zwraca true, gdy realizacja została dodana. Używane z karty zgłoszenia
 /// u firmy i z widoku zgłoszenia.
-Future<bool> pickAndAddRealization(BuildContext context, Request request) async {
-  final mode = await showModalBottomSheet<String>(
-    context: context,
-    showDragHandle: true,
-    builder: (ctx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: Text('Zdjęcia realizacji',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
-            child: Text(
-                'Jedno zgłoszenie = jedna realizacja. Klient musi ją potwierdzić — wtedy trafi na Twój profil, a zlecenie zostanie zamknięte.',
-                style: TextStyle(fontSize: 13, color: Colors.grey)),
-          ),
-          ListTile(
-            leading: const Icon(Icons.add_a_photo_outlined),
-            title: const Text('Jedno zdjęcie (po wykonaniu)'),
-            onTap: () => Navigator.pop(ctx, 'single'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.compare_outlined),
-            title: const Text('Para Przed / Po'),
-            onTap: () => Navigator.pop(ctx, 'pair'),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    ),
-  );
-  if (mode == null || !context.mounted) return false;
+Future<bool> pickAndAddRealization(
+  BuildContext context,
+  Request request, {
+  /// 'pair' = para Przed/Po, 'single' = jedno zdjęcie
+  required String mode,
+  /// 'company' = prośba o potwierdzenie, 'user' = zdjęcia od klienta
+  String addedByRole = 'company',
+}) async {
 
   final picker = ImagePicker();
   File? before;
@@ -68,8 +41,12 @@ Future<bool> pickAndAddRealization(BuildContext context, Request request) async 
           category: request.category,
           image: File(after.path),
           beforeImage: before,
+          addedByRole: addedByRole,
         );
-    showToast(text: 'Dodano — klient dostał prośbę o potwierdzenie');
+    showToast(
+        text: addedByRole == 'company'
+            ? 'Wysłano prośbę o potwierdzenie realizacji'
+            : 'Dodano zdjęcia — firma może je pokazać w portfolio');
     return true;
   } catch (e) {
     showToastError(text: 'Błąd: $e');

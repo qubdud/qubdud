@@ -115,8 +115,32 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
+  /// Po restarcie apki StartPage bywa budowany zanim wczyta się konto —
+  /// gdy tryb się zmieni, przestawiamy zakładki.
+  void _syncTabs() {
+    final user = context.read<MainScreenBloc>().state.user;
+    final anon = Globals.instance.anonim;
+    final company = (!anon) && isCompanyMode(user);
+    if (anon == _isAnon && company == _isCompany) return;
+    final length = anon ? 1 : (company ? 3 : 4);
+    final old = _tabController;
+    setState(() {
+      _isAnon = anon;
+      _isCompany = company;
+      _tabController = TabController(length: length, vsync: this);
+      _tabController.addListener(() {
+        if (!_tabController.indexIsChanging) {
+          _markSeen(_tabController.index);
+          setState(() {});
+        }
+      });
+    });
+    old.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    _syncTabs();
     return Column(
       children: [
         SafeArea(

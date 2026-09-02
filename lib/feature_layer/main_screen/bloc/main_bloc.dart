@@ -27,10 +27,12 @@ part 'main_state.dart';
 
 class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
   StreamSubscription<Uri>? _linkSub;
+  StreamSubscription<List<Map<String, dynamic>>>? _notifSub;
 
   @override
   Future<void> close() {
     _linkSub?.cancel();
+    _notifSub?.cancel();
     return super.close();
   }
 
@@ -54,6 +56,13 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     _linkSub = AppLinks().uriLinkStream.listen((uri) {
       add(HandleDeepLinkEvent(uri));
     });
+    on<RefreshBadgesEvent>((event, emit) async {
+      // przerysowanie paska z licznikami (stan trzymany statycznie)
+      final s = state;
+      emit(LoadingMainScreenState());
+      emit(s);
+    });
+
     on<ShowToastEvent>((event, emit) async {
       showToast(text: event.message);
     });
@@ -158,6 +167,23 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
       emit(ChatMainScreenState(event.id));
     });
 
+    on<GoToPowiadomieniaEvent>((event, emit) async {
+      if (Globals.instance.anonim) return;
+      appBarCubit.updateAppBar(
+          showBack: false,
+          title: 'Powiadomienia',
+          isVisible: true,
+          isMenuVisible: true,
+          isChildTitle: false,
+          child: const SizedBox.shrink(),
+          height: 56,
+          backgroundColor: Colors.transparent,
+          onBackPressed: () {
+            add(GoToHomeEvent());
+          });
+      emit(PowiadomieniaMainScreenState());
+    });
+
     on<GoToProfilFirmaEvent>((event, emit) async {
       appBarCubit.updateAppBar(
           showBack: false,
@@ -235,6 +261,8 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
       await setCompanyView(true);
       ClientNotes.clear();
       NewCounts.clear();
+      await _notifSub?.cancel();
+      state.notifCounter = 0;
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       prefs.setBool('remember_me', false);
       emit(LogoutMainScreenState());
@@ -286,6 +314,16 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
       appChatService.updateUserOnlineStatus();
       state.chatCounter = await appChatService.getTotalUnreadCount();
       state.user = userFB;
+
+      // dzwonek: liczba nieprzeczytanych powiadomień na żywo
+      _notifSub?.cancel();
+      _notifSub = appFirebaseService.notificationsStream(userFB.id).listen((list) {
+        final n = list.where((e) => e['read'] != true).length;
+        if (n != state.notifCounter) {
+          state.notifCounter = n;
+          add(RefreshBadgesEvent());
+        }
+      });
       add(GoToHomeEvent());
 
       // push: token na konto + co robić po kliknięciu w powiadomienie

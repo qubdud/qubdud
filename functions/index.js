@@ -13,6 +13,7 @@ initializeApp();
 const db = getFirestore();
 
 const URGENT_RADIUS_KM = 30;
+const REQUEST_TTL_DAYS = 10;        // po tylu dniach zgłoszenie zamyka się samo
 const REVIEW_AFTER_BOOKING_H = 2;   // po zakończonym terminie
 const REVIEW_AFTER_JOB_DAYS = 3;    // po zaakceptowanej ofercie
 
@@ -40,9 +41,27 @@ const fmtWhen = (ts) => {
   });
 };
 
-/** Wysyła push do wszystkich urządzeń użytkownika; czyści martwe tokeny. */
+/** Powiadomienie: wpis w bazie (dzwonek w apce) + push na urządzenia. */
 async function pushTo(uid, { title, body, data = {} }) {
   if (!uid) return;
+
+  // wpis widoczny w apce nawet, gdy push nie dojdzie
+  try {
+    await db.collection('notifications').add({
+      userId: uid,
+      title,
+      body,
+      type: data.type || 'info',
+      requestId: data.requestId || '',
+      companyId: data.companyId || '',
+      from: data.from || '',
+      read: false,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  } catch (e) {
+    console.error('notification write failed', e);
+  }
+
   const ref = db.collection('users').doc(uid);
   const snap = await ref.get();
   const tokens = (snap.data() && snap.data().fcmTokens) || [];
@@ -201,11 +220,24 @@ exports.notifySlot = onDocumentUpdated('users/{companyId}/slots/{slotId}', async
 // ── 5) realizacje: firma dodała zdjęcia → klient; decyzja klienta → firma ──
 exports.notifyRealizationAdded = onDocumentCreated('realizations/{id}', async (event) => {
   const d = event.data && event.data.data();
-  if (!d || !d.userId || d.status !== 'pending') return;
+  if (!d || !d.userId || !d.companyId) return;
+
+  // zdjęcia od klienta → firma decyduje, czy pokazać je na swoim profilu
+  if (d.addedByRole === 'user') {
+    const client = await userName(d.userId);
+    await pushTo(d.companyId, {
+      title: `📷 ${client} dodał zdjęcia z realizacji`,
+      body: 'Możesz opublikować je w swoim portfolio.',
+      data: { type: 'realization_from_user', requestId: d.requestId || '' },
+    });
+    return;
+  }
+
+  if (d.status !== 'pending') return;
   const company = await userName(d.companyId);
   await pushTo(d.userId, {
-    title: `📷 ${company} dodała zdjęcia realizacji`,
-    body: 'Potwierdź, że to Twoje zlecenie — dopiero wtedy trafią do portfolio firmy.',
+    title: `📷 ${company} prosi o potwierdzenie realizacji`,
+    body: 'Potwierdź wykonanie — zdjęcia trafią do portfolio firmy, a zgłoszenie zostanie zamknięte.',
     data: { type: 'realization', requestId: d.requestId || '' },
   });
 });
@@ -253,7 +285,35 @@ exports.notifyNewMessage = onDocumentCreated('chats/{chatId}/messages/{msgId}', 
   });
 });
 
-// ── 7) cron: prośby o recenzję po zrealizowanej usłudze ─────────────────────
+// ── 7) cron: zgłoszenia starsze niż 10 dni zamykają się same ────────────────
+exports.autoCloseRequests = onSchedule(
+  { schedule: 'every 24 hours', timeZone: 'Europe/Warsaw' },
+  async () => {
+    const cutoff = Timestamp.fromMillis(Date.now() - REQUEST_TTL_DAYS * 86400e3);
+    const old = await db.collection('requests')
+      .where('timestamp', '<=', cutoff)
+      .limit(400).get();
+
+    let closed = 0;
+    for (const doc of old.docs) {
+      const d = doc.data();
+      if (d.status === 'closed') continue;
+      await doc.ref.update({
+        status: 'closed',
+        closedAt: FieldValue.serverTimestamp(),
+        closedReason: 'expired',
+      });
+      closed++;
+      await pushTo(d.userId, {
+        title: 'Zgłoszenie zamknięte',
+        body: `Twoje zgłoszenie (${d.sector || d.category}) wygasło po ${REQUEST_TTL_DAYS} dniach. Dodaj nowe, jeśli sprawa jest aktualna.`,
+        data: { type: 'request_expired', requestId: doc.id },
+      });
+    }
+    console.log(`autoClose: zamknięto ${closed} zgłoszeń`);
+  });
+
+// ── 8) cron: prośby o recenzję po zrealizowanej usłudze ─────────────────────
 exports.askForReview = onSchedule({ schedule: 'every 60 minutes', timeZone: 'Europe/Warsaw' }, async () => {
   const due = await db.collection('reviewReminders')
     .where('sent', '==', false)

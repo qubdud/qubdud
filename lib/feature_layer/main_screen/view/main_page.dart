@@ -124,6 +124,15 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
               }),
 
           NavItem(
+              index: 5,
+              label: "Alerty",
+              iconPath: Icons.notifications_none,
+              locked: Globals.instance.anonim,
+              count: state.notifCounter,
+              onTap: () {
+                context.read<MainScreenBloc>().add(GoToPowiadomieniaEvent());
+              }),
+          NavItem(
             index: 4,
             label: "Profil",
             iconPath: Icons.account_circle_outlined,

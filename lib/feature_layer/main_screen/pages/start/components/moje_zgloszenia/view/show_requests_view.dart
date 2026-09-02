@@ -4,6 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:qb/shared/functions/show_toast_error.dart';
+import 'package:qb/shared/functions/show_toast.dart';
+import 'package:qb/shared/widgets/before_after.dart';
+import 'package:qb/shared/realizations.dart';
+import 'package:qb/shared/constants.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/feature_layer/main_screen/bloc/main_bloc.dart';
@@ -52,7 +57,26 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
 
     return Column(
       children: [
-
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+          child: SizedBox(
+            height: 56,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.add_circle_outline, size: 26),
+              label: const Text('Dodaj zgłoszenie',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cDarkBlue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28)),
+                elevation: 3,
+              ),
+              onPressed: () =>
+                  context.read<MainScreenBloc>().add(GoToDodajEvent()),
+            ),
+          ),
+        ),
 
         Expanded(
           child: BlocConsumer<ShowRequestsComponentBloc, ShowRequestsComponentState>(
@@ -249,6 +273,21 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                       Text(widget.req.sector,
                           style: const TextStyle(
                               fontSize: 12, color: Colors.grey)),
+                      if (widget.req.timestamp != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Row(
+                            children: [
+                              Icon(Icons.schedule,
+                                  size: 12, color: Colors.grey.shade500),
+                              const SizedBox(width: 4),
+                              Text(_wystawione(widget.req.timestamp!),
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey.shade500)),
+                            ],
+                          ),
+                        ),
                       if (widget.req.city.isNotEmpty)
                         Text(widget.req.city,
                             style: const TextStyle(fontSize: 12)),
@@ -308,6 +347,8 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis),
             ],
+            if (widget.req.status != 'closed')
+              _RealizationRequest(request: widget.req),
             if (widget.req.status == 'closed')
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -338,8 +379,6 @@ class _MyRequestTileState extends State<_MyRequestTile> {
               )
             else ...[
               RequestOffersBar(request: widget.req),
-              if (widget.req.status == 'taken')
-                _PendingRealizationHint(request: widget.req),
             ],
           ],
         ),
@@ -348,49 +387,200 @@ class _MyRequestTileState extends State<_MyRequestTile> {
   }
 }
 
-/// „Firma dodała zdjęcia — potwierdź" na kafelku zgłoszenia.
-class _PendingRealizationHint extends StatelessWidget {
+String _wystawione(DateTime d) {
+  final diff = DateTime.now().difference(d);
+  final data =
+      '${d.day}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+  if (diff.inDays == 0) return 'wystawione dziś';
+  if (diff.inDays == 1) return 'wystawione wczoraj';
+  final left = 10 - diff.inDays;
+  if (left <= 0) return 'wystawione $data · wygasa';
+  return 'wystawione $data · wygasa za $left dni';
+}
+
+/// Zdjęcia realizacji na zgłoszeniu klienta: prośba firmy do potwierdzenia
+/// oraz możliwość dodania własnych zdjęć.
+class _RealizationRequest extends StatefulWidget {
   final Request request;
-  const _PendingRealizationHint({required this.request});
+  const _RealizationRequest({required this.request});
+
+  @override
+  State<_RealizationRequest> createState() => _RealizationRequestState();
+}
+
+class _RealizationRequestState extends State<_RealizationRequest> {
+  List<Map<String, dynamic>> _all = const [];
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final list = await context
+          .read<FirebaseService>()
+          .getRealizationsForRequest(widget.request.id);
+      if (mounted) setState(() => _all = list);
+    } catch (_) {}
+  }
+
+  Future<void> _decide(String id, String status) async {
+    setState(() => _busy = true);
+    try {
+      await context
+          .read<FirebaseService>()
+          .setRealizationStatus(id, status, requestId: widget.request.id);
+      showToast(
+          text: status == 'approved'
+              ? 'Potwierdzono — zgłoszenie zamknięte'
+              : 'Odrzucono — zgłoszenie zamknięte');
+      if (mounted) context.read<ShowRequestsComponentBloc>().add(GetDataShowRequestsComponentEvent());
+    } catch (e) {
+      showToastError(text: 'Błąd: $e');
+    }
+    if (mounted) setState(() => _busy = false);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: context.read<FirebaseService>().getRealizationsForRequest(request.id),
-      builder: (context, snap) {
-        final pending = (snap.data ?? const [])
-            .any((r) => (r['status'] as String?) == 'pending');
-        if (!pending) return const SizedBox.shrink();
-        return Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(10),
-            onTap: () {
-              Globals.instance.selectedRequest = request;
-              context.read<MainScreenBloc>().add(GoToShowRequestEvent());
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    final pending = _all
+        .where((r) =>
+            r['addedByRole'] != 'user' && (r['status'] ?? '') == 'pending')
+        .toList();
+    final mine = _all.where((r) => r['addedByRole'] == 'user').toList();
+    final canAddOwn = widget.request.status == 'taken' && mine.isEmpty;
+
+    if (pending.isEmpty && mine.isEmpty && !canAddOwn) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── firma prosi o potwierdzenie ──
+          if (pending.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: Colors.amber.shade50,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: Colors.amber.shade300),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.photo_library_outlined, size: 18, color: Colors.amber.shade900),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text('Firma dodała zdjęcia realizacji — potwierdź je',
-                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.amber.shade900)),
+                  Row(
+                    children: [
+                      RealizationThumb(photo: pending.first, size: 54),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          '${widget.request.takenByName.isNotEmpty ? widget.request.takenByName : 'Firma'} prosi o potwierdzenie realizacji. Potwierdzenie zamyka zgłoszenie.',
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.amber.shade900),
+                        ),
+                      ),
+                    ],
                   ),
-                  Icon(Icons.chevron_right, size: 18, color: Colors.amber.shade900),
+                  const SizedBox(height: 8),
+                  if (_busy)
+                    const Center(child: CircularProgressIndicator())
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            icon: const Icon(Icons.check, size: 18),
+                            label: const Text('Potwierdzam'),
+                            style: FilledButton.styleFrom(
+                                backgroundColor: Colors.green.shade600),
+                            onPressed: () =>
+                                _decide(pending.first['id'] as String, 'approved'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.close, size: 18),
+                            label: const Text('Nie zgadza się'),
+                            style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red.shade700,
+                                side: BorderSide(color: Colors.red.shade300)),
+                            onPressed: () =>
+                                _decide(pending.first['id'] as String, 'rejected'),
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
-          ),
-        );
-      },
+
+          // ── moje zdjęcia z realizacji ──
+          if (mine.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  RealizationThumb(photo: mine.first, size: 44),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      mine.first['publishedByCompany'] == true
+                          ? 'Twoje zdjęcia są w portfolio firmy'
+                          : 'Twoje zdjęcia wysłane — firma może je opublikować',
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade700),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (canAddOwn)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+                label: const Text('Dodaj swoje zdjęcia z realizacji'),
+                onPressed: () async {
+                  final mode = await showModalBottomSheet<String>(
+                    context: context,
+                    showDragHandle: true,
+                    builder: (ctx) => SafeArea(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.add_a_photo_outlined),
+                            title: const Text('Jedno zdjęcie'),
+                            onTap: () => Navigator.pop(ctx, 'single'),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.compare_outlined),
+                            title: const Text('Para Przed / Po'),
+                            onTap: () => Navigator.pop(ctx, 'pair'),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+                    ),
+                  );
+                  if (mode == null || !context.mounted) return;
+                  final ok = await pickAndAddRealization(context, widget.request,
+                      mode: mode, addedByRole: 'user');
+                  if (ok) _load();
+                },
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

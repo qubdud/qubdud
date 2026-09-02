@@ -20,6 +20,10 @@ class GoToHomeEvent extends MainScreenEvent {}
 
 class GoToProfilFirmaEvent extends MainScreenEvent {}
 
+class GoToPowiadomieniaEvent extends MainScreenEvent {}
+
+class RefreshBadgesEvent extends MainScreenEvent {}
+
 class GoToDodajEvent extends MainScreenEvent {}
 
 class GoToWyszukajFirmyEvent extends MainScreenEvent {

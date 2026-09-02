@@ -129,7 +129,14 @@ class RealizationThumb extends StatelessWidget {
   final Map<String, dynamic> photo;
   final double size;
 
-  const RealizationThumb({super.key, required this.photo, this.size = 110});
+  /// Inicjał klienta, gdy zdjęcia pochodzą od niego (portfolio firmy).
+  final String? authorInitial;
+
+  const RealizationThumb(
+      {super.key,
+      required this.photo,
+      this.size = 110,
+      this.authorInitial});
 
   @override
   Widget build(BuildContext context) {
@@ -147,6 +154,28 @@ class RealizationThumb extends StatelessWidget {
               fit: BoxFit.cover,
             ),
           ),
+          // zdjęcia od klienta: jego inicjał w rogu
+          if (photo['addedByRole'] == 'user' && authorInitial != null)
+            Positioned(
+              right: 4,
+              top: 4,
+              child: Container(
+                padding: const EdgeInsets.all(1.5),
+                decoration: const BoxDecoration(
+                    color: Colors.white, shape: BoxShape.circle),
+                child: CircleAvatar(
+                  radius: size > 80 ? 11 : 8,
+                  backgroundColor: Colors.grey.shade700,
+                  child: Text(
+                    authorInitial!.toUpperCase(),
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: size > 80 ? 11 : 9,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ),
           if (hasBefore)
             Positioned(
               left: 4,

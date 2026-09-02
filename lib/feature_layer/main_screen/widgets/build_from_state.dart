@@ -10,6 +10,7 @@ import '../bloc/main_bloc.dart';
 import '../pages/chat/view/chat_page.dart';
 import '../pages/dodaj/view/dodaj_page.dart';
 import '../pages/dodaj_review/view/dodaj_rev_page.dart';
+import '../pages/powiadomienia/view/powiadomienia_page.dart';
 import '../pages/profil_my/view/profil_my_page.dart';
 import '../pages/rules/view/rules_page.dart';
 import '../pages/start/view/start_page.dart';
@@ -45,6 +46,12 @@ Widget buildWidgetBasedOnState(MainScreenState state) {
           icon: Icons.add_box_outlined,
           what: 'Aby dodać zgłoszenie lub recenzję, zaloguj się.');
     }
+    if (state is PowiadomieniaMainScreenState) {
+      return const AnonimGateView(
+          key: ValueKey('GatePowiadomienia'),
+          icon: Icons.notifications_none,
+          what: 'Powiadomienia o ofertach i wiadomościach zobaczysz po zalogowaniu.');
+    }
     if (state is ProfilFirmaMainScreenState) {
       return const AnonimGateView(
           key: ValueKey('GateProfil'),
@@ -53,7 +60,9 @@ Widget buildWidgetBasedOnState(MainScreenState state) {
     }
   }
 
-  if (state is StartMainScreenState) {
+  if (state is PowiadomieniaMainScreenState) {
+    return const PowiadomieniaPage(key: ValueKey('Powiadomienia'));
+  } else if (state is StartMainScreenState) {
     return StartPage(key: ValueKey('StartPage'));
   } else if (state is VideoFirmyMainScreenState) {
     return SingleVideoPage(

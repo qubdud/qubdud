@@ -140,10 +140,22 @@ service cloud.firestore {
     // ── realizacje (zdjęcia Przed/Po) ──
     match /realizations/{realizationId} {
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.companyId == request.auth.uid;
-      // klient (właściciel zgłoszenia) potwierdza lub odrzuca
-      allow update: if isMe(resource.data.userId) && onlyKeys(['status', 'decidedAt']);
-      allow delete: if isMe(resource.data.companyId);
+      // dodaje firma realizująca albo sam klient (zdjęcia „od siebie")
+      allow create: if signedIn()
+          && (request.resource.data.companyId == request.auth.uid
+              || request.resource.data.userId == request.auth.uid);
+      // klient potwierdza/odrzuca, firma decyduje o publikacji zdjęć klienta
+      allow update: if (isMe(resource.data.userId) && onlyKeys(['status', 'decidedAt']))
+          || (isMe(resource.data.companyId) && onlyKeys(['publishedByCompany']));
+      allow delete: if isMe(resource.data.companyId) || isMe(resource.data.userId);
+    }
+
+    // ── powiadomienia (dzwonek): pisze backend, czyta i odczytuje właściciel ──
+    match /notifications/{notifId} {
+      allow read: if isMe(resource.data.userId);
+      allow update: if isMe(resource.data.userId) && onlyKeys(['read']);
+      allow create: if false;
+      allow delete: if isMe(resource.data.userId);
     }
 
     // ── tylko Cloud Functions ──

@@ -434,8 +434,21 @@ class _RequestCard extends StatelessWidget {
                                     icon: Icon(Icons.more_horiz,
                                         color: Colors.grey.shade700),
                                     padding: EdgeInsets.zero,
-                                    onSelected: (v) {
+                                    onSelected: (v) async {
                                       switch (v) {
+                                        case 'real_single':
+                                        case 'real_pair':
+                                          await pickAndAddRealization(
+                                              context, request,
+                                              mode: v == 'real_pair'
+                                                  ? 'pair'
+                                                  : 'single');
+                                          if (context.mounted) {
+                                            context
+                                                .read<StartPageBloc>()
+                                                .add(GetDataStartPageEvent());
+                                          }
+                                          break;
                                         case 'contact':
                                           context.read<StartPageBloc>().add(
                                               TryAddContactStartPageEvent(
@@ -452,15 +465,34 @@ class _RequestCard extends StatelessWidget {
                                           break;
                                       }
                                     },
-                                    itemBuilder: (_) => const [
-                                      PopupMenuItem(
+                                    itemBuilder: (_) => [
+                                      if (offerStatus == 'accepted') ...const [
+                                        PopupMenuItem(
+                                            value: 'real_single',
+                                            child: ListTile(
+                                                dense: true,
+                                                leading: Icon(
+                                                    Icons.add_a_photo_outlined),
+                                                title: Text(
+                                                    'Dodaj zdjęcie realizacji'))),
+                                        PopupMenuItem(
+                                            value: 'real_pair',
+                                            child: ListTile(
+                                                dense: true,
+                                                leading:
+                                                    Icon(Icons.compare_outlined),
+                                                title: Text(
+                                                    'Dodaj parę Przed / Po'))),
+                                        PopupMenuDivider(),
+                                      ],
+                                      const PopupMenuItem(
                                           value: 'profile',
                                           child: ListTile(
                                               dense: true,
                                               leading: Icon(Icons
                                                   .account_circle_outlined),
                                               title: Text('Profil klienta'))),
-                                      PopupMenuItem(
+                                      const PopupMenuItem(
                                           value: 'contact',
                                           child: ListTile(
                                               dense: true,
@@ -468,7 +500,7 @@ class _RequestCard extends StatelessWidget {
                                                   Icons.person_add_outlined),
                                               title:
                                                   Text('Dodaj do kontaktów'))),
-                                      PopupMenuItem(
+                                      const PopupMenuItem(
                                           value: 'hide',
                                           child: ListTile(
                                               dense: true,
@@ -483,9 +515,9 @@ class _RequestCard extends StatelessWidget {
                                 ],
                               ),
                       ),
-              // zaakceptowana oferta → zdjęcia realizacji prosto z karty
+              // stan realizacji (zdjęcia dodaje się z menu „⋯")
               if (offerStatus == 'accepted' && !isTrash)
-                _RealizationRow(request: request),
+                _RealizationStatus(request: request),
             ],
           ),
         ),
@@ -683,16 +715,16 @@ class _BtnLabel extends StatelessWidget {
   }
 }
 
-/// Po akceptacji oferty: dodanie zdjęć realizacji i prośba o potwierdzenie.
-class _RealizationRow extends StatefulWidget {
+/// Stan realizacji na karcie firmy: prośba wysłana / potwierdzona / odrzucona.
+class _RealizationStatus extends StatefulWidget {
   final Request request;
-  const _RealizationRow({required this.request});
+  const _RealizationStatus({required this.request});
 
   @override
-  State<_RealizationRow> createState() => _RealizationRowState();
+  State<_RealizationStatus> createState() => _RealizationStatusState();
 }
 
-class _RealizationRowState extends State<_RealizationRow> {
+class _RealizationStatusState extends State<_RealizationStatus> {
   Map<String, dynamic>? _real;
   bool _loaded = false;
 
@@ -707,7 +739,13 @@ class _RealizationRowState extends State<_RealizationRow> {
       final list = await context
           .read<FirebaseService>()
           .getRealizationsForRequest(widget.request.id);
-      if (mounted) setState(() { _real = list.isEmpty ? null : list.first; _loaded = true; });
+      final mine = list.where((r) => r['addedByRole'] != 'user').toList();
+      if (mounted) {
+        setState(() {
+          _real = mine.isEmpty ? null : mine.first;
+          _loaded = true;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loaded = true);
     }
@@ -717,7 +755,7 @@ class _RealizationRowState extends State<_RealizationRow> {
     try {
       await context.read<ChatService>().sendMessage(
             widget.request.userId,
-            'Dzień dobry! Dodałem zdjęcia z realizacji Twojego zgłoszenia (${widget.request.sector}). Proszę o ich potwierdzenie w aplikacji — w zgłoszeniu, przycisk „Potwierdzam".',
+            'Dzień dobry! Dodałem zdjęcia z realizacji Twojego zgłoszenia (${widget.request.sector}). Proszę o potwierdzenie w aplikacji — zakładka Zgłoszenia.',
           );
       showToast(text: 'Wysłano przypomnienie na czacie');
     } catch (e) {
@@ -727,55 +765,48 @@ class _RealizationRowState extends State<_RealizationRow> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_loaded) return const SizedBox(height: 8);
-    final status = (_real?['status'] as String?) ?? 'approved';
+    if (!_loaded || _real == null) return const SizedBox.shrink();
+    final status = (_real!['status'] as String?) ?? 'pending';
+    final (color, icon, text) = switch (status) {
+      'approved' => (Colors.green.shade700, Icons.verified,
+          'Realizacja potwierdzona przez klienta'),
+      'rejected' => (Colors.red.shade700, Icons.cancel_outlined,
+          'Klient odrzucił zdjęcia realizacji'),
+      _ => (Colors.amber.shade900, Icons.hourglass_top,
+          'Wysłano prośbę o akceptację realizacji'),
+    };
 
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: _real == null
-          ? FilledButton.tonalIcon(
-              icon: const Icon(Icons.add_a_photo_outlined, size: 18),
-              label: const Text('Dodaj zdjęcia realizacji'),
-              style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10))),
-              onPressed: () async {
-                final ok = await pickAndAddRealization(context, widget.request);
-                if (ok) _load();
-              },
-            )
-          : Row(
-              children: [
-                RealizationThumb(photo: _real!, size: 44),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    status == 'pending'
-                        ? 'Zdjęcia czekają na potwierdzenie klienta'
-                        : status == 'approved'
-                            ? 'Realizacja potwierdzona'
-                            : 'Klient odrzucił zdjęcia',
-                    style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: status == 'pending'
-                            ? Colors.amber.shade900
-                            : status == 'approved'
-                                ? Colors.green.shade700
-                                : Colors.red.shade700),
-                  ),
-                ),
-                if (status == 'pending')
-                  TextButton.icon(
-                    icon: const Icon(Icons.notifications_active_outlined, size: 16),
-                    label: const Text('Przypomnij'),
-                    style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact),
-                    onPressed: _remind,
-                  ),
-              ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withOpacity(0.35)),
+        ),
+        child: Row(
+          children: [
+            RealizationThumb(photo: _real!, size: 38),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(text,
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: color)),
             ),
+            if (status == 'pending')
+              TextButton(
+                style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: color),
+                onPressed: _remind,
+                child: const Text('Przypomnij'),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

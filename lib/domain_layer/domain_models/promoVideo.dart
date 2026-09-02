@@ -90,6 +90,7 @@ class Request {
   final String thumbUrl;
   final String fileName;
   final DateTime? timestamp;
+  final String closedReason; // '' | expired | done
   final String realizationStatus; // '' | pending | approved | rejected
   final bool is24;
   String description;
@@ -115,6 +116,7 @@ class Request {
     required this.thumbUrl,
     required this.fileName,
     required this.timestamp,
+    this.closedReason = '',
     this.realizationStatus = '',
     required this.is24,
     required this.description,
@@ -132,6 +134,7 @@ class Request {
 
     return Request(
       id: doc.id,
+      closedReason: data['closedReason'] ?? '',
       realizationStatus: data['realizationStatus'] ?? '',
       is24: data['is24'] ?? false,
       userId: data['userId'] ?? '',

@@ -13,6 +13,12 @@ abstract class MainScreenState {
     menuIsVisibleStatic = value;
   }
 
+  static int notifCounterStatic = 0;
+  int get notifCounter => notifCounterStatic;
+  set notifCounter(int value) {
+    notifCounterStatic = value;
+  }
+
   static int chatCounterStatic = 0;
   int get chatCounter => chatCounterStatic;
   set chatCounter(int value) {
@@ -27,6 +33,8 @@ class LoadingMainScreenState extends MainScreenState {}
 class StartMainScreenState extends MainScreenState {}
 
 class LogoutMainScreenState extends MainScreenState {}
+
+class PowiadomieniaMainScreenState extends MainScreenState {}
 
 class ChatMainScreenState extends MainScreenState {
   final String id;

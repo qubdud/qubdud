@@ -1282,6 +1282,8 @@ class FirebaseService {
     required String category,
     required File image,
     File? beforeImage,
+    /// 'company' = wykonawca prosi o potwierdzenie, 'user' = zdjęcia od klienta
+    String addedByRole = 'company',
   }) async {
     final ts = DateTime.now().millisecondsSinceEpoch;
     final ref = _storage.ref().child('realizations/$ts.jpg');
@@ -1302,10 +1304,60 @@ class FirebaseService {
       'category': category,
       'imageUrl': url,
       if (beforeUrl != null) 'beforeUrl': beforeUrl,
-      // klient musi potwierdzić, zanim zdjęcia trafią na profil firmy
-      'status': 'pending',
+      'addedByRole': addedByRole,
+      // zdjęcia firmy czekają na potwierdzenie klienta; zdjęcia klienta są
+      // od razu „jego", ale na profil firmy trafiają dopiero po publikacji
+      'status': addedByRole == 'company' ? 'pending' : 'approved',
+      'publishedByCompany': false,
       'timestamp': FieldValue.serverTimestamp(),
     });
+  }
+
+  /// Firma publikuje w portfolio zdjęcia dodane przez klienta.
+  Future<void> setRealizationPublished(String id, bool published) async {
+    await _firestore
+        .collection('realizations')
+        .doc(id)
+        .update({'publishedByCompany': published});
+  }
+
+  // ── POWIADOMIENIA (dzwonek) ───────────────────────────────────────────────
+
+  Stream<List<Map<String, dynamic>>> notificationsStream(String uid) {
+    return _firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: uid)
+        .snapshots()
+        .map((snap) {
+      final list = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      list.sort((a, b) {
+        final ta = a['createdAt'], tb = b['createdAt'];
+        if (ta is! Timestamp || tb is! Timestamp) return 0;
+        return tb.compareTo(ta);
+      });
+      return list.take(60).toList();
+    });
+  }
+
+  Future<void> markNotificationRead(String id) async {
+    await _firestore.collection('notifications').doc(id).update({'read': true});
+  }
+
+  Future<void> markAllNotificationsRead(String uid) async {
+    final snap = await _firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: uid)
+        .where('read', isEqualTo: false)
+        .get();
+    final batch = _firestore.batch();
+    for (final d in snap.docs) {
+      batch.update(d.reference, {'read': true});
+    }
+    await batch.commit();
+  }
+
+  Future<void> deleteNotification(String id) async {
+    await _firestore.collection('notifications').doc(id).delete();
   }
 
   /// Decyzja klienta o zdjęciach: 'approved' | 'rejected'.
@@ -1335,8 +1387,12 @@ class FirebaseService {
         .get();
     final list = snap.docs
         .map((d) => {'id': d.id, ...d.data()})
-        .where((r) =>
-            includeUnapproved || (r['status'] ?? 'approved') == 'approved')
+        .where((r) {
+          if (includeUnapproved) return true;
+          // zdjęcia klienta wchodzą do portfolio dopiero po publikacji
+          if (r['addedByRole'] == 'user') return r['publishedByCompany'] == true;
+          return (r['status'] ?? 'approved') == 'approved';
+        })
         .toList();
     list.sort((a, b) {
       final ta = a['timestamp'];
