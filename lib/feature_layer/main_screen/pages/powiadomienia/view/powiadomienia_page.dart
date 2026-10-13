@@ -4,14 +4,25 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../domain_layer/firebase_service.dart';
 import '../../../../../shared/functions/effective_role.dart';
-import '../../../../../shared/globals.dart';
+import '../../../../../shared/functions/show_toast.dart';
 import '../../../../../shared/widgets/empty_state.dart';
+import '../../../../../shared/widgets/load_error.dart';
 import '../../../bloc/main_bloc.dart';
 
 /// Dzwonek: wszystko, co się wydarzyło — oferty, decyzje, rezerwacje,
 /// wiadomości, prośby o potwierdzenie realizacji. Klik prowadzi w miejsce akcji.
-class PowiadomieniaPage extends StatelessWidget {
+class PowiadomieniaPage extends StatefulWidget {
   const PowiadomieniaPage({super.key});
+
+  @override
+  State<PowiadomieniaPage> createState() => _PowiadomieniaPageState();
+}
+
+class _PowiadomieniaPageState extends State<PowiadomieniaPage> {
+  late final FirebaseService _firebase;
+  late final String _uid;
+  late final bool _companyMode;
+  late Stream<List<Map<String, dynamic>>> _stream;
 
   static ({IconData icon, Color color}) _look(String type) => switch (type) {
         'urgent_request' => (icon: Icons.priority_high, color: Colors.red),
@@ -19,6 +30,8 @@ class PowiadomieniaPage extends StatelessWidget {
         'offer_decision' => (icon: Icons.how_to_reg_outlined, color: Colors.green),
         'booking' => (icon: Icons.event_available_outlined, color: Colors.indigo),
         'booking_decision' => (icon: Icons.event_note_outlined, color: Colors.teal),
+        _ when type.startsWith('booking') =>
+          (icon: Icons.event_busy_outlined, color: Colors.teal),
         'chat' => (icon: Icons.chat_bubble_outline, color: Colors.blueGrey),
         'realization' => (icon: Icons.photo_camera_back_outlined, color: Colors.amber),
         'realization_from_user' => (icon: Icons.add_photo_alternate_outlined, color: Colors.amber),
@@ -26,6 +39,8 @@ class PowiadomieniaPage extends StatelessWidget {
         'contact_request' => (icon: Icons.phone_callback_outlined, color: Colors.orange),
         'review' => (icon: Icons.star_outline, color: Colors.amber),
         'request_expired' => (icon: Icons.timer_off_outlined, color: Colors.grey),
+        'request_reopened' => (icon: Icons.replay, color: Colors.blue),
+        'request_deleted' => (icon: Icons.delete_outline, color: Colors.grey),
         _ => (icon: Icons.notifications_none, color: Colors.grey),
       };
 
@@ -41,71 +56,28 @@ class PowiadomieniaPage extends StatelessWidget {
     return '${d.day}.${d.month.toString().padLeft(2, '0')}';
   }
 
-  void _open(BuildContext context, Map<String, dynamic> n) {
-    final firebase = context.read<FirebaseService>();
-    final bloc = context.read<MainScreenBloc>();
-    if (n['read'] != true) firebase.markNotificationRead(n['id'] as String);
-
-    final type = n['type'] as String? ?? '';
-    final requestId = n['requestId'] as String? ?? '';
-    final companyId = n['companyId'] as String? ?? '';
-    final from = n['from'] as String? ?? '';
-
-    switch (type) {
-      case 'chat':
-        if (from.isNotEmpty) bloc.add(GoToChatEvent(from));
-        return;
-      case 'contact_request':
-        // firma: Kontakty → Aktywność (tam numer i „skontaktowałem się”)
-        Globals.instance.contactsTab = 0;
-        bloc.add(GoToChatEvent(''));
-        return;
-      case 'review':
-        if (companyId.isNotEmpty) bloc.add(GoToProfilPublicznyFirmyEvent(companyId));
-        return;
-      case 'booking':
-        // firma: Start → Kalendarz
-        Globals.instance.startTab = 1;
-        bloc.add(GoToHomeEvent());
-        return;
-      case 'booking_decision':
-        // klient: Start → Rezerwacje
-        Globals.instance.startTab = 1;
-        bloc.add(GoToHomeEvent());
-        return;
-      case 'offer':
-      case 'request_expired':
-      case 'realization':
-        // klient: Start → Zgłoszenia (tam są oferty i prośby do potwierdzenia)
-        Globals.instance.startTab = 3;
-        bloc.add(GoToHomeEvent());
-        return;
-      default:
-        if (requestId.isNotEmpty) {
-          firebase.getRequestById(requestId).then((r) {
-            if (r != null) {
-              Globals.instance.selectedRequest = r;
-              bloc.add(GoToShowRequestEvent());
-            } else {
-              bloc.add(GoToHomeEvent());
-            }
-          });
-        } else {
-          bloc.add(GoToHomeEvent());
-        }
-    }
+  @override
+  void initState() {
+    super.initState();
+    _firebase = context.read<FirebaseService>();
+    final user = context.read<MainScreenBloc>().state.user;
+    _uid = user?.id ?? '';
+    _companyMode = isCompanyMode(user);
+    _stream = _firebase.notificationsStream(_uid, companyMode: _companyMode);
   }
+
+  void _reload() => setState(() =>
+      _stream = _firebase.notificationsStream(_uid, companyMode: _companyMode));
 
   @override
   Widget build(BuildContext context) {
-    final firebase = context.read<FirebaseService>();
-    final user = context.read<MainScreenBloc>().state.user;
-    final uid = user?.id ?? '';
-    final companyMode = isCompanyMode(user);
-
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: firebase.notificationsStream(uid, companyMode: companyMode),
+      stream: _stream,
       builder: (context, snap) {
+        if (snap.hasError) {
+          return LoadError(
+              message: 'Nie udało się wczytać powiadomień', onRetry: _reload);
+        }
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -114,7 +86,7 @@ class PowiadomieniaPage extends StatelessWidget {
           return EmptyState(
             icon: Icons.notifications_none,
             title: 'Brak powiadomień',
-            subtitle: companyMode
+            subtitle: _companyMode
                 ? 'Tu pojawią się zgłoszenia w pobliżu, decyzje klientów, rezerwacje i wiadomości.'
                 : 'Tu pojawią się oferty firm, potwierdzenia terminów i wiadomości.',
           );
@@ -135,8 +107,11 @@ class PowiadomieniaPage extends StatelessWidget {
                     TextButton.icon(
                       icon: const Icon(Icons.done_all, size: 18),
                       label: const Text('Oznacz wszystkie'),
-                      onPressed: () => firebase.markAllNotificationsRead(uid,
-                          companyMode: companyMode),
+                      onPressed: () => _firebase
+                          .markAllNotificationsRead(_uid,
+                              companyMode: _companyMode)
+                          .catchError((Object _) => showToast(
+                              text: 'Nie udało się oznaczyć powiadomień.')),
                     ),
                   ],
                 ),
@@ -162,13 +137,34 @@ class PowiadomieniaPage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12)),
                       child: const Icon(Icons.delete_outline, color: Colors.white),
                     ),
-                    onDismissed: (_) =>
-                        firebase.deleteNotification(n['id'] as String),
+                    confirmDismiss: (_) async =>
+                        await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Usunąć powiadomienie?'),
+                            actions: [
+                              TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Anuluj')),
+                              TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Usuń',
+                                      style: TextStyle(color: Colors.red))),
+                            ],
+                          ),
+                        ) ==
+                        true,
+                    onDismissed: (_) => _firebase
+                        .deleteNotification(n['id'] as String)
+                        .catchError((Object _) => showToast(
+                            text: 'Nie udało się usunąć powiadomienia.')),
                     child: Card(
                       margin: const EdgeInsets.only(bottom: 8),
                       color: isNew ? Colors.blue.shade50 : null,
                       child: ListTile(
-                        onTap: () => _open(context, n),
+                        onTap: () => context
+                            .read<MainScreenBloc>()
+                            .add(OpenNotificationEvent.fromNotification(n)),
                         leading: CircleAvatar(
                           backgroundColor: look.color.withOpacity(0.15),
                           child: Icon(look.icon, color: look.color, size: 20),

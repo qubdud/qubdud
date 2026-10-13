@@ -1,6 +1,3 @@
-import 'dart:async';
-import 'dart:developer';
-
 import 'package:bloc/bloc.dart';
 import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/firebase_service.dart';
@@ -19,11 +16,14 @@ class ShowRequestPageBloc extends Bloc<ShowRequestPageEvent, ShowRequestPageStat
 
     on<TryShowRequestPageEvent>((event, emit) async {
       emit(ShowRequestPageLoadingState());
-
-
-      state.appUser = await firebase.fetchUser(Globals.instance.selectedRequest!.userId);
-
-      emit(ShowRequestPageMainState());
+      try {
+        // null = autor usunął konto
+        state.appUser = await firebase
+            .fetchUser(Globals.instance.selectedRequest!.userId);
+        emit(ShowRequestPageMainState());
+      } catch (_) {
+        emit(ShowRequestPageErrorState());
+      }
     });
 
     add(TryShowRequestPageEvent());

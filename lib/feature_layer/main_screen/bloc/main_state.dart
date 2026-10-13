@@ -32,7 +32,15 @@ class LoadingMainScreenState extends MainScreenState {}
 
 class StartMainScreenState extends MainScreenState {}
 
-class LogoutMainScreenState extends MainScreenState {}
+class LogoutMainScreenState extends MainScreenState {
+  final bool toRegister;
+  LogoutMainScreenState({this.toRegister = false});
+}
+
+class ErrorMainScreenState extends MainScreenState {
+  final String message;
+  ErrorMainScreenState(this.message);
+}
 
 class PowiadomieniaMainScreenState extends MainScreenState {}
 

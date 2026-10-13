@@ -1,10 +1,8 @@
 import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../shared/widgets/review.dart';
-import '../../../bloc/main_bloc.dart';
 import '../bloc/start_page_bloc.dart';
 
 class StartTabOtrzymaneRecenzje extends StatelessWidget {

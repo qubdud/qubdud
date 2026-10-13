@@ -44,7 +44,9 @@ class AnonimGateView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             GestureDetector(
-              onTap: () => context.read<MainScreenBloc>().add(LogoutEvent()),
+              onTap: () => context
+                  .read<MainScreenBloc>()
+                  .add(LogoutEvent(toRegister: true)),
               child: const Text('lub zarejestruj się',
                   style: TextStyle(
                     color: cDarkBlue,

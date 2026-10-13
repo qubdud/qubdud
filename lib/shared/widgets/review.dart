@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain_layer/domain_models/promoVideo.dart';
 import '../../domain_layer/firebase_service.dart';
 import '../../feature_layer/main_screen/bloc/main_bloc.dart';
+import '../functions/show_toast_error.dart';
 
 /// Widget recenzji z sekcją komentarzy.
 /// Zasada: każdy user/firma może dodać dokładnie 1 komentarz.
@@ -44,24 +45,29 @@ class _ReviewWithCommentsState extends State<ReviewWithComments> {
   Future<void> _load() async {
     final firebase = context.read<FirebaseService>();
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    final comments = await firebase.getCommentsForReview(widget.review.id);
-    final already = await firebase.hasUserCommented(
-      reviewId: widget.review.id,
-      userId: uid,
-    );
-    // Pobierz nazwę autora jeśli nie ma w modelu
-    String authorName = widget.review.authorName;
-    if (authorName.isEmpty) {
-      final author = await firebase.fetchUser(widget.review.userId);
-      authorName = author?.displayName ?? '';
-    }
-    if (mounted) {
-      setState(() {
-        _comments = comments;
-        _alreadyCommented = already;
-        _authorName = authorName;
-        _loading = false;
-      });
+    try {
+      final comments = await firebase.getCommentsForReview(widget.review.id);
+      final already = await firebase.hasUserCommented(
+        reviewId: widget.review.id,
+        userId: uid,
+      );
+      // Pobierz nazwę autora jeśli nie ma w modelu
+      String authorName = widget.review.authorName;
+      if (authorName.isEmpty) {
+        final author = await firebase.fetchUser(widget.review.userId);
+        authorName = author?.displayName ?? '';
+      }
+      if (mounted) {
+        setState(() {
+          _comments = comments;
+          _alreadyCommented = already;
+          _authorName = authorName;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      // bez komentarzy recenzja i tak jest czytelna — chowamy tylko spinner
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -76,14 +82,20 @@ class _ReviewWithCommentsState extends State<ReviewWithComments> {
     final isOwner = user?.firma == true &&
         user?.id == widget.review.reviewedUserId;
 
-    await firebase.addComment(ReviewComment(
-      id: '',
-      reviewId: widget.review.id,
-      authorId: uid,
-      authorName: name,
-      isOwner: isOwner,
-      text: text,
-    ));
+    try {
+      await firebase.addComment(ReviewComment(
+        id: '',
+        reviewId: widget.review.id,
+        authorId: uid,
+        authorName: name,
+        isOwner: isOwner,
+        text: text,
+      ));
+    } catch (_) {
+      showToastError(text: 'Nie udało się dodać komentarza');
+      return;
+    }
+    if (!mounted) return;
 
     _ctrl.clear();
     setState(() {
@@ -183,10 +195,15 @@ class _ReviewWithCommentsState extends State<ReviewWithComments> {
                 comment: c,
                 canDelete: c.authorId == uid,
                 onDelete: () async {
-                  await context.read<FirebaseService>().deleteComment(
-                    reviewId: widget.review.id,
-                    commentId: c.id,
-                  );
+                  try {
+                    await context.read<FirebaseService>().deleteComment(
+                      reviewId: widget.review.id,
+                      commentId: c.id,
+                    );
+                  } catch (_) {
+                    showToastError(text: 'Nie udało się usunąć komentarza');
+                    return;
+                  }
                   _load();
                 },
               )),

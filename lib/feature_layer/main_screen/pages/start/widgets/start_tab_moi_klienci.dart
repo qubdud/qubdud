@@ -42,7 +42,7 @@ class _MoiKlienciTabState extends State<MoiKlienciTab> {
       return switch (_filter) {
         'new' => s == 'none',
         'active' => s == 'pending' || s == 'maybe' || s == 'accepted',
-        'rejected' => s == 'rejected',
+        'rejected' => s == 'rejected' || s == 'closed',
         _ => true,
       };
     }).toList();
@@ -142,6 +142,7 @@ class _RequestList extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       itemCount: requests.length,
       itemBuilder: (context, index) => _RequestCard(
+        key: ValueKey(requests[index].id),
         request: requests[index],
         isTrash: isTrash,
         offerStatus: offerStatuses[requests[index].id] ?? 'none',
@@ -154,10 +155,11 @@ class _RequestList extends StatelessWidget {
 class _RequestCard extends StatelessWidget {
   final Request request;
   final bool isTrash;
-  final String offerStatus; // none|pending|maybe|accepted|rejected
+  final String offerStatus; // none|pending|maybe|accepted|rejected|closed
   final String note; // prywatna notatka firmy o kliencie
 
   const _RequestCard({
+    super.key,
     required this.request,
     required this.isTrash,
     this.offerStatus = 'none',
@@ -168,8 +170,15 @@ class _RequestCard extends StatelessWidget {
         'pending' || 'maybe' => Colors.amber,
         'accepted' => Colors.green,
         'rejected' => Colors.red,
+        'closed' => Colors.grey,
         _ => null,
       };
+
+  /// Kolejne zdjęcia tylko gdy nie ma czekających ani potwierdzonych.
+  bool get _canAddRealization =>
+      offerStatus == 'accepted' &&
+      request.realizationStatus != 'pending' &&
+      request.realizationStatus != 'approved';
 
   @override
   Widget build(BuildContext context) {
@@ -408,7 +417,7 @@ class _RequestCard extends StatelessWidget {
                                       }
                                     },
                                     itemBuilder: (_) => [
-                                      if (offerStatus == 'accepted') ...const [
+                                      if (_canAddRealization) ...const [
                                         PopupMenuItem(
                                             value: 'real_single',
                                             child: ListTile(
@@ -538,6 +547,7 @@ class _RequestCard extends StatelessWidget {
     final (color, icon, text) = switch (offerStatus) {
       'accepted' => (Colors.green, Icons.check_circle, 'Klient zaakceptował Twoją ofertę'),
       'rejected' => (Colors.red, Icons.cancel, 'Klient odrzucił Twoją ofertę'),
+      'closed' => (Colors.grey, Icons.block, 'Klient wybrał inną ofertę'),
       'maybe' => (Colors.orange, Icons.help, 'Klient się zastanawia'),
       _ => (Colors.amber, Icons.mark_email_read_outlined, 'Oferta wysłana — czeka na decyzję'),
     };
@@ -675,6 +685,16 @@ class _RealizationStatusState extends State<_RealizationStatus> {
     _load();
   }
 
+  @override
+  void didUpdateWidget(covariant _RealizationStatus oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.request.id != widget.request.id ||
+        oldWidget.request.realizationStatus !=
+            widget.request.realizationStatus) {
+      _load();
+    }
+  }
+
   Future<void> _load() async {
     try {
       final list = await context
@@ -712,7 +732,7 @@ class _RealizationStatusState extends State<_RealizationStatus> {
       'approved' => (Colors.green.shade700, Icons.verified,
           'Klient potwierdził — zdjęcia są na Twoim profilu'),
       'rejected' => (Colors.grey.shade700, Icons.info_outline,
-          'Klient nie potwierdził tych zdjęć'),
+          'Klient odrzucił zdjęcia — dodaj właściwe z menu ⋯'),
       _ => (Colors.amber.shade900, Icons.hourglass_top,
           'Wysłano prośbę o akceptację realizacji'),
     };
@@ -790,6 +810,9 @@ class _OfferButton extends StatelessWidget {
       case 'rejected':
         return tonal(Colors.red.shade50, Colors.red.shade700,
             Icons.cancel_outlined, 'Odrzucona');
+      case 'closed':
+        return tonal(Colors.grey.shade200, Colors.grey.shade700, Icons.block,
+            'Wybrano inną');
       default:
         return FilledButton(
           style: FilledButton.styleFrom(
@@ -879,33 +902,4 @@ Future<String?> showOfferDialog(BuildContext context, String clientName) {
       ),
     ),
   );
-}
-
-class _IconAction extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final Color? color;
-  final VoidCallback onTap;
-
-  const _IconAction({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-    this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Icon(icon, size: 20, color: color ?? Colors.grey.shade700),
-        ),
-      ),
-    );
-  }
 }

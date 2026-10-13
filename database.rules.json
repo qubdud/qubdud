@@ -5,14 +5,18 @@
     "users": {
       "$uid": {
         ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-        ".write": "auth != null && auth.uid == $uid"
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid == $uid",
+        "online": { ".validate": "newData.isBoolean()" },
+        "last_seen": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
       }
     },
     "typing": {
       "$chatId": {
-        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+        ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && ($chatId.beginsWith(auth.uid + '_') || $chatId.endsWith('_' + auth.uid))",
         "$uid": {
-          ".write": "auth != null && auth.uid == $uid"
+          ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && auth.uid == $uid && ($chatId.beginsWith(auth.uid + '_') || $chatId.endsWith('_' + auth.uid))",
+          ".validate": "newData.isBoolean()"
         }
       }
     }

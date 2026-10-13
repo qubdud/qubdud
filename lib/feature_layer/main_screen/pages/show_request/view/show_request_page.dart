@@ -6,7 +6,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 
 import 'package:qb/shared/constants.dart';
-import 'package:qb/shared/widgets/w_dropdown.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -20,11 +19,11 @@ import '../../../../../shared/client_notes.dart';
 import '../../../../../shared/functions/effective_role.dart';
 import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/request_take_status.dart';
-import '../../../../../shared/widgets/w_button.dart';
 import '../../../../../shared/widgets/w_small_label.dart';
 import '../../../bloc/main_bloc.dart';
 import '../bloc/show_request_page_bloc.dart';
 import '../widgets/realization_section.dart';
+import '../../../../../shared/widgets/load_error.dart';
 
 class ShowRequestPage extends StatelessWidget {
   const ShowRequestPage({super.key});
@@ -151,17 +150,26 @@ class _ViewState extends State<View> {
 
   Widget _buildWidgetBasedOnState(ShowRequestPageState state,
       BuildContext context) {
-    final isWideScreen = MediaQuery
-        .of(context)
-        .size
-        .width > minWideScreen;
 
     if (state is ShowRequestPageLoadingState) {
       return const Loading(key: ValueKey('Loading'));
-    } else if (state is! ShowRequestPageLoadingState) {
+    } else if (state is ShowRequestPageErrorState) {
+      return LoadError(
+        key: const ValueKey('Error'),
+        message: 'Nie udało się wczytać zgłoszenia.',
+        onRetry: () =>
+            context.read<ShowRequestPageBloc>().add(TryShowRequestPageEvent()),
+      );
+    } else {
 
 
       final meId = FirebaseAuth.instance.currentUser?.uid;
+      final author = state.appUser;
+      final authorName = author == null
+          ? 'Konto usunięte'
+          : '${author.firstName ?? ''} ${author.lastName ?? ''}'.trim();
+      final email = author?.email ?? '';
+      final phone = author?.phone ?? '';
 
 
       return SingleChildScrollView(
@@ -170,7 +178,7 @@ class _ViewState extends State<View> {
           child: Column(
             children: [
           WSmallLabel(text: 'Widok zgłoszenia'),
-          if(Globals.instance.selectedRequest!.fileName.contains('.jpg'))
+          if (Globals.instance.selectedRequest!.mediaType == 'image')
             GestureDetector(
               onTap: () => _openImageFullscreen(
                   context, Globals.instance.selectedRequest!.fileUrl),
@@ -184,6 +192,11 @@ class _ViewState extends State<View> {
                       child: CachedNetworkImage(
                         imageUrl: Globals.instance.selectedRequest!.fileUrl,
                         fit: BoxFit.cover,
+                        // np. HEIC bez dekodera — pokazujemy miniaturę JPG
+                        errorWidget: (_, __, ___) => CachedNetworkImage(
+                          imageUrl: Globals.instance.selectedRequest!.thumbUrl,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   ),
@@ -196,7 +209,7 @@ class _ViewState extends State<View> {
               ),
             ),
 
-              if(Globals.instance.selectedRequest!.fileName.contains('.mp4'))
+              if (Globals.instance.selectedRequest!.mediaType == 'video')
                 GestureDetector(
                   onTap: () => _openVideoFullscreen(
                       context, Globals.instance.selectedRequest!.fileUrl),
@@ -290,11 +303,10 @@ class _ViewState extends State<View> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                        '${state.appUser!.firstName ?? ''} ${state.appUser!.lastName ?? ''}'
-                            .trim()),
-                    if (isCompanyMode(
-                        context.read<MainScreenBloc>().state.user))
+                    Text(authorName),
+                    if (author != null &&
+                        isCompanyMode(
+                            context.read<MainScreenBloc>().state.user))
                       IconButton(
                         icon: Icon(
                             ClientNotes.get(
@@ -313,8 +325,7 @@ class _ViewState extends State<View> {
                           final changed = await showClientNoteDialog(
                               context,
                               Globals.instance.selectedRequest!.userId,
-                              '${state.appUser!.firstName ?? ''} ${state.appUser!.lastName ?? ''}'
-                                  .trim());
+                              authorName);
                           if (changed) setState(() {});
                         },
                       ),
@@ -325,15 +336,17 @@ class _ViewState extends State<View> {
                     maxLines: 3),
                 SizedBox(height: 24,),
 
-                Text(
-                  'e-mail'.toUpperCase(),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                if (email.isNotEmpty) ...[
+                  Text(
+                    'e-mail'.toUpperCase(),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
                   ),
-                ),
-                Text(state.appUser!.email!),
-                SizedBox(height: 24,),
+                  Text(email),
+                  SizedBox(height: 24,),
+                ],
 
                 Text(
                   'telefon'.toUpperCase(),
@@ -342,10 +355,10 @@ class _ViewState extends State<View> {
                     fontSize: 14,
                   ),
                 ),
-                if (state.appUser?.phone?.isNotEmpty == true)
+                if (phone.isNotEmpty)
                   GestureDetector(
-                    onTap: () => _dial(state.appUser!.phone!),
-                    child: Text(state.appUser!.phone!,
+                    onTap: () => _dial(phone),
+                    child: Text(phone,
                         style: const TextStyle(
                             color: cDarkBlue,
                             fontWeight: FontWeight.w600,
@@ -357,7 +370,8 @@ class _ViewState extends State<View> {
                 SizedBox(height: 24,),
 
 
-                if(meId!=Globals.instance.selectedRequest!.userId)
+                if (author != null &&
+                    meId != Globals.instance.selectedRequest!.userId)
                 Row(children: [
                   Container(
                   decoration: BoxDecoration(
@@ -383,9 +397,8 @@ class _ViewState extends State<View> {
                       icon: const Icon(Icons.phone, color: Colors.white, size: 18),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                      onPressed: state.appUser?.phone?.isNotEmpty == true
-                          ? () => _dial(state.appUser!.phone!)
-                          : null,
+                      onPressed:
+                          phone.isNotEmpty ? () => _dial(phone) : null,
                     ),
                   ),
 
@@ -422,8 +435,6 @@ class _ViewState extends State<View> {
           ),
         ),
       );
-    } else {
-      return const Loading(key: ValueKey('Loading'));
     }
   }
 }
@@ -515,16 +526,20 @@ class VideoPlayerItem extends StatefulWidget {
 
 class _VideoPlayerItemState extends State<VideoPlayerItem> {
   late VideoPlayerController _controller;
+  bool _failed = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.network(widget.videoUrl)
-      ..initialize().then((_) {
-        setState(() {});
-        _controller.play();
-        _controller.setLooping(true);
-      });
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
+    _controller.initialize().then((_) {
+      if (!mounted) return;
+      setState(() {});
+      _controller.play();
+      _controller.setLooping(true);
+    }).catchError((_) {
+      if (mounted) setState(() => _failed = true);
+    });
   }
 
   @override
@@ -533,19 +548,9 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
     super.dispose();
   }
 
-  Widget _buildIconColumn(IconData icon, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton( color: Colors.white, onPressed: () { print('asdf'); }, icon: Icon(icon),),
-        //Text(label, style: const TextStyle(color: Colors.white, fontSize: 14)),
-
-        const SizedBox(height: 16),
-      ],
-    );
-  }
   @override
   Widget build(BuildContext context) {
+    if (_failed) return const VideoError();
     if (!_controller.value.isInitialized) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -595,33 +600,3 @@ TileLayer get openStreetMap =>
       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
       userAgentPackageName: 'dev.fleatflet.flutter.map.example',
     );
-
-
-LatLng _getLatLng(String coordinates) {
-  try {
-    // Sprawdź, czy URL zawiera znak "@"
-    if (!coordinates.contains('@')) {
-      throw const FormatException("Niepoprawny URL - brak znaku '@'");
-    }
-
-    // Pobierz część po znaku '@'
-    final coordsPart = coordinates.split('@')[1];
-
-    // Rozdziel współrzędne po przecinku
-    final parts = coordsPart.split(',');
-
-    if (parts.length < 2) {
-      throw const FormatException("Niepoprawny format współrzędnych w URL");
-    }
-
-    // Pobierz współrzędne - pierwsza i druga wartość to szerokość i długość geograficzna
-    final lat = double.parse(parts[0].trim());
-    final lng = double.parse(parts[1].trim());
-
-    return LatLng(lat, lng);
-  } catch (e) {
-    // W przypadku błędu zwróć domyślną wartość lub obsłuż błąd
-    print('Błąd parsowania współrzędnych z URL: $e');
-    return const LatLng(0.0, 0.0); // Domyślna lokalizacja (możesz ją zmienić)
-  }
-}

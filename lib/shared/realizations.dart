@@ -48,8 +48,11 @@ Future<bool> pickAndAddRealization(
             ? 'Wysłano prośbę o potwierdzenie realizacji'
             : 'Dodano zdjęcia — firma może je pokazać w portfolio');
     return true;
-  } catch (e) {
-    showToastError(text: 'Błąd: $e');
+  } on StateError catch (e) {
+    showToastError(text: e.message);
+    return false;
+  } catch (_) {
+    showToastError(text: 'Nie udało się dodać zdjęć. Spróbuj ponownie.');
     return false;
   }
 }

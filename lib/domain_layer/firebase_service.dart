@@ -1,11 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:file_picker/file_picker.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'domain_models/app_user.dart';
@@ -13,11 +13,27 @@ import 'domain_models/company_info.dart';
 import 'domain_models/promoVideo.dart';
 import 'domain_models/relation_link.dart';
 
+/// Nieudana operacja na terminie — [message] nadaje się do pokazania.
+class SlotException implements Exception {
+  final String message;
+  const SlotException(this.message);
+
+  @override
+  String toString() => message;
+}
+
+/// Komunikat dla użytkownika po nieudanej rezerwacji lub decyzji o terminie.
+String slotErrorText(Object e) => switch (e) {
+      SlotException() => e.message,
+      FirebaseException(code: 'unavailable' || 'deadline-exceeded') =>
+        'Brak połączenia — spróbuj ponownie',
+      _ => 'Nie udało się — spróbuj ponownie',
+    };
+
 class FirebaseService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
-  final _picker = ImagePicker();
 
 
 
@@ -37,15 +53,20 @@ class FirebaseService {
     String? companyCity,
     Map<String, String>? companyAddress,
   }) async {
+    final UserCredential userCredential;
     try {
-      final userCredential = await _auth.createUserWithEmailAndPassword(
+      userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+    } on FirebaseAuthException catch (e) {
+      // kod (np. email-already-in-use) — strona mapuje go na polski komunikat
+      return e.code;
+    }
 
-      final uid = userCredential.user!.uid;
-
-      await _firestore.collection('users').doc(uid).set({
+    final user = userCredential.user!;
+    try {
+      await _firestore.collection('users').doc(user.uid).set({
         'email': email,
         'firstName': firstName,
         'lastName': lastName,
@@ -71,12 +92,23 @@ class FirebaseService {
         },
         'createdAt': FieldValue.serverTimestamp(),
       });
-
-      return null;
-    } on FirebaseAuthException catch (e) {
-      // kod (np. email-already-in-use) — strona mapuje go na polski komunikat
-      return e.code;
+    } catch (_) {
+      // konto Auth bez profilu kończy się wiecznym spinnerem — wycofujemy je
+      try {
+        await user.delete();
+      } catch (_) {
+        await _auth.signOut();
+      }
+      rethrow;
     }
+    return null;
+  }
+
+  /// Usuwa konto razem z danymi i plikami (Cloud Function z Admin SDK).
+  Future<void> deleteAccount() async {
+    await FirebaseFunctions.instanceFor(region: 'europe-central2')
+        .httpsCallable('deleteAccount')
+        .call<void>();
   }
 
   Future<AppUser?> fetchUser(String userId) async {
@@ -92,32 +124,67 @@ class FirebaseService {
 
 
 
-  Future<UploadTask> uploadWithProgress({
-    required File file,
-    required String fileName,
-  }) async {
-    try {
-      final ref = _storage.ref().child('files/$fileName');
-      final uploadTask = ref.putFile(file);
+  static const _mimeByExt = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.heic': 'image/heic',
+    '.heif': 'image/heif',
+    '.mp4': 'video/mp4',
+    '.m4v': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.3gp': 'video/3gpp',
+    '.webm': 'video/webm',
+    '.mkv': 'video/x-matroska',
+  };
 
-      return uploadTask; // zwracamy task, żeby kontrolować postęp z UI
-    } catch (e) {
-      print (e);
-      rethrow;
-    }
+  static String _ext(String path) {
+    final name = path.split(RegExp(r'[\\/]')).last;
+    final dot = name.lastIndexOf('.');
+    return dot < 0 ? '' : name.substring(dot).toLowerCase();
   }
 
-  Future<UploadTask> uploadThumb({
-    required File file,
-    required String fileName,
-  }) async {
+  /// Wysyła plik do Storage pod ścieżką właściciela; reguły wymagają
+  /// jawnego typu image/* lub video/*.
+  Future<Reference> _putOwnFile(String folder, File file, String mediaType,
+      {String suffix = '', void Function(double progress)? onProgress}) async {
+    final uid = _auth.currentUser!.uid;
+    final ext = _ext(file.path);
+    final ref = _storage.ref(
+        '$folder/$uid/${DateTime.now().millisecondsSinceEpoch}$suffix$ext');
+    final task = ref.putFile(
+        file,
+        SettableMetadata(
+            contentType: _mimeByExt[ext] ??
+                (mediaType == 'video' ? 'video/mp4' : 'image/jpeg')));
+    final sub = task.snapshotEvents.listen((s) {
+      if (s.totalBytes > 0) onProgress?.call(s.bytesTransferred / s.totalBytes);
+    }, onError: (_) {});
     try {
-      final ref = _storage.ref().child('thumbs/$fileName');
-      final uploadTask = ref.putFile(file);
-      return uploadTask; // zwracamy task, żeby kontrolować postęp z UI
-    } catch (e) {
-      rethrow;
+      await task;
+    } finally {
+      await sub.cancel();
     }
+    return ref;
+  }
+
+  /// Plik zgłoszenia/prezentacji/recenzji + miniatura (files/{uid}, thumbs/{uid}).
+  Future<({String fileName, String fileUrl, String thumbUrl})> uploadMedia({
+    required File file,
+    required File thumb,
+    required String mediaType,
+    void Function(double progress)? onProgress,
+  }) async {
+    final thumbRef = await _putOwnFile('thumbs', thumb, 'image');
+    final fileRef = await _putOwnFile('files', file, mediaType,
+        onProgress: onProgress);
+    return (
+      fileName: fileRef.name,
+      fileUrl: await fileRef.getDownloadURL(),
+      thumbUrl: await thumbRef.getDownloadURL(),
+    );
   }
 
   Future<Promo?> getPromoById(String promoId) async {
@@ -134,8 +201,12 @@ class FirebaseService {
     await _firestore.collection('requests').add(req.toMap());
   }
 
+  /// Jedna recenzja klienta na firmę: id = {autor}_{firma} (reguły odrzucą drugą).
   Future<void> saveReviewMetadata(Review rev) async {
-    await _firestore.collection('reviews').add(rev.toMap());
+    await _firestore
+        .collection('reviews')
+        .doc('${rev.userId}_${rev.reviewedUserId}')
+        .set(rev.toMap());
   }
 
   Future<void> deletePromoMetadata(String promoId) async {
@@ -172,14 +243,33 @@ class FirebaseService {
 
     if (promoIds.isEmpty) return [];
 
-    final promosSnapshot = await FirebaseFirestore.instance
-        .collection('promos')
-        .where(FieldPath.documentId, whereIn: promoIds)
-        .get();
+    // whereIn przyjmuje max 30 wartości
+    final byId = <String, Promo>{};
+    for (int i = 0; i < promoIds.length; i += 30) {
+      final chunk = promoIds.sublist(i, min(i + 30, promoIds.length));
+      final snap = await _firestore
+          .collection('promos')
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+      for (final d in snap.docs) {
+        byId[d.id] = Promo.fromDoc(d);
+      }
+    }
 
-    return promosSnapshot.docs
-        .map((doc) => Promo.fromDoc(doc))
-        .toList();
+    // ulubione usuniętych prezentacji sprzątamy przy okazji
+    final gone = favSnapshot.docs.where((d) => !byId.containsKey(d.id));
+    if (gone.isNotEmpty) {
+      final batch = _firestore.batch();
+      for (final d in gone) {
+        batch.delete(d.reference);
+      }
+      batch.commit().catchError((_) {});
+    }
+
+    return [
+      for (final id in promoIds)
+        if (byId[id] != null) byId[id]!,
+    ];
   }
 
 
@@ -287,89 +377,69 @@ class FirebaseService {
         .toList();
   }
 
-  Future<List<Request>> getNearbyRequests({
-    required String userId, // Dodajemy userId, by wiedzieć co ukryć
-    required String category,
-    required String sector,
-    required LatLng myLocation,
-    int limit = 10,
-  }) async {
-    // 1. Pobierz ID pominiętych zgłoszeń
-    final skippedSnapshot = await _firestore
+  Future<Set<String>> _skippedRequestIds(String userId) async {
+    final snap = await _firestore
         .collection('users')
         .doc(userId)
         .collection('skippedRequests')
         .get();
+    return snap.docs.map((d) => d.id).toSet();
+  }
 
-    final skippedIds = skippedSnapshot.docs.map((doc) => doc.id).toSet();
-
-    // 2. Pobierz zgłoszenia (tak jak wcześniej)
-    final querySnapshot = await _firestore
+  /// Zgłoszenia z branży firmy: wszystkie z moją ofertą albo realizowane
+  /// przeze mnie + [newLimit] nowych (pilne, potem najbliższe).
+  /// [myOffers]: requestId → moja oferta.
+  Future<({List<Request> requests, Map<String, Map<String, dynamic>> myOffers})>
+      getNearbyRequests({
+    required String userId,
+    required String category,
+    required String sector,
+    required LatLng myLocation,
+    int newLimit = 10,
+  }) async {
+    final skippedIds = await _skippedRequestIds(userId);
+    final snap = await _firestore
         .collection('requests')
         .where('category', isEqualTo: category)
         .where('sector', isEqualTo: sector)
         .get();
 
-    // 3. Konwersja i FILTROWANIE
-    final requests = querySnapshot.docs
+    final candidates = snap.docs
         .map((doc) => Request.fromDoc(doc))
-        .where((req) => !skippedIds.contains(req.id)) // Usuwamy te, które są na liście skipped
-        // zadania podjęte (obustronnie potwierdzone) widzi tylko firma, która je wzięła
-        .where((req) => req.status != 'closed')
-        .where((req) => req.status != 'taken' || req.takenBy == userId)
+        .where((r) => !skippedIds.contains(r.id) && r.isActiveFor(userId))
         .toList();
 
-    // 4. Obliczanie dystansu i sortowanie: pilne (24h) na górze, potem dystans
-    for (var req in requests) {
-      req.distance = Geolocator.distanceBetween(
+    for (final r in candidates) {
+      r.distance = Geolocator.distanceBetween(
         myLocation.latitude,
         myLocation.longitude,
-        req.location.latitude,
-        req.location.longitude,
+        r.location.latitude,
+        r.location.longitude,
       );
     }
-
-    requests.sort((a, b) {
+    candidates.sort((a, b) {
       if (a.is24 != b.is24) return a.is24 ? -1 : 1;
       return (a.distance ?? 0).compareTo(b.distance ?? 0);
     });
 
-    return requests.take(limit).toList();
-  }
+    final offers = await Future.wait(
+        candidates.map((r) => getMyOffer(r.id, userId)));
+    final myOffers = <String, Map<String, dynamic>>{
+      for (var i = 0; i < candidates.length; i++)
+        if (offers[i] != null) candidates[i].id: offers[i]!,
+    };
 
-
-
-  Future<List<Request>> getNearbyRequestsOld({
-    required String category,
-    required String sector,
-    required LatLng myLocation,
-    int limit = 10, // opcjonalnie ograniczenie liczby wyników
-  }) async {
-    // Pobranie requestów z danej kategorii i sektora
-    final querySnapshot = await FirebaseFirestore.instance
-        .collection('requests')
-        .where('category', isEqualTo: category)
-        .where('sector', isEqualTo: sector)
-        .get();
-
-    // Konwersja dokumentów na obiekty Request
-    final requests = querySnapshot.docs.map((doc) => Request.fromDoc(doc)).toList();
-
-    // Obliczenie odległości i zapisanie w polu distance
-    for (var req in requests) {
-      req.distance = Geolocator.distanceBetween(
-        myLocation.latitude,
-        myLocation.longitude,
-        req.location.latitude,
-        req.location.longitude,
-      );
+    var fresh = 0;
+    final requests = <Request>[];
+    for (final r in candidates) {
+      if (myOffers.containsKey(r.id) || r.takenBy == userId) {
+        requests.add(r);
+      } else if (fresh < newLimit) {
+        fresh++;
+        requests.add(r);
+      }
     }
-
-    // Posortowanie po odległości (najbliższe pierwsze)
-    requests.sort((a, b) => (a.distance ?? 0).compareTo(b.distance ?? 0));
-
-    // Zwrócenie ograniczonej liczby wyników, jeśli podano limit
-    return requests.take(limit).toList();
+    return (requests: requests, myOffers: myOffers);
   }
 
 
@@ -440,11 +510,8 @@ class FirebaseService {
 
 
 
-  Future<void> saveProfile(ProfileInfo profile) async {
-    // Używamy userId jako ID dokumentu (czyli 1 profil = 1 użytkownik)
-    await _firestore.collection('profile').doc(profile.userId).set(profile.toMap());
-  }
-
+  /// Stary opis firmy z kolekcji `profile` (dziś opis to users.bio).
+  // EXPIRES: po uruchomieniu demo/_seed/migrate_profile_bio.js --apply
   Future<ProfileInfo?> getProfileByUser(String userId) async {
     final querySnapshot = await FirebaseFirestore.instance
         .collection('profile')
@@ -466,18 +533,45 @@ class FirebaseService {
 
 
 
+  // update, nie set(merge) — token nie może wskrzesić usuniętego profilu
   Future<void> addFcmToken(String uid, String token) async {
-    await _firestore.collection('users').doc(uid).set(
-        {'fcmTokens': FieldValue.arrayUnion([token])}, SetOptions(merge: true));
+    await _firestore.collection('users').doc(uid).update(
+        {'fcmTokens': FieldValue.arrayUnion([token])});
   }
 
   Future<void> removeFcmToken(String uid, String token) async {
-    await _firestore.collection('users').doc(uid).set(
-        {'fcmTokens': FieldValue.arrayRemove([token])}, SetOptions(merge: true));
+    await _firestore.collection('users').doc(uid).update(
+        {'fcmTokens': FieldValue.arrayRemove([token])});
   }
 
-  Future<void> updateUserData(String userId, Map<String, dynamic> data) async {
-    await _firestore.collection('users').doc(userId).update(data);
+  /// Zapis pól profilu. Bez sieci nie czeka na serwer w nieskończoność —
+  /// zmiana zostaje w kolejce Firestore i wyśle się po powrocie połączenia.
+  /// Zwraca false, gdy serwer jeszcze nie potwierdził zapisu.
+  Future<bool> updateUserData(String userId, Map<String, dynamic> data) async {
+    try {
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .update(data)
+          .timeout(const Duration(seconds: 8));
+      return true;
+    } on TimeoutException {
+      return false;
+    }
+  }
+
+  /// Profil z lokalnej kopii Firestore (razem z niewysłanymi zmianami);
+  /// null, gdy dokumentu nie ma w cache.
+  Future<AppUser?> cachedUser(String userId) async {
+    try {
+      final doc = await _firestore
+          .collection('users')
+          .doc(userId)
+          .get(const GetOptions(source: Source.cache));
+      return doc.exists ? AppUser.fromDoc(doc) : null;
+    } on FirebaseException {
+      return null;
+    }
   }
 
   Future<void> incrementPromoViews(String promoId) async {
@@ -489,12 +583,12 @@ class FirebaseService {
     } catch (_) {}
   }
 
-  /// Liczba zleceń zrealizowanych przez firmę (obustronnie potwierdzonych).
+  /// Liczba zleceń firmy z realizacją potwierdzoną przez klienta.
   Future<int> getCompletedJobsCount(String companyId) async {
     final snap = await _firestore
         .collection('requests')
         .where('takenBy', isEqualTo: companyId)
-        .where('status', isEqualTo: 'taken')
+        .where('realizationStatus', isEqualTo: 'approved')
         .count()
         .get();
     return snap.count ?? 0;
@@ -676,35 +770,21 @@ class FirebaseService {
 
   // ── KALENDARZ FIRMY (sloty na 7 dni do przodu, rezerwacje na kropki) ─────
   // users/{companyId}/slots/{slotId}:
-  //   {start: Timestamp, status: 'free'|'pending'|'accepted'|'rejected',
-  //    bookedBy, bookedByName}
+  //   {start: Timestamp, status: 'free'|'pending'|'accepted',
+  //    bookedBy, bookedByName, bookedAt,
+  //    releasedBy: 'user'|'expired'|'rejected' — kto ostatnio zwolnił termin}
+  // users/{uid}/myBookings/{companyId}_{slotId} — kopia rezerwacji klienta,
+  //   status: 'pending'|'accepted'|'rejected'|'cancelled' (firma usunęła termin)
 
-  Future<List<Map<String, dynamic>>> getSlots(String companyId) async {
-    final now = DateTime.now();
-    final weekAhead = now.add(const Duration(days: 7));
-    final snap = await _firestore
-        .collection('users')
-        .doc(companyId)
-        .collection('slots')
-        .orderBy('start')
-        .get();
+  static const _pendingTtl = Duration(hours: 1);
 
-    final slots = <Map<String, dynamic>>[];
-    for (final d in snap.docs) {
-      final data = d.data();
-      final start = (data['start'] as Timestamp?)?.toDate();
-      if (start == null) continue;
-      if (start.isBefore(now) || start.isAfter(weekAhead)) continue;
-      slots.add({
-        'id': d.id,
-        'start': start,
-        'status': data['status'] ?? 'free',
-        'bookedBy': data['bookedBy'] ?? '',
-        'bookedByName': data['bookedByName'] ?? '',
-      });
-    }
-    return slots;
-  }
+  DocumentReference<Map<String, dynamic>> _slotRef(
+          String companyId, String slotId) =>
+      _firestore
+          .collection('users')
+          .doc(companyId)
+          .collection('slots')
+          .doc(slotId);
 
   DocumentReference<Map<String, dynamic>> _myBookingRef(
           String myUid, String companyId, String slotId) =>
@@ -714,44 +794,196 @@ class FirebaseService {
           .collection('myBookings')
           .doc('${companyId}_$slotId');
 
-  /// User rezerwuje slot — tylko wolny (transakcja chroni przed wyścigiem).
-  /// Kopia rezerwacji trafia do users/{ja}/myBookings (lista „Rezerwacje").
+  /// Żółta rezerwacja (slot albo kopia w myBookings) bez decyzji firmy
+  /// wygasa po godzinie.
+  bool _pendingExpired(Map<String, dynamic> d) {
+    final bookedAt = (d['bookedAt'] as Timestamp?)?.toDate();
+    return d['status'] == 'pending' &&
+        bookedAt != null &&
+        DateTime.now().difference(bookedAt) >= _pendingTtl;
+  }
+
+  /// Pola zwolnionego terminu; po [releasedBy] Cloud Function wie,
+  /// kogo powiadomić.
+  Map<String, dynamic> _freed(String releasedBy) => {
+        'status': 'free',
+        'bookedBy': '',
+        'bookedByName': '',
+        'releasedBy': releasedBy,
+      };
+
+  /// Sloty z 7 dni do przodu; wygasła żółta rezerwacja wygląda jak wolna.
+  List<Map<String, dynamic>> _slotsFromDocs(
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+    final now = DateTime.now();
+    final weekAhead = now.add(const Duration(days: 7));
+    final slots = <Map<String, dynamic>>[];
+    for (final d in docs) {
+      final data = d.data();
+      final start = (data['start'] as Timestamp?)?.toDate();
+      if (start == null) continue;
+      if (start.isBefore(now) || start.isAfter(weekAhead)) continue;
+      final expired = _pendingExpired(data);
+      slots.add({
+        'id': d.id,
+        'start': start,
+        'status': expired ? 'free' : (data['status'] ?? 'free'),
+        'bookedBy': expired ? '' : (data['bookedBy'] ?? ''),
+        'bookedByName': expired ? '' : (data['bookedByName'] ?? ''),
+      });
+    }
+    return slots;
+  }
+
+  Future<List<Map<String, dynamic>>> getSlots(String companyId) async {
+    final snap = await _firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('slots')
+        .orderBy('start')
+        .get();
+    return _slotsFromDocs(snap.docs);
+  }
+
+  /// Live-podgląd slotów (7 dni).
+  Stream<List<Map<String, dynamic>>> slotsStream(String companyId) {
+    return _firestore
+        .collection('users')
+        .doc(companyId)
+        .collection('slots')
+        .orderBy('start')
+        .snapshots()
+        .map((snap) => _slotsFromDocs(snap.docs));
+  }
+
+  /// Zwalnia wygasłą żółtą rezerwację osobnym zapisem, żeby Cloud Function
+  /// powiadomiła klienta. Zwraca true, gdy coś zwolniono.
+  Future<bool> _releaseIfExpired(DocumentReference<Map<String, dynamic>> ref) =>
+      _firestore.runTransaction((tx) async {
+        final d = (await tx.get(ref)).data();
+        if (d == null || !_pendingExpired(d)) return false;
+        tx.update(ref, _freed('expired'));
+        return true;
+      });
+
+  Future<String> _companyNameTx(Transaction tx, String companyId) async {
+    final d = (await tx.get(_firestore.collection('users').doc(companyId))).data();
+    return (d?['companyName'] as String?) ?? 'Firma';
+  }
+
+  /// Decyzja firmy w kopii rezerwacji klienta — z pełnymi polami, bo kopii
+  /// mogło już nie być.
+  void _decideBookingTx(Transaction tx, Map<String, dynamic> slot,
+      {required String client,
+      required String companyId,
+      required String companyName,
+      required String slotId,
+      required String status}) {
+    tx.set(
+        _myBookingRef(client, companyId, slotId),
+        {
+          'companyId': companyId,
+          'companyName': companyName,
+          'slotId': slotId,
+          'start': slot['start'],
+          'status': status,
+          'decidedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true));
+  }
+
+  /// Dokumenty relacji klient↔firma (clients/{klient}, myCompanies/{firma})
+  /// — odczyt w transakcji przed zapisami.
+  Future<List<DocumentSnapshot<Map<String, dynamic>>>> _readRelationTx(
+          Transaction tx, String companyId, String userId) async =>
+      [
+        await tx.get(_firestore
+            .collection('users')
+            .doc(companyId)
+            .collection('clients')
+            .doc(userId)),
+        await tx.get(_firestore
+            .collection('users')
+            .doc(userId)
+            .collection('myCompanies')
+            .doc(companyId)),
+      ];
+
+  /// Zdejmuje z relacji termin albo zgłoszenie; relacja bez żadnego źródła
+  /// (zgłoszenia, rezerwacji, prośby o kontakt) jest kasowana.
+  void _unlinkTx(Transaction tx,
+      List<DocumentSnapshot<Map<String, dynamic>>> relation,
+      {String? slotId, String? requestId}) {
+    for (final s in relation) {
+      final d = s.data();
+      if (d == null) continue;
+      final slotIds = (d['slotIds'] as List?) ?? const [];
+      final requestIds = (d['requestIds'] as List?) ?? const [];
+      // EXPIRES: po uruchomieniu demo/_seed/migrate_relation_request_id.js --apply
+      final legacy = d['requestId'] as String? ?? '';
+      if (!slotIds.contains(slotId) &&
+          !requestIds.contains(requestId) &&
+          (requestId == null || legacy != requestId)) {
+        continue;
+      }
+      final left = slotIds.any((id) => id != slotId) ||
+          requestIds.any((id) => id != requestId) ||
+          (legacy.isNotEmpty && legacy != requestId) ||
+          ((d['contactRequestId'] as String?) ?? '').isNotEmpty;
+      if (!left) {
+        tx.delete(s.reference);
+      } else if (slotId != null) {
+        tx.update(s.reference, {
+          'slotIds': FieldValue.arrayRemove([slotId])
+        });
+      } else {
+        tx.update(s.reference, {
+          'requestIds': FieldValue.arrayRemove([requestId]),
+          if (legacy == requestId) 'requestId': FieldValue.delete(),
+        });
+      }
+    }
+  }
+
+  /// Klient rezerwuje wolny termin (transakcja chroni przed wyścigiem);
+  /// wygasłą żółtą rezerwację przejmuje jak wolny — poprzedniego klienta
+  /// powiadamia Cloud Function. Kopia trafia w tej samej transakcji do
+  /// users/{ja}/myBookings. Rzuca [SlotException] z komunikatem dla użytkownika.
   Future<void> bookSlot({
     required String companyId,
     required String slotId,
     required String myUid,
     required String myName,
   }) async {
-    final ref = _firestore
-        .collection('users')
-        .doc(companyId)
-        .collection('slots')
-        .doc(slotId);
-    DateTime? start;
+    if (companyId == myUid) {
+      throw const SlotException('To Twój termin — nie możesz go zarezerwować');
+    }
+    final ref = _slotRef(companyId, slotId);
     await _firestore.runTransaction((tx) async {
-      final doc = await tx.get(ref);
-      final status = doc.data()?['status'] ?? 'free';
-      if (status != 'free') {
-        throw Exception('Termin jest już zajęty');
+      final slot = (await tx.get(ref)).data();
+      if (slot == null) throw const SlotException('Firma usunęła ten termin');
+      final start = (slot['start'] as Timestamp?)?.toDate();
+      if (start == null || start.isBefore(DateTime.now())) {
+        throw const SlotException('Ten termin już minął');
       }
-      start = (doc.data()?['start'] as Timestamp?)?.toDate();
+      if ((slot['status'] ?? 'free') != 'free' && !_pendingExpired(slot)) {
+        throw const SlotException('Ten termin jest już zajęty');
+      }
+      final companyName = await _companyNameTx(tx, companyId);
       tx.update(ref, {
         'status': 'pending',
         'bookedBy': myUid,
         'bookedByName': myName,
         'bookedAt': FieldValue.serverTimestamp(),
       });
-    });
-
-    final companyDoc =
-        await _firestore.collection('users').doc(companyId).get();
-    await _myBookingRef(myUid, companyId, slotId).set({
-      'companyId': companyId,
-      'companyName': companyDoc.data()?['companyName'] ?? 'Firma',
-      'slotId': slotId,
-      if (start != null) 'start': Timestamp.fromDate(start!),
-      'status': 'pending',
-      'bookedAt': FieldValue.serverTimestamp(),
+      tx.set(_myBookingRef(myUid, companyId, slotId), {
+        'companyId': companyId,
+        'companyName': companyName,
+        'slotId': slotId,
+        'start': Timestamp.fromDate(start),
+        'status': 'pending',
+        'bookedAt': FieldValue.serverTimestamp(),
+      });
     });
 
     // rezerwacja też buduje relację: klient u firmy i firma u klienta
@@ -759,8 +991,9 @@ class FirebaseService {
         companyId: companyId, userId: myUid, requestId: 'slot_$slotId');
   }
 
-  /// Rezerwacje usera (firma + godzina + status). Czyści przeszłe
-  /// i wygasłe żółte (>1h bez decyzji firmy).
+  /// Nadchodzące rezerwacje usera (firma + godzina + status). Sprząta wpisy
+  /// minione i wygasłe żółte; minione przyjęte zostają w bazie — są dowodem
+  /// wizyty, który uprawnia do recenzji (canReviewCompany).
   Future<List<Map<String, dynamic>>> getMyBookings(String myUid) async {
     final snap = await _firestore
         .collection('users')
@@ -768,19 +1001,13 @@ class FirebaseService {
         .collection('myBookings')
         .get();
     final now = DateTime.now();
-    final cutoff = now.subtract(const Duration(hours: 1));
     final out = <Map<String, dynamic>>[];
     final toDelete = <DocumentReference>[];
     for (final d in snap.docs) {
       final data = d.data();
       final start = (data['start'] as Timestamp?)?.toDate();
-      final bookedAt = (data['bookedAt'] as Timestamp?)?.toDate();
-      final status = data['status'] ?? 'pending';
-      final expired = status == 'pending' &&
-          bookedAt != null &&
-          bookedAt.isBefore(cutoff);
-      if (start == null || start.isBefore(now) || expired) {
-        toDelete.add(d.reference);
+      if (start == null || start.isBefore(now) || _pendingExpired(data)) {
+        if (data['status'] != 'accepted') toDelete.add(d.reference);
         continue;
       }
       out.add({...data, 'start': start});
@@ -790,99 +1017,69 @@ class FirebaseService {
       for (final r in toDelete) {
         batch.delete(r);
       }
-      batch.commit();
+      // sprzątanie w tle — nieudane powtórzy się przy następnym odczycie
+      batch.commit().ignore();
     }
     out.sort(
         (a, b) => (a['start'] as DateTime).compareTo(b['start'] as DateTime));
     return out;
   }
 
-  /// Live-podgląd slotów (7 dni). Żółte (pending) starsze niż 1h są
-  /// pokazywane jako wolne — fizyczne czyszczenie robi cleanupOldSlots.
-  Stream<List<Map<String, dynamic>>> slotsStream(String companyId) {
-    return _firestore
-        .collection('users')
-        .doc(companyId)
-        .collection('slots')
-        .orderBy('start')
-        .snapshots()
-        .map((snap) {
-      final now = DateTime.now();
-      final weekAhead = now.add(const Duration(days: 7));
-      final slots = <Map<String, dynamic>>[];
-      for (final d in snap.docs) {
-        final data = d.data();
-        final start = (data['start'] as Timestamp?)?.toDate();
-        if (start == null) continue;
-        if (start.isBefore(now) || start.isAfter(weekAhead)) continue;
-
-        var status = (data['status'] ?? 'free') as String;
-        var bookedBy = (data['bookedBy'] ?? '') as String;
-        var bookedByName = (data['bookedByName'] ?? '') as String;
-        final bookedAt = (data['bookedAt'] as Timestamp?)?.toDate();
-        // żółta rezerwacja wygasa po godzinie
-        if (status == 'pending' &&
-            bookedAt != null &&
-            now.difference(bookedAt).inMinutes >= 60) {
-          status = 'free';
-          bookedBy = '';
-          bookedByName = '';
-        }
-        slots.add({
-          'id': d.id,
-          'start': start,
-          'status': status,
-          'bookedBy': bookedBy,
-          'bookedByName': bookedByName,
-        });
-      }
-      return slots;
-    });
-  }
-
-  /// User odwołuje własną rezerwację → slot wraca do puli.
+  /// Klient odwołuje rezerwację albo usuwa z listy wpis odrzucony / odwołany
+  /// przez firmę. Termin wraca do puli tylko wtedy, gdy nadal zajmuje go ten
+  /// klient; kopia w myBookings znika zawsze (także gdy terminu już nie ma).
   Future<void> cancelSlotBooking({
     required String companyId,
     required String slotId,
-    String? myUid,
+    required String myUid,
   }) async {
-    final batch = _firestore.batch();
-    batch.update(
-        _firestore
-            .collection('users')
-            .doc(companyId)
-            .collection('slots')
-            .doc(slotId),
-        {'status': 'free', 'bookedBy': '', 'bookedByName': ''});
-    if (myUid != null && myUid.isNotEmpty) {
-      batch.delete(_myBookingRef(myUid, companyId, slotId));
-    }
-    await batch.commit();
+    final ref = _slotRef(companyId, slotId);
+    await _firestore.runTransaction((tx) async {
+      final slot = (await tx.get(ref)).data();
+      final relation = await _readRelationTx(tx, companyId, myUid);
+      if (slot != null &&
+          slot['bookedBy'] == myUid &&
+          slot['status'] != 'free') {
+        tx.update(ref, _freed('user'));
+      }
+      _unlinkTx(tx, relation, slotId: slotId);
+      tx.delete(_myBookingRef(myUid, companyId, slotId));
+    });
   }
 
-  /// Firma akceptuje/odrzuca rezerwację (aktualizuje też kopię u klienta).
+  /// Firma przyjmuje albo odrzuca rezerwację klienta [bookedBy]. Odrzucenie
+  /// zwalnia termin — status 'rejected' zostaje tylko w myBookings klienta.
+  /// Rzuca [SlotException], gdy rezerwacja jest już nieaktualna.
   Future<void> setSlotStatus({
     required String companyId,
     required String slotId,
     required String status,
-    String? bookedBy,
+    required String bookedBy,
   }) async {
-    final batch = _firestore.batch();
-    batch.update(
-        _firestore
-            .collection('users')
-            .doc(companyId)
-            .collection('slots')
-            .doc(slotId),
-        {'status': status});
-    if (bookedBy != null && bookedBy.isNotEmpty) {
-      // set+merge — stare rezerwacje mogą nie mieć kopii u klienta
-      batch.set(
-          _myBookingRef(bookedBy, companyId, slotId),
-          {'status': status, 'decidedAt': FieldValue.serverTimestamp()},
-          SetOptions(merge: true));
+    final ref = _slotRef(companyId, slotId);
+    if (await _releaseIfExpired(ref)) {
+      throw const SlotException('Rezerwacja wygasła — minęła godzina bez decyzji');
     }
-    await batch.commit();
+    await _firestore.runTransaction((tx) async {
+      final slot = (await tx.get(ref)).data();
+      if (slot == null ||
+          slot['status'] != 'pending' ||
+          slot['bookedBy'] != bookedBy) {
+        throw const SlotException('Ta rezerwacja jest już nieaktualna');
+      }
+      final companyName = await _companyNameTx(tx, companyId);
+      final relation = status == 'rejected'
+          ? await _readRelationTx(tx, companyId, bookedBy)
+          : null;
+      tx.update(ref, status == 'rejected' ? _freed('rejected') : {'status': status});
+      _decideBookingTx(tx, slot,
+          client: bookedBy,
+          companyId: companyId,
+          companyName: companyName,
+          slotId: slotId,
+          status: status);
+      if (relation != null) _unlinkTx(tx, relation, slotId: slotId);
+    });
   }
 
   Future<void> addSlot(String companyId, DateTime start) async {
@@ -908,45 +1105,59 @@ class FirebaseService {
     await batch.commit();
   }
 
+  /// Firma usuwa termin. Zajęty (żółty/zielony) trafia do myBookings klienta
+  /// jako 'cancelled' — o odwołaniu powiadamia go Cloud Function.
   Future<void> removeSlot(String companyId, String slotId) async {
-    await _firestore
-        .collection('users')
-        .doc(companyId)
-        .collection('slots')
-        .doc(slotId)
-        .delete();
+    final ref = _slotRef(companyId, slotId);
+    await _releaseIfExpired(ref);
+    await _firestore.runTransaction((tx) async {
+      final slot = (await tx.get(ref)).data();
+      if (slot == null) return;
+      final client = (slot['bookedBy'] as String?) ?? '';
+      if (client.isNotEmpty &&
+          (slot['status'] == 'pending' || slot['status'] == 'accepted')) {
+        final companyName = await _companyNameTx(tx, companyId);
+        final relation = await _readRelationTx(tx, companyId, client);
+        _decideBookingTx(tx, slot,
+            client: client,
+            companyId: companyId,
+            companyName: companyName,
+            slotId: slotId,
+            status: 'cancelled');
+        _unlinkTx(tx, relation, slotId: slotId);
+      }
+      tx.delete(ref);
+    });
   }
 
-  /// Sprzątanie: kasuje przeterminowane sloty i zwalnia żółte rezerwacje
-  /// starsze niż 1h (wołane przy wejściu właściciela w kalendarz).
+  /// Sprzątanie przy wejściu firmy w kalendarz: kasuje minione sloty
+  /// i zwalnia wygasłe żółte rezerwacje.
   Future<void> cleanupOldSlots(String companyId) async {
     final col =
         _firestore.collection('users').doc(companyId).collection('slots');
 
     final old = await col.where('start', isLessThan: Timestamp.now()).get();
-    final pending = await col.where('status', isEqualTo: 'pending').get();
-    final cutoff = DateTime.now().subtract(const Duration(hours: 1));
-    final expiredPending = pending.docs.where((d) {
-      final bookedAt = (d.data()['bookedAt'] as Timestamp?)?.toDate();
-      return bookedAt != null && bookedAt.isBefore(cutoff);
-    }).toList();
+    // batch przyjmuje max 500 zapisów
+    for (var i = 0; i < old.docs.length; i += 400) {
+      final batch = _firestore.batch();
+      for (final d in old.docs.skip(i).take(400)) {
+        batch.delete(d.reference);
+      }
+      await batch.commit();
+    }
 
-    if (old.docs.isEmpty && expiredPending.isEmpty) return;
-    final batch = _firestore.batch();
-    for (final d in old.docs) {
-      batch.delete(d.reference);
+    final oldIds = {for (final d in old.docs) d.id};
+    final pending = await col.where('status', isEqualTo: 'pending').get();
+    for (final d in pending.docs) {
+      if (oldIds.contains(d.id) || !_pendingExpired(d.data())) continue;
+      await _releaseIfExpired(d.reference);
     }
-    for (final d in expiredPending) {
-      if (old.docs.any((o) => o.id == d.id)) continue;
-      batch.update(d.reference,
-          {'status': 'free', 'bookedBy': '', 'bookedByName': ''});
-    }
-    await batch.commit();
   }
 
   // ── OFERTY DO ZGŁOSZEŃ (firma pisze, user daje ✔ / ? / ✖) ────────────────
   // requests/{id}/offers/{companyId}: {companyId, companyName, message,
-  //   status: 'pending'|'maybe'|'accepted'|'rejected', timestamp}
+  //   status: 'pending'|'maybe'|'accepted'|'rejected'|'closed', timestamp}
+  //   closed = klient wybrał inną ofertę
 
   Future<void> sendOffer({
     required String requestId,
@@ -1014,16 +1225,6 @@ class FirebaseService {
     };
   }
 
-  /// Statusy MOICH ofert dla listy zgłoszeń (none = brak oferty).
-  Future<Map<String, String>> getMyOfferStatuses(
-      List<String> requestIds, String companyId) async {
-    final entries = await Future.wait(requestIds.map((id) async {
-      final o = await getMyOffer(id, companyId);
-      return MapEntry(id, (o?['status'] ?? 'none') as String);
-    }));
-    return Map.fromEntries(entries);
-  }
-
   Future<List<Map<String, dynamic>>> getOffers(String requestId) async {
     final snap = await _firestore
         .collection('requests')
@@ -1034,7 +1235,8 @@ class FirebaseService {
     return snap.docs.map((d) => d.data()).toList();
   }
 
-  /// ✔ accept — blokuje zgłoszenie na tę firmę i tworzy relację klient↔firma.
+  /// ✔ accept — blokuje zgłoszenie na tę firmę, pozostałe oferty zamyka
+  ///   ('closed') i tworzy relację klient↔firma.
   /// ? maybe — znacznik „klient się zastanawia".
   /// ✖ reject — całkowite odrzucenie firmy (nie może ofertować ponownie).
   Future<void> setOfferStatus({
@@ -1043,15 +1245,21 @@ class FirebaseService {
     required String companyName,
     required String status,
   }) async {
-    await _firestore
-        .collection('requests')
-        .doc(request.id)
-        .collection('offers')
-        .doc(companyId)
-        .update({'status': status, 'decidedAt': FieldValue.serverTimestamp()});
+    final reqRef = _firestore.collection('requests').doc(request.id);
+    final offersRef = reqRef.collection('offers');
+    final batch = _firestore.batch();
+    batch.update(offersRef.doc(companyId),
+        {'status': status, 'decidedAt': FieldValue.serverTimestamp()});
 
     if (status == 'accepted') {
-      await _firestore.collection('requests').doc(request.id).update({
+      final others =
+          await offersRef.where('status', whereIn: ['pending', 'maybe']).get();
+      for (final d in others.docs) {
+        if (d.id == companyId) continue;
+        batch.update(d.reference,
+            {'status': 'closed', 'decidedAt': FieldValue.serverTimestamp()});
+      }
+      batch.update(reqRef, {
         'takenBy': companyId,
         'takenByName': companyName,
         'confirmedByCompany': true,
@@ -1059,45 +1267,52 @@ class FirebaseService {
         'status': 'taken',
         'takenAt': FieldValue.serverTimestamp(),
       });
+    }
+    await batch.commit();
+
+    if (status == 'accepted') {
       await _linkClient(
           companyId: companyId, userId: request.userId, requestId: request.id);
     }
   }
 
-  /// Odblokowanie zadania przez usera — wraca do puli, oferta firmy do
-  /// 'pending', relacja klient↔firma z tego zadania jest usuwana.
+  /// Odblokowanie zadania przez klienta — wraca do puli, oferta firmy
+  /// i oferty zamknięte przy akceptacji wracają do 'pending', zdjęcia
+  /// realizacji tej firmy są kasowane, a z relacji klient↔firma znika
+  /// tylko to zgłoszenie.
   Future<void> unlockRequest(Request request) async {
     final companyId = request.takenBy;
-    await _firestore.collection('requests').doc(request.id).update({
+    final reqRef = _firestore.collection('requests').doc(request.id);
+    final batch = _firestore.batch();
+    batch.update(reqRef, {
       'takenBy': '',
       'takenByName': '',
       'confirmedByCompany': false,
       'confirmedByUser': false,
       'status': 'open',
+      'realizationStatus': FieldValue.delete(),
     });
-    if (companyId.isEmpty) return;
-    try {
-      await _firestore
-          .collection('requests')
-          .doc(request.id)
-          .collection('offers')
-          .doc(companyId)
-          .update({'status': 'pending'});
-    } catch (_) {}
-
-    // zerwana realizacja: kasujemy prośby o potwierdzenie i zdjęcia tej firmy
-    try {
+    final offers = await reqRef
+        .collection('offers')
+        .where('status', whereIn: ['accepted', 'closed']).get();
+    for (final d in offers.docs) {
+      batch.update(d.reference, {'status': 'pending'});
+    }
+    if (companyId.isNotEmpty) {
       final photos = await _firestore
           .collection('realizations')
           .where('requestId', isEqualTo: request.id)
+          .where('userId', isEqualTo: request.userId)
           .where('companyId', isEqualTo: companyId)
           .get();
       for (final d in photos.docs) {
-        await d.reference.delete();
+        if (d.data()['addedByRole'] != 'user') batch.delete(d.reference);
       }
-    } catch (_) {}
+    }
+    await batch.commit();
+    if (companyId.isEmpty) return;
 
-    // i powiadomienia o tej realizacji, żeby nie wisiały w dzwonku
+    // powiadomienia o tej realizacji, żeby nie wisiały w dzwonku
     try {
       final notifs = await _firestore
           .collection('notifications')
@@ -1109,18 +1324,10 @@ class FirebaseService {
         if (t.startsWith('realization')) await d.reference.delete();
       }
     } catch (_) {}
-    final batch = _firestore.batch();
-    batch.delete(_firestore
-        .collection('users')
-        .doc(companyId)
-        .collection('clients')
-        .doc(request.userId));
-    batch.delete(_firestore
-        .collection('users')
-        .doc(request.userId)
-        .collection('myCompanies')
-        .doc(companyId));
-    await batch.commit();
+
+    await _firestore.runTransaction((tx) async => _unlinkTx(
+        tx, await _readRelationTx(tx, companyId, request.userId),
+        requestId: request.id));
   }
 
   Future<void> _linkClient({
@@ -1190,28 +1397,32 @@ class FirebaseService {
     return Request.fromDoc(doc);
   }
 
-  /// Pojedynczy slot firmy (start + status) — do odnośnika „Rezerwacja".
-  Future<SlotRef?> getSlotRef(String companyId, String slotId) async {
-    final doc = await _firestore
-        .collection('users')
-        .doc(companyId)
-        .collection('slots')
-        .doc(slotId)
-        .get();
+  /// Aktualna rezerwacja klienta [clientId] w slocie firmy — do odnośnika
+  /// „Rezerwacja". Null, gdy termin zniknął, jest wolny, wygasł albo zajął
+  /// go ktoś inny (wspólny slot nie mówi nic o dawnych rezerwujących).
+  Future<SlotRef?> getSlotRef(
+      String companyId, String slotId, String clientId) async {
+    final doc = await _slotRef(companyId, slotId).get();
     final d = doc.data();
-    if (d == null || d['start'] == null) return null;
+    if (d == null || d['start'] == null || d['bookedBy'] != clientId) {
+      return null;
+    }
+    final status = d['status'] as String?;
+    if (status != 'pending' && status != 'accepted') return null;
+    if (_pendingExpired(d)) return null;
     return SlotRef(
       id: doc.id,
       companyId: companyId,
       start: (d['start'] as Timestamp).toDate(),
-      status: (d['status'] as String?) ?? 'free',
+      status: status!,
     );
   }
 
   /// Zbiera relację z dokumentu clients/myCompanies: nowe pola tablicowe
   /// + stare pojedyncze `requestId` (może być 'slot_<id>').
-  Future<RelationLink?> _linkFromDoc(
-      DocumentSnapshot<Map<String, dynamic>> d, String personId, String companyId) async {
+  /// [clientId] — klient tej relacji (rezerwacje pokazujemy tylko jego).
+  Future<RelationLink?> _linkFromDoc(DocumentSnapshot<Map<String, dynamic>> d,
+      String personId, String companyId, String clientId) async {
     final u = await fetchUser(personId);
     if (u == null) return null;
     final data = d.data() ?? {};
@@ -1221,6 +1432,7 @@ class FirebaseService {
     final slotIds = <String>{
       ...((data['slotIds'] as List?)?.cast<String>() ?? const []),
     };
+    // EXPIRES: po uruchomieniu demo/_seed/migrate_relation_request_id.js --apply
     final legacy = data['requestId'] as String?;
     if (legacy != null && legacy.isNotEmpty) {
       if (legacy.startsWith('slot_')) {
@@ -1236,7 +1448,7 @@ class FirebaseService {
     }
     final slots = <SlotRef>[];
     for (final id in slotIds) {
-      final s = await getSlotRef(companyId, id);
+      final s = await getSlotRef(companyId, id, clientId);
       if (s != null) slots.add(s);
     }
     slots.sort((a, b) => b.start.compareTo(a.start));
@@ -1273,7 +1485,7 @@ class FirebaseService {
         .get();
     final out = <RelationLink>[];
     for (final d in snap.docs) {
-      final l = await _linkFromDoc(d, d.id, companyId);
+      final l = await _linkFromDoc(d, d.id, companyId, d.id);
       if (l != null) out.add(l);
     }
     out.sort((a, b) =>
@@ -1290,7 +1502,7 @@ class FirebaseService {
         .get();
     final out = <RelationLink>[];
     for (final d in snap.docs) {
-      final l = await _linkFromDoc(d, d.id, d.id);
+      final l = await _linkFromDoc(d, d.id, d.id, userId);
       if (l != null) out.add(l);
     }
     out.sort((a, b) =>
@@ -1332,24 +1544,32 @@ class FirebaseService {
 
   // ── PILNE ZGŁOSZENIA W POBLIŻU (powiadomienie in-app) ────────────────────
 
+  /// Pilne zgłoszenia z ostatniej doby — te same, które firma widzi
+  /// na liście (branża, bez pominiętych, tylko otwarte).
   Future<int> getUrgentNearbyCount({
     required String companyId,
     required String category,
+    required String sector,
     required LatLng myLocation,
     double radiusKm = 30,
   }) async {
     final since = DateTime.now().subtract(const Duration(hours: 24));
+    final skippedIds = await _skippedRequestIds(companyId);
     final snap = await _firestore
         .collection('requests')
         .where('category', isEqualTo: category)
+        .where('sector', isEqualTo: sector)
         .where('is24', isEqualTo: true)
         .get();
 
     int count = 0;
     for (final d in snap.docs) {
       final req = Request.fromDoc(d);
-      if (req.status == 'taken') continue;
-      if (req.userId == companyId) continue;
+      if (req.status != 'open' ||
+          !req.isActiveFor(companyId) ||
+          skippedIds.contains(req.id)) {
+        continue;
+      }
       if (req.timestamp == null || req.timestamp!.isBefore(since)) continue;
       final distMeters = Geolocator.distanceBetween(
         myLocation.latitude,
@@ -1364,7 +1584,10 @@ class FirebaseService {
 
   // ── REALIZACJE (zdjęcia wykonanych zleceń) ───────────────────────────────
   // Kolekcja realizations: {companyId, requestId, category, imageUrl, timestamp}
+  // requests/{id}.realizationStatus: pending (firma dodała) → approved | rejected
 
+  /// Firma ma przy zgłoszeniu jedną realizację czekającą lub potwierdzoną;
+  /// odrzucona jest zastępowana nową.
   Future<void> addRealization({
     required String companyId,
     required String requestId,
@@ -1375,24 +1598,36 @@ class FirebaseService {
     /// 'company' = wykonawca prosi o potwierdzenie, 'user' = zdjęcia od klienta
     String addedByRole = 'company',
   }) async {
-    final ts = DateTime.now().millisecondsSinceEpoch;
-    final ref = _storage.ref().child('realizations/$ts.jpg');
-    await ref.putFile(image);
-    final url = await ref.getDownloadURL();
+    final realizations = _firestore.collection('realizations');
+    final batch = _firestore.batch();
+    if (addedByRole == 'company') {
+      final existing = await realizations
+          .where('requestId', isEqualTo: requestId)
+          .where('companyId', isEqualTo: companyId)
+          .get();
+      for (final d in existing.docs) {
+        if (d.data()['addedByRole'] == 'user') continue;
+        if ((d.data()['status'] ?? 'approved') != 'rejected') {
+          throw StateError('Zdjęcia realizacji są już dodane');
+        }
+        batch.delete(d.reference);
+      }
+    }
 
+    final ref = await _putOwnFile('realizations', image, 'image');
     String? beforeUrl;
     if (beforeImage != null) {
-      final beforeRef = _storage.ref().child('realizations/${ts}_before.jpg');
-      await beforeRef.putFile(beforeImage);
+      final beforeRef = await _putOwnFile('realizations', beforeImage, 'image',
+          suffix: '_before');
       beforeUrl = await beforeRef.getDownloadURL();
     }
 
-    await _firestore.collection('realizations').add({
+    batch.set(realizations.doc(), {
       'companyId': companyId,
       'requestId': requestId,
       'userId': requestOwnerId,
       'category': category,
-      'imageUrl': url,
+      'imageUrl': await ref.getDownloadURL(),
       if (beforeUrl != null) 'beforeUrl': beforeUrl,
       'addedByRole': addedByRole,
       // zdjęcia firmy czekają na potwierdzenie klienta; zdjęcia klienta są
@@ -1401,6 +1636,20 @@ class FirebaseService {
       'publishedByCompany': false,
       'timestamp': FieldValue.serverTimestamp(),
     });
+    if (addedByRole == 'company') {
+      batch.update(_firestore.collection('requests').doc(requestId),
+          {'realizationStatus': 'pending'});
+    }
+    await batch.commit();
+  }
+
+  /// Firma wycofuje swoje zdjęcia realizacji — zgłoszenie wraca do realizacji.
+  Future<void> withdrawRealization(String id, String requestId) async {
+    final batch = _firestore.batch();
+    batch.delete(_firestore.collection('realizations').doc(id));
+    batch.update(_firestore.collection('requests').doc(requestId),
+        {'realizationStatus': FieldValue.delete()});
+    await batch.commit();
   }
 
   /// Firma publikuje w portfolio zdjęcia dodane przez klienta.
@@ -1413,35 +1662,36 @@ class FirebaseService {
 
   // ── POWIADOMIENIA (dzwonek) ───────────────────────────────────────────────
 
-  /// [companyMode] filtruje alerty do aktualnego trybu konta
-  /// (firma widzi swoje, klient swoje; rozmowy widać zawsze).
+  /// Wpis widoczny w danym trybie konta: firma widzi swoje, klient swoje,
+  /// 'both' (np. rozmowy) zawsze.
+  static bool isNotificationForMode(Map<String, dynamic> n, bool companyMode) {
+    final aud = (n['audience'] as String?) ?? 'both';
+    return aud == 'both' || aud == (companyMode ? 'company' : 'user');
+  }
+
+  /// 60 najnowszych wpisów; [companyMode] zawęża je do trybu konta.
   Stream<List<Map<String, dynamic>>> notificationsStream(String uid,
       {bool? companyMode}) {
     return _firestore
         .collection('notifications')
         .where('userId', isEqualTo: uid)
+        .orderBy('createdAt', descending: true)
+        .limit(60)
         .snapshots()
-        .map((snap) {
-      final list = snap.docs
-          .map((d) => {'id': d.id, ...d.data()})
-          .where((n) {
-            if (companyMode == null) return true;
-            final aud = (n['audience'] as String?) ?? 'both';
-            if (aud == 'both') return true;
-            return companyMode ? aud == 'company' : aud == 'user';
-          })
-          .toList();
-      list.sort((a, b) {
-        final ta = a['createdAt'], tb = b['createdAt'];
-        if (ta is! Timestamp || tb is! Timestamp) return 0;
-        return tb.compareTo(ta);
-      });
-      return list.take(60).toList();
-    });
+        .map((snap) => snap.docs
+            .map((d) => {'id': d.id, ...d.data()})
+            .where((n) =>
+                companyMode == null || isNotificationForMode(n, companyMode))
+            .toList());
   }
 
   Future<void> markNotificationRead(String id) async {
-    await _firestore.collection('notifications').doc(id).update({'read': true});
+    try {
+      await _firestore.collection('notifications').doc(id).update({'read': true});
+    } on FirebaseException catch (e) {
+      // wpis mógł zostać już usunięty
+      if (e.code != 'not-found') rethrow;
+    }
   }
 
   Future<void> markAllNotificationsRead(String uid, {bool? companyMode}) async {
@@ -1452,10 +1702,8 @@ class FirebaseService {
         .get();
     final batch = _firestore.batch();
     for (final d in snap.docs) {
-      if (companyMode != null) {
-        final aud = (d.data()['audience'] as String?) ?? 'both';
-        if (aud != 'both' &&
-            (companyMode ? aud != 'company' : aud != 'user')) continue;
+      if (companyMode != null && !isNotificationForMode(d.data(), companyMode)) {
+        continue;
       }
       batch.update(d.reference, {'read': true});
     }
@@ -1467,7 +1715,8 @@ class FirebaseService {
   }
 
   /// Recenzję może wystawić tylko klient z potwierdzoną realizacją
-  /// albo przyjętym terminem w tej firmie.
+  /// albo przyjętym terminem w tej firmie (także minionym — getMyBookings
+  /// nie kasuje przyjętych).
   Future<bool> canReviewCompany(String myUid, String companyId) async {
     if (myUid.isEmpty) return false;
     final bookings = await _firestore
@@ -1498,19 +1747,33 @@ class FirebaseService {
     });
   }
 
-  /// Decyzja klienta o zdjęciach: 'approved' | 'rejected'.
-  /// Każda decyzja zamyka zlecenie definitywnie (znika z list aktywnych).
-  Future<void> setRealizationStatus(String id, String status,
-      {required String requestId}) async {
+  /// Decyzja klienta o czekających zdjęciach firmy: 'approved' zamyka
+  /// zgłoszenie jako zrealizowane, 'rejected' zostawia je w realizacji
+  /// (firma może dodać nowe zdjęcia).
+  Future<void> setRealizationStatus(String requestId, String status) async {
+    final pending = await _firestore
+        .collection('realizations')
+        .where('requestId', isEqualTo: requestId)
+        .where('userId', isEqualTo: _auth.currentUser!.uid)
+        .where('status', isEqualTo: 'pending')
+        .get();
+    final companyPhotos =
+        pending.docs.where((d) => d.data()['addedByRole'] != 'user');
+    if (companyPhotos.isEmpty) {
+      throw StateError('Firma wycofała te zdjęcia');
+    }
     final batch = _firestore.batch();
-    batch.update(_firestore.collection('realizations').doc(id), {
-      'status': status,
-      'decidedAt': FieldValue.serverTimestamp(),
-    });
+    for (final d in companyPhotos) {
+      batch.update(d.reference,
+          {'status': status, 'decidedAt': FieldValue.serverTimestamp()});
+    }
     batch.update(_firestore.collection('requests').doc(requestId), {
-      'status': 'closed',
       'realizationStatus': status,
-      'closedAt': FieldValue.serverTimestamp(),
+      if (status == 'approved') ...{
+        'status': 'closed',
+        'closedReason': 'realized',
+        'closedAt': FieldValue.serverTimestamp(),
+      },
     });
     await batch.commit();
   }
@@ -1541,13 +1804,21 @@ class FirebaseService {
     return list.take(30).toList();
   }
 
+  /// Zdjęcia zgłoszenia, najnowsze pierwsze.
   Future<List<Map<String, dynamic>>> getRealizationsForRequest(
       String requestId) async {
     final snap = await _firestore
         .collection('realizations')
         .where('requestId', isEqualTo: requestId)
         .get();
-    return snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+    final list = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+    list.sort((a, b) {
+      final ta = a['timestamp'];
+      final tb = b['timestamp'];
+      if (ta is! Timestamp || tb is! Timestamp) return 0;
+      return tb.compareTo(ta);
+    });
+    return list;
   }
 
   Future<void> deleteRealization(String id) async {
@@ -1582,12 +1853,14 @@ class FirebaseService {
     return snap.docs.isNotEmpty;
   }
 
+  /// Jeden komentarz osoby pod recenzją: id = autor.
   Future<void> addComment(ReviewComment comment) async {
     await _firestore
         .collection('reviews')
         .doc(comment.reviewId)
         .collection('comments')
-        .add(comment.toMap());
+        .doc(comment.authorId)
+        .set(comment.toMap());
   }
 
   Future<void> deleteComment({

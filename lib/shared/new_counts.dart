@@ -43,13 +43,14 @@ class NewCounts {
     return null;
   }
 
-  /// Przelicza liczniki. [requests]/[myRequests]/[reviews] to dane już
-  /// pobrane przez StartPageBloc — nie dublujemy zapytań.
+  /// Przelicza liczniki. [requests]/[myOffers]/[myRequests]/[reviews] to dane
+  /// już pobrane przez StartPageBloc — nie dublujemy zapytań.
   static Future<void> refresh({
     required FirebaseService firebase,
     required AppUser user,
     required bool companyMode,
     required List<Request> requests,
+    required Map<String, Map<String, dynamic>> myOffers,
     required List<Request> myRequests,
     required List<Review> reviews,
   }) async {
@@ -65,11 +66,10 @@ class NewCounts {
         var n = requests
             .where((r) => r.timestamp != null && r.timestamp!.isAfter(seenReq))
             .length;
-        for (final r in requests) {
-          final o = await firebase.getMyOffer(r.id, user.id);
-          final decided = _ts(o?['decidedAt']);
-          if (decided != null && decided.isAfter(seenReq)) n++;
-        }
+        n += myOffers.values.where((o) {
+          final decided = _ts(o['decidedAt']);
+          return decided != null && decided.isAfter(seenReq);
+        }).length;
         counts['zgloszenia'] = n;
 
         // ── kalendarz: rezerwacje czekające na decyzję (zawsze, bez seen) ──
@@ -85,21 +85,25 @@ class NewCounts {
       } else {
         // ── zgłoszenia: nowe oferty + zdjęcia realizacji do potwierdzenia ──
         final seenReq = await _seen(prefs, 'zgloszenia');
-        var n = 0;
-        for (final r in myRequests) {
-          if (r.status == 'closed') continue;
-          final offers = await firebase.getOffers(r.id);
-          n += offers.where((o) {
-            final t = _ts(o['timestamp']);
-            return t != null && t.isAfter(seenReq);
-          }).length;
-        }
+        final active = myRequests.where((r) => r.status != 'closed').toList();
+        final activeIds = active.map((r) => r.id).toSet();
+        final offers =
+            await Future.wait(active.map((r) => firebase.getOffers(r.id)));
+        var n = offers.expand((o) => o).where((o) {
+          final t = _ts(o['timestamp']);
+          return t != null && t.isAfter(seenReq);
+        }).length;
+        // zdjęcia do potwierdzenia liczą się tylko przy otwartych zgłoszeniach
         final pendingReal = await fs
             .collection('realizations')
             .where('userId', isEqualTo: user.id)
             .where('status', isEqualTo: 'pending')
             .get();
-        n += pendingReal.size;
+        n += pendingReal.docs
+            .where((d) =>
+                d.data()['addedByRole'] != 'user' &&
+                activeIds.contains(d.data()['requestId']))
+            .length;
         counts['zgloszenia'] = n;
 
         // ── rezerwacje: decyzje firm od ostatniego zajrzenia ──

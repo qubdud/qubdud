@@ -24,6 +24,18 @@ class Globals {
   String branza = '';
   LatLng pozycja = LatLng(52.237049, 21.017532);
 
+  /// Nowa sesja (zmiana konta): bez ekranów i wyników poprzedniego konta.
+  void resetSession() {
+    selectedRequest = null;
+    startTab = null;
+    lastStartTab = 0;
+    contactsTab = null;
+    selectedPromo = null;
+    selectedReview = null;
+    lastSearch = [];
+    lastSearchIndex = 0;
+  }
+
   Globals._privateConstructor();
 
   static final Globals _instance = Globals._privateConstructor();

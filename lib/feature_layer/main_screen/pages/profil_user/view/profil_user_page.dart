@@ -3,12 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
-import '../../../../../shared/widgets/loading.dart';
-import '../../../../../shared/widgets/w_button.dart';
 import '../../../../../shared/client_notes.dart';
 import '../../../../../shared/functions/effective_role.dart';
+import '../../../../../shared/functions/show_toast_error.dart';
 import '../../../bloc/main_bloc.dart';
 import '../../profil_publiczny/view/profil_publiczny_page.dart';
+import '../../../../../shared/widgets/load_error.dart';
 
 class ProfilPublicznyUseraPage extends StatefulWidget {
   final String userId;
@@ -20,6 +20,7 @@ class ProfilPublicznyUseraPage extends StatefulWidget {
 
 class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
   bool _loading = true;
+  bool _error = false;
   AppUser? _user;
   List<Review> _reviews = [];
   final Map<String, String> _companyNames = {};
@@ -56,16 +57,33 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
           _requestCount = requests.length;
           _contactCount = contacts.length;
           _loading = false;
+          _error = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = true;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_error) {
+      return Scaffold(
+        body: LoadError(
+          message: 'Nie udało się wczytać profilu',
+          onRetry: () {
+            setState(() => _loading = true);
+            _load();
+          },
+        ),
+      );
+    }
 
     final user = _user;
     if (user == null) {
@@ -180,11 +198,17 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
                           label: 'Kontakt',
                           onTap: () async {
                             final firebase = context.read<FirebaseService>();
-                            await firebase.addContact(
-                              myUserId: myUid,
-                              contactUserId: widget.userId,
-                            );
-                            if (mounted) {
+                            try {
+                              await firebase.addContact(
+                                myUserId: myUid,
+                                contactUserId: widget.userId,
+                              );
+                            } catch (_) {
+                              showToastError(
+                                  text: 'Nie udało się dodać do kontaktów');
+                              return;
+                            }
+                            if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Dodano do kontaktów')),
                               );
@@ -318,48 +342,6 @@ class _StatTile extends StatelessWidget {
             Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ReviewItem extends StatelessWidget {
-  final Review review;
-  const _ReviewItem({required this.review});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              ...List.generate(5, (i) => Icon(
-                i < review.score ? Icons.star : Icons.star_border,
-                color: Colors.amber, size: 16,
-              )),
-              const Spacer(),
-              if (review.timestamp != null)
-                Text(
-                  '${review.timestamp!.day}.${review.timestamp!.month}.${review.timestamp!.year}',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                ),
-            ],
-          ),
-          if (review.description.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(review.description,
-                style: const TextStyle(fontSize: 13), maxLines: 3, overflow: TextOverflow.ellipsis),
-          ],
-        ],
       ),
     );
   }

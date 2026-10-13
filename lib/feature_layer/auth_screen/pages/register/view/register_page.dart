@@ -95,7 +95,7 @@ class _RegisterPageState extends State<RegisterPage> {
               ? 'Nieprawidłowy adres e-mail'
               : null);
       _phoneError = _phone.text.trim().isEmpty ? 'Pole wymagane' : null;
-      _passwordError = _password.text.trim().length < 6
+      _passwordError = _password.text.length < 6
           ? 'Hasło musi mieć min. 6 znaków'
           : null;
       if (_isCompany) {
@@ -131,7 +131,7 @@ class _RegisterPageState extends State<RegisterPage> {
       final firebaseService = context.read<FirebaseService>();
       final error = await firebaseService.registerUser(
         email: _email.text.trim(),
-        password: _password.text.trim(),
+        password: _password.text,
         firstName: _name.text.trim(),
         lastName: _surname.text.trim(),
         phone: _phone.text.trim(),

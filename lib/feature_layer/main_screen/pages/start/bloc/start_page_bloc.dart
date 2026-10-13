@@ -1,7 +1,6 @@
-import 'dart:developer';
+import 'dart:async';
 
 import 'package:bloc/bloc.dart';
-import 'package:firebase_auth/firebase_auth.dart' hide User;
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/shared/functions/show_toast.dart';
 import 'package:qb/shared/functions/show_toast_error.dart';
@@ -32,60 +31,84 @@ class StartPageBloc extends Bloc<StartPageEvent, StartPageState> {
     on<GetDataStartPageEvent>((event, emit) async {
 
       emit(StartPageLoadingState());
+      // każda sekcja osobno: błąd jednej nie czyści pozostałych
+      final failed = <String>[];
+      Future<T> section<T>(String name, Future<T> Function() load, T empty) async {
+        try {
+          return await load();
+        } catch (_) {
+          failed.add(name);
+          return empty;
+        }
+      }
+
       // anonim: tylko siatka prezentacji — reszta wymaga konta (i wywala
       // permission-denied, co zostawiało pustą siatkę)
       if (user.id.isEmpty) {
-        try {
-          state.videos = await firebase.getRandomPromos(limit: 20);
-        } catch (_) {}
+        state.videos = await section(
+            'prezentacji', () => firebase.getRandomPromos(limit: 20), <Promo>[]);
+        state.loadErrors = failed;
         emit(StartPageMainState());
         return;
       }
-      try {
-        if (user.firma == true) {
-          state.requests = await firebase.getNearbyRequests(category: user.companyCategory!, sector: user.companySector!, myLocation: user.companyLocation!, userId: user.id);
-          state.myOfferStatuses = await firebase.getMyOfferStatuses(
-              state.requests.map((r) => r.id).toList(), user.id);
-          state.clientNotes = await firebase.getClientNotes(user.id);
-        }
 
-        state.myRequests = await firebase.getRequestsMetadataByUser(user.id);
+      final company = user.firma == true;
+      final nearbyF = section(
+          'zgłoszeń',
+          () async => company
+              ? await firebase.getNearbyRequests(
+                  category: user.companyCategory!,
+                  sector: user.companySector!,
+                  myLocation: user.companyLocation!,
+                  userId: user.id)
+              : (requests: <Request>[], myOffers: <String, Map<String, dynamic>>{}),
+          (requests: <Request>[], myOffers: <String, Map<String, dynamic>>{}));
+      final notesF = section('notatek',
+          () async => company ? await firebase.getClientNotes(user.id) : <String, String>{},
+          <String, String>{});
+      final trashF = section('kosza',
+          () async => company ? await firebase.getTrashedRequests(userId: user.id) : <Request>[],
+          <Request>[]);
+      final myRequestsF = section('Twoich zgłoszeń',
+          () => firebase.getRequestsMetadataByUser(user.id), <Request>[]);
+      // Dla firmy: recenzje OTRZYMANE; dla usera: recenzje WYSTAWIONE
+      final reviewsF = section(
+          'recenzji',
+          () => company
+              ? firebase.getReviewsMetadataByReviewedUser(user.id)
+              : firebase.getReviewByUser(user.id),
+          <Review>[]);
+      final favF = section(
+          'ulubionych', () => firebase.getFavoritePromos(user.id), <Promo>[]);
+      final videosF = section(
+          'prezentacji', () => firebase.getRandomPromos(limit: 20), <Promo>[]);
 
-        // Dla firmy: recenzje OTRZYMANE; dla usera: recenzje WYSTAWIONE
-        if (user.firma ?? false) {
-          state.myReview = await firebase.getReviewsMetadataByReviewedUser(user.id);
-        } else {
-          state.myReview = await firebase.getReviewByUser(user.id);
-        }
+      final nearby = await nearbyF;
+      state.requests = nearby.requests;
+      state.myOfferStatuses = {
+        for (final e in nearby.myOffers.entries)
+          e.key: (e.value['status'] as String?) ?? 'pending',
+      };
+      state.clientNotes = await notesF;
+      state.trashedRequests = await trashF;
+      state.myRequests = await myRequestsF;
+      state.myReview = await reviewsF;
+      state.favVideo = await favF;
+      state.videos = await videosF;
+      state.loadErrors = failed;
 
-        state.favVideo = await firebase.getFavoritePromos(user.id);
-        state.videos = await firebase.getRandomPromos(limit: 20);
+      emit(StartPageMainState());
 
-        // Załaduj kosz (skipped z flagą trashed)
-        if (user.firma ?? false) {
-          state.trashedRequests = await firebase.getTrashedRequests(userId: user.id);
-        }
-
-        // liczniki „co nowego" na zakładkach
-        await NewCounts.refresh(
-          firebase: firebase,
-          user: user,
-          companyMode: isCompanyMode(user),
-          requests: state.requests,
-          myRequests: state.myRequests,
-          reviews: state.myReview,
-        );
-
-        emit(StartPageMainState());
-      } catch (e) {
-
-
-        state.videos =[];
-        //showToastError(text: 'Błąd pobierania\n${e}');
-
-        emit(StartPageMainState());
-      }
-
+      // liczniki „co nowego" na zakładkach — w tle, Start na nie nie czeka
+      unawaited(NewCounts.refresh(
+        firebase: firebase,
+        user: user,
+        companyMode: isCompanyMode(user),
+        requests: state.requests,
+        myOffers: nearby.myOffers,
+        myRequests: state.myRequests,
+        reviews: state.myReview,
+      ));
     });
 
 
@@ -111,51 +134,35 @@ class StartPageBloc extends Bloc<StartPageEvent, StartPageState> {
     });
 
 
-    on<TryAddFavStartPageEvent>((event, emit) async {
+    Future<void> refreshFavorites(Emitter<StartPageState> emit) async {
+      try {
+        state.favVideo = await firebase.getFavoritePromos(user.id);
+      } catch (_) {
+        showToastError(text: 'Nie udało się odświeżyć ulubionych');
+      }
+      emit(StartPageMainState());
+    }
 
+    on<TryAddFavStartPageEvent>((event, emit) async {
       try {
         await firebase.addPromoToFavorites(userId: user.id, promoId: event.promoId);
-
-        state.favVideo = await firebase.getFavoritePromos(user.id);
-
-
-        emit(StartPageMainState());
-
-        showToast(text: 'Dodano do ulubionych');
-
-      } catch (e) {
-
-        state.videos =[];
-        showToastError(text: 'Błąd nie dodano\n${e}');
-
-        emit(StartPageMainState());
+      } catch (_) {
+        showToastError(text: 'Nie udało się dodać do ulubionych');
+        return;
       }
-
+      showToast(text: 'Dodano do ulubionych');
+      await refreshFavorites(emit);
     });
 
-
     on<TryRemoveFavStartPageEvent>((event, emit) async {
-
       try {
         await firebase.removePromoFromFavorites(userId: user.id, promoId: event.promoId);
-
-
-        state.favVideo = await firebase.getFavoritePromos(user.id);
-
-
-        emit(StartPageMainState());
-
-
-        showToast(text: 'Usunięto z ulubionych');
-
-      } catch (e) {
-
-        state.videos =[];
-        showToastError(text: 'Błąd nie dodano\n${e}');
-
-        emit(StartPageMainState());
+      } catch (_) {
+        showToastError(text: 'Nie udało się usunąć z ulubionych');
+        return;
       }
-
+      showToast(text: 'Usunięto z ulubionych');
+      await refreshFavorites(emit);
     });
 
 

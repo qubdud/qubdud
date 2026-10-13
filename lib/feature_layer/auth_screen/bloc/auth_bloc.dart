@@ -5,7 +5,8 @@ part 'auth_event.dart';
 part 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  AuthBloc() : super(AuthLoginPageState()) {
+  AuthBloc({bool startOnRegister = false})
+      : super(startOnRegister ? AuthRegisterPageState() : AuthLoginPageState()) {
     on<AuthGoToLoginPageEvent>((event, emit) {
       emit(AuthLoginPageState());
     });

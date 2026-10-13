@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -76,7 +77,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _validate() {
     setState(() {
       _emailError = _email.text.trim().isEmpty ? 'Pole wymagane' : null;
-      _passwordError = _password.text.trim().isEmpty ? 'Pole wymagane' : null;
+      _passwordError = _password.text.isEmpty ? 'Pole wymagane' : null;
       _generalError = null;
     });
     return _emailError == null && _passwordError == null;
@@ -88,10 +89,11 @@ class _LoginPageState extends State<LoginPage> {
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _email.text.trim(),
-        password: _password.text.trim(),
+        // hasło bez trim() — spacje są jego częścią (np. ustawione linkiem resetu)
+        password: _password.text,
       );
       await _saveEmailIfNeeded(_email.text.trim());
-      Globals.instance.anonim = false;  // ← DODAJ
+      Globals.instance.anonim = false;
       if (!mounted) return;
       context.read<CoreScreenBloc>().add(CoreScreenGoToMainScreenEvent());
     } on FirebaseAuthException catch (e) {
@@ -108,8 +110,14 @@ class _LoginPageState extends State<LoginPage> {
           case 'user-disabled':
             _generalError = 'Konto zostało zablokowane.';
             break;
+          case 'network-request-failed':
+            _generalError = 'Brak połączenia z internetem.';
+            break;
+          case 'too-many-requests':
+            _generalError = 'Za dużo prób logowania — spróbuj za chwilę.';
+            break;
           default:
-            _generalError = e.message ?? 'Błąd logowania.';
+            _generalError = 'Logowanie nie powiodło się (${e.code}).';
         }
       });
     } catch (e) {
@@ -123,7 +131,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
     try {
       await FirebaseAuth.instance.signInAnonymously();
-      Globals.instance.anonim = true;   // ← DODAJ
+      Globals.instance.anonim = true;
       if (!mounted) return;
       context.read<CoreScreenBloc>().add(CoreScreenGoToMainScreenEvent());
     } catch (e) {
@@ -157,44 +165,47 @@ class _LoginPageState extends State<LoginPage> {
                 Center(child: WLabel(text: 'Logowanie')),
                 const SizedBox(height: 16),
 
-                // ── WERSJA TESTOWA: szybki wybór konta ─────────
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange, width: 2),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<DemoAccount>(
-                      isExpanded: true,
-                      value: _selectedDemo,
-                      hint: const Text('⚡ Wybierz konto testowe',
-                          style: TextStyle(fontSize: 15)),
-                      items: demoAccounts
-                          .map((a) => DropdownMenuItem(
-                                value: a,
-                                child: Text(a.label,
-                                    style: const TextStyle(fontSize: 15),
-                                    overflow: TextOverflow.ellipsis),
-                              ))
-                          .toList(),
-                      onChanged: (a) {
-                        if (a == null) return;
-                        setState(() {
-                          _selectedDemo = a;
-                          _email.text = a.email;
-                          _password.text = a.password;
-                          _emailError = null;
-                          _passwordError = null;
-                          _generalError = null;
-                        });
-                      },
+                // konta testowe tylko w debug — w release kod i dane kont
+                // są wycinane (kDebugMode to stała)
+                if (kDebugMode) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange, width: 2),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<DemoAccount>(
+                        isExpanded: true,
+                        value: _selectedDemo,
+                        hint: const Text('⚡ Wybierz konto testowe',
+                            style: TextStyle(fontSize: 15)),
+                        items: demoAccounts
+                            .map((a) => DropdownMenuItem(
+                                  value: a,
+                                  child: Text(a.label,
+                                      style: const TextStyle(fontSize: 15),
+                                      overflow: TextOverflow.ellipsis),
+                                ))
+                            .toList(),
+                        onChanged: (a) {
+                          if (a == null) return;
+                          setState(() {
+                            _selectedDemo = a;
+                            _email.text = a.email;
+                            _password.text = a.password;
+                            _emailError = null;
+                            _passwordError = null;
+                            _generalError = null;
+                          });
+                        },
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                ],
 
                 WInputField(
                   controller: _email,

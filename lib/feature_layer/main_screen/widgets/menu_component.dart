@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../widgets/bps_menu_label.dart';
-import '../bloc/main_bloc.dart';
 
 class MenuComponent extends StatelessWidget {
   final bool showMenu;

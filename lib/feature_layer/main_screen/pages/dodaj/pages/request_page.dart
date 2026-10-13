@@ -1,28 +1,19 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:nominatim_flutter/model/request/search_request.dart';
 import 'package:nominatim_flutter/nominatim_flutter.dart';
-import 'package:qb/feature_layer/main_screen/bloc/main_appbar_cubit.dart';
 import 'package:qb/shared/constants.dart';
+import 'package:qb/shared/functions/show_toast_error.dart';
 import 'package:qb/shared/widgets/w_dropdown.dart';
 import 'package:qb/shared/widgets/w_input_field.dart';
-import 'package:qb/shared/widgets/w_label.dart';
 import 'package:qb/shared/widgets/w_small_label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:path/path.dart' as p;
 
 import 'package:latlong2/latlong.dart';
 
-import '../../../../../../shared/widgets/loading.dart';
-import '../../../../../domain_layer/firebase_service.dart';
-import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/w_button.dart';
-import '../../../../../shared/widgets/w_card.dart';
 import '../../../../../shared/widgets/w_checkbox.dart';
 import '../../../bloc/main_bloc.dart';
 import '../view/dodaj_page.dart';
@@ -48,32 +39,113 @@ class View extends StatefulWidget {
 }
 
 class _ViewState extends State<View> {
-  String? messageError;
-  String? nameError;
-  late final TextEditingController name = TextEditingController();
-  late final TextEditingController businessCity = TextEditingController();
+  late final TextEditingController name;
+  late final TextEditingController businessCity;
+  late final TextEditingController _categoryCtrl;
+  late final TextEditingController _sectorCtrl;
 
-  String type = '';
-  String color = '';
   LatLng? selectedLocation;
-  bool? is24;
+  bool is24 = false;
 
   String? selectedCategory;
   String? selectedBranza;
+  String? _categoryError;
+  String? _sectorError;
+  String? _locationError;
   Timer? debounce;
-  bool isSearching=false;
+  bool isSearching = false;
   final MapController mapController = MapController();
-
 
   final Map<String, List<String>> categoryToBranza = categories;
 
+  @override
+  void initState() {
+    super.initState();
+    // po nieudanej wysyłce formularz wraca z wpisanymi danymi
+    final meta = context.read<DodajPageBloc>().state.requestMetadata;
+    name = TextEditingController(text: meta?.description ?? '');
+    businessCity = TextEditingController(text: meta?.city ?? '');
+    _categoryCtrl = TextEditingController(text: meta?.category ?? '');
+    _sectorCtrl = TextEditingController(text: meta?.sector ?? '');
+    selectedCategory = meta?.category;
+    selectedBranza = meta?.sector;
+    selectedLocation = meta?.location;
+    is24 = meta?.is24 ?? false;
+  }
 
+  @override
+  void dispose() {
+    debounce?.cancel();
+    name.dispose();
+    businessCity.dispose();
+    _categoryCtrl.dispose();
+    _sectorCtrl.dispose();
+    super.dispose();
+  }
 
+  void _onCityChanged(String value) {
+    debounce?.cancel();
+    debounce = Timer(const Duration(milliseconds: 1100), () async {
+      if (value.trim().isEmpty) {
+        if (mounted) setState(() => isSearching = false);
+        return;
+      }
+      setState(() => isSearching = true);
+      try {
+        final results = await NominatimFlutter.instance.search(
+          searchRequest: SearchRequest(
+            query: '$value, Polska',
+            limit: 1,
+            addressDetails: true,
+          ),
+          language: 'pl',
+        );
+        if (!mounted) return;
+        setState(() {
+          isSearching = false;
+          if (results.isNotEmpty) {
+            final lat = double.tryParse(results.first.lat ?? '');
+            final lon = double.tryParse(results.first.lon ?? '');
+            if (lat != null && lon != null) {
+              selectedLocation = LatLng(lat, lon);
+              _locationError = null;
+              mapController.move(selectedLocation!, 10.0);
+            }
+          }
+        });
+      } catch (e) {
+        if (mounted) setState(() => isSearching = false);
+        debugPrint('Błąd zapytania do Nominatim: $e');
+      }
+    });
+  }
+
+  void _submit() {
+    setState(() {
+      _categoryError = selectedCategory == null ? 'Wybierz kategorię' : null;
+      _sectorError = selectedBranza == null ? 'Wybierz branżę' : null;
+      _locationError = selectedLocation == null
+          ? 'Wpisz miejscowość albo wskaż punkt na mapie'
+          : null;
+    });
+    if (_categoryError != null || _sectorError != null || _locationError != null) {
+      showToastError(text: 'Uzupełnij zaznaczone pola');
+      return;
+    }
+    final bloc = context.read<DodajPageBloc>();
+    bloc.state.requestMetadata = RequestMetadata(
+      category: selectedCategory!,
+      sector: selectedBranza!,
+      location: selectedLocation!,
+      city: businessCity.text.trim(),
+      description: name.text.trim(),
+      is24: is24,
+    );
+    bloc.add(DodajDodajPageEvent());
+  }
 
   @override
   Widget build(BuildContext context) {
-    var user = context.read<MainScreenBloc>().state.user;
-
     return BlocConsumer<DodajPageBloc, DodajPageState>(
       listener: (context, state) {
         if (state is DodajPageNextState) {
@@ -81,19 +153,9 @@ class _ViewState extends State<View> {
         }
       },
       builder: (context, state) {
-
-
-
-
-
-
-
-
-        var categories = categoryToBranza.keys.toList();
-        var branze =
-        (selectedCategory != null &&
-            categoryToBranza[selectedCategory] != null)
-            ? List<String>.from(categoryToBranza[selectedCategory]!)
+        final categories = categoryToBranza.keys.toList();
+        final branze = selectedCategory != null
+            ? List<String>.from(categoryToBranza[selectedCategory] ?? const [])
             : <String>[];
 
         return SingleChildScrollView(
@@ -113,31 +175,34 @@ class _ViewState extends State<View> {
 
                 SizedBox(height: 24),
                 WAnimatedDropdown(
-                  controller: TextEditingController(),
-                  // Twój controller, jeśli potrzebujesz
+                  controller: _categoryCtrl,
                   label: 'Wybierz kategorię',
+                  errorText: _categoryError,
                   items: categories,
                   hintText: 'Wybierz kategorię',
                   onItemSelected: (val) {
                     setState(() {
-                      selectedCategory = val;
-                      selectedBranza =
-                      null; // reset branży przy zmianie kategorii
+                      selectedCategory = val.isEmpty ? null : val;
+                      if (selectedCategory != null) _categoryError = null;
+                      // reset branży przy zmianie kategorii
+                      selectedBranza = null;
+                      _sectorCtrl.clear();
                     });
                   },
                 ),
                 SizedBox(height: 24),
                 WAnimatedDropdown(
-                  controller: TextEditingController(),
-                  // Twój controller, jeśli potrzebujesz
+                  controller: _sectorCtrl,
                   label: 'Wybierz branżę',
-                  items: branze as List<String>,
+                  errorText: _sectorError,
+                  items: branze,
                   hintText: selectedCategory == null
                       ? 'Wybierz najpierw kategorię'
                       : 'Wybierz branżę',
                   onItemSelected: (val) {
                     setState(() {
-                      selectedBranza = val;
+                      selectedBranza = val.isEmpty ? null : val;
+                      if (selectedBranza != null) _sectorError = null;
                     });
                   },
                 ),
@@ -148,70 +213,10 @@ class _ViewState extends State<View> {
                     label: 'Miejscowość',
                     isPassword: false,
                     hintText: 'Wpisz miejscowość',
-                    onChanged: (value) {
-                      if (debounce?.isActive ?? false) {
-                        debounce!.cancel();
-                      }
-
-                      debounce = Timer(const Duration(milliseconds: 1100), () async {
-                        if (value.trim().isEmpty) {
-                          setState(() {
-                            isSearching = false;
-                          });
-                          return;
-                        }
-
-                        setState(() {
-                          isSearching = true;
-                        });
-
-                        final searchRequest = SearchRequest(
-                          query: '$value, Polska',
-                          limit: 1,
-                          addressDetails: true,
-                        );
-
-                        try {
-                          final results = await NominatimFlutter.instance.search(
-                            searchRequest: searchRequest,
-                            language: 'pl',
-                          );
-
-                          if (results.isNotEmpty) {
-                            final result = results.first;
-                            final lat = double.tryParse(result.lat ?? '') ?? 52.237049;
-                            final lon = double.tryParse(result.lon ?? '') ?? 21.017532;
-
-                            setState(() {
-                              selectedLocation = LatLng(lat, lon);
-                              mapController.move(selectedLocation!, 10.0);
-                              isSearching = false;
-                            });
-                          } else {
-                            // Brak wyników → ukryj spinner
-                            setState(() {
-                              isSearching = false;
-                            });
-                            // (Opcjonalnie) pokaż komunikat
-                            // ScaffoldMessenger.of(context).showSnackBar(
-                            //   SnackBar(content: Text('Nie znaleziono miejscowości')),
-                            // );
-                          }
-                        } catch (e) {
-                          // Obsługa błędu zapytania
-                          setState(() {
-                            isSearching = false;
-                          });
-                          debugPrint('Błąd zapytania do Nominatim: $e');
-                        }
-                      });
-                    }
+                    onChanged: _onCityChanged,
                 ),
 
-                SizedBox(height: 20),
-
-
-                const SizedBox(height: 24),
+                const SizedBox(height: 44),
                 Text('lub ustaw na mapie'),
                 const SizedBox(height: 24),
 
@@ -220,13 +225,14 @@ class _ViewState extends State<View> {
                   child: Stack(
                     children: [
                       FlutterMap(
-                          mapController: mapController, // <--- TU
+                          mapController: mapController,
                           options: MapOptions(
                             initialCenter: selectedLocation??LatLng(52.237049, 21.017532),
-                            initialZoom: 6,
+                            initialZoom: selectedLocation == null ? 6 : 10,
                             onTap: (tapPos, point) {
                               setState(() {
                                 selectedLocation = point;
+                                _locationError = null;
                               });
                             },
 
@@ -245,10 +251,7 @@ class _ViewState extends State<View> {
                                       size: 40,
                                     ),
                                   ),
-
-
                                 ],
-
                               ),
                           ]),
                       if (isSearching)
@@ -260,14 +263,14 @@ class _ViewState extends State<View> {
                             ),
                           ),
                         ),
-
-
-
                     ],
                   ),),
-
-
-
+                if (_locationError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(_locationError!,
+                        style: const TextStyle(fontSize: 14, color: cMidPink)),
+                  ),
 
                 SizedBox(height: 24),
 
@@ -276,10 +279,10 @@ class _ViewState extends State<View> {
                   children: [
                     WCheckbox(
                       isError: false,
-                      value: is24 ?? false,
+                      value: is24,
                       onChanged: (value) {
                         setState(() {
-                          is24 = value;
+                          is24 = value ?? false;
                         });
                       },
                     ),
@@ -287,21 +290,16 @@ class _ViewState extends State<View> {
                     Flexible(
                       child: Text('Wyślij jako zgloszenie 24'
                       ),
-
-
                     ),
                   ],
                 ),
                 SizedBox(height: 24),
 
                 WButton(
-                text: 'Dodaj',
-                onPressed: ()  {
-                  context.read<DodajPageBloc>().state.requestMetadata=RequestMetadata(category: selectedCategory!, sector: selectedBranza!, location: selectedLocation!,city: businessCity.text, description: name.text, is24: is24??false);
-
-                  context.read<DodajPageBloc>().add(DodajDodajPageEvent());
-                },
-              ),
+                  text: 'Dodaj',
+                  isEnabled: !isSearching,
+                  onPressed: _submit,
+                ),
                 const SizedBox(height: 60),
               ],
             ),

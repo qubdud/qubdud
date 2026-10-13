@@ -1,14 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:app_links/app_links.dart';
 import 'package:bloc/bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart' hide User;
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../domain_layer/chat_service.dart';
 import '../../../domain_layer/domain_models/app_user.dart';
 import '../../../domain_layer/domain_models/promoVideo.dart';
@@ -28,11 +24,17 @@ part 'main_state.dart';
 class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
   StreamSubscription<Uri>? _linkSub;
   StreamSubscription<List<Map<String, dynamic>>>? _notifSub;
+  StreamSubscription<int>? _chatSub;
+  StreamSubscription<User?>? _authSub;
+  List<Map<String, dynamic>> _notifs = [];
+  bool _loggingOut = false;
 
   @override
   Future<void> close() {
     _linkSub?.cancel();
     _notifSub?.cancel();
+    _chatSub?.cancel();
+    _authSub?.cancel();
     return super.close();
   }
 
@@ -60,6 +62,80 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     required ChatService appChatService,
     required FirebaseService appFirebaseService,
   }) : super(LoadingMainScreenState()) {
+    // nowa sesja — nic z poprzedniego konta nie może mignąć przed wczytaniem
+    state.user = null;
+    state.chatCounter = 0;
+    state.notifCounter = 0;
+    Globals.instance.resetSession();
+
+    // konto wylogowane poza apką (reset hasła, blokada, usunięcie)
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user == null && !_loggingOut) add(LogoutEvent());
+    });
+
+    void recountNotifs() {
+      final company = isCompanyMode(state.user);
+      final n = _notifs
+          .where((e) =>
+              e['read'] != true &&
+              FirebaseService.isNotificationForMode(e, company))
+          .length;
+      if (n == state.notifCounter) return;
+      state.notifCounter = n;
+      add(RefreshBadgesEvent());
+    }
+
+    void listenBadges(String uid) {
+      _notifSub?.cancel();
+      _notifSub = appFirebaseService.notificationsStream(uid).listen((list) {
+        _notifs = list;
+        recountNotifs();
+      }, onError: addError);
+      _chatSub?.cancel();
+      _chatSub = appChatService.unreadTotalStream().listen((n) {
+        if (n == state.chatCounter) return;
+        state.chatCounter = n;
+        add(RefreshBadgesEvent());
+      }, onError: addError);
+    }
+
+    // link otwierający apkę przychodzi przy pierwszym nasłuchu — dopiero
+    // po starcie, inaczej końcowy GoToHomeEvent nadpisałby wskazany ekran
+    void listenLinks() {
+      _linkSub ??= AppLinks()
+          .uriLinkStream
+          .listen((uri) => add(HandleDeepLinkEvent(uri)), onError: addError);
+    }
+
+    Future<void> toastUrgent(AppUser user) async {
+      if (user.companyCategory == null ||
+          user.companySector == null ||
+          user.companyLocation == null) {
+        return;
+      }
+      try {
+        final urgent = await appFirebaseService.getUrgentNearbyCount(
+          companyId: user.id,
+          category: user.companyCategory!,
+          sector: user.companySector!,
+          myLocation: user.companyLocation!,
+        );
+        if (urgent > 0) {
+          showToast(
+              text: urgent == 1
+                  ? 'Masz 1 pilne zgłoszenie w pobliżu!'
+                  : 'Masz $urgent pilne zgłoszenia w pobliżu!');
+        }
+      } catch (e, s) {
+        addError(e, s);
+      }
+    }
+
+    Future<void> switchMode(bool company) async {
+      await setCompanyView(company);
+      recountNotifs();
+    }
+
     on<HandleDeepLinkEvent>((event, emit) async {
       final uri = event.uri;
       if (uri.scheme != 'qubdud' || uri.pathSegments.isEmpty) return;
@@ -67,14 +143,20 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
       if (uri.host == 'firma') {
         add(GoToProfilPublicznyFirmyEvent(id));
       } else if (uri.host == 'promo') {
-        final promo = await appFirebaseService.getPromoById(id);
-        if (promo != null) add(GoToPromoFirmyEvent(promo));
+        try {
+          final promo = await appFirebaseService.getPromoById(id);
+          if (promo != null) {
+            add(GoToPromoFirmyEvent(promo));
+          } else {
+            showToast(text: 'Ta prezentacja nie jest już dostępna.');
+          }
+        } catch (e, s) {
+          showToast(text: 'Nie udało się otworzyć linku.');
+          addError(e, s);
+        }
       }
     });
 
-    _linkSub = AppLinks().uriLinkStream.listen((uri) {
-      add(HandleDeepLinkEvent(uri));
-    });
     on<RefreshBadgesEvent>((event, emit) async {
       // przerysowanie paska z licznikami (stan trzymany statycznie)
       final s = state;
@@ -106,11 +188,6 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
 
     on<GoToHomeEvent>((event, emit) async {
       _rootNav(event);
-      if (!Globals.instance.anonim && (state.user?.id.isNotEmpty ?? false)) {
-        try {
-          state.chatCounter = await appChatService.getTotalUnreadCount();
-        } catch (_) {}
-      }
       appBarCubit.updateAppBar(
           backgroundColor: Colors.transparent,
           title: '',
@@ -217,7 +294,6 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
 
     on<GoToPowiadomieniaEvent>((event, emit) async {
       _rootNav(event);
-      if (Globals.instance.anonim) return;
       appBarCubit.updateAppBar(
           showBack: false,
           title: 'Powiadomienia',
@@ -307,148 +383,160 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
       emit(RulesMainScreenState());
     });
 
+    on<SwitchModeEvent>((event, emit) async {
+      await switchMode(event.company);
+      final user = state.user;
+      if (user != null && isCompanyMode(user)) toastUrgent(user);
+      add(GoToHomeEvent());
+    });
+
+    on<OpenNotificationEvent>((event, emit) async {
+      if (event.notifId.isNotEmpty && !event.read) {
+        appFirebaseService
+            .markNotificationRead(event.notifId)
+            .catchError((Object e, StackTrace s) => addError(e, s));
+      }
+
+      // powiadomienie dla drugiego trybu konta firmowego → przełącz tryb
+      final user = state.user;
+      if (user?.firma == true &&
+          (event.audience == 'company' || event.audience == 'user')) {
+        final company = event.audience == 'company';
+        if (company != Globals.instance.companyView) await switchMode(company);
+      }
+
+      switch (event.type) {
+        case 'chat':
+          add(GoToChatEvent(event.senderId, chatName: event.senderName));
+          return;
+        case 'contact_request': // firma: Kontakty → Aktywność (numer i „skontaktowałem się”)
+          Globals.instance.contactsTab = 0;
+          add(GoToChatEvent(''));
+          return;
+        case 'review':
+          if (event.companyId.isNotEmpty) {
+            add(GoToProfilPublicznyFirmyEvent(event.companyId));
+          } else {
+            add(GoToHomeEvent());
+          }
+          return;
+        case 'offer': // klient: oferty przyjmuje się na karcie zgłoszenia
+        case 'request_reopened':
+        case 'request_expired':
+          Globals.instance.startTab = 3;
+          add(GoToHomeEvent());
+          return;
+      }
+
+      // rezerwacje: firma → Kalendarz, klient → Rezerwacje
+      if (event.type.startsWith('booking')) {
+        Globals.instance.startTab = 1;
+        add(GoToHomeEvent());
+        return;
+      }
+
+      if (event.requestId.isNotEmpty) {
+        Request? request;
+        try {
+          request = await appFirebaseService.getRequestById(event.requestId);
+        } catch (e, s) {
+          addError(e, s);
+        }
+        if (request != null) {
+          Globals.instance.selectedRequest = request;
+          add(GoToShowRequestEvent());
+          return;
+        }
+        // zgłoszenia już nie ma — lista zgłoszeń na Starcie
+        Globals.instance.startTab = isCompanyMode(state.user) ? 0 : 3;
+      }
+      add(GoToHomeEvent());
+    });
+
     on<LogoutEvent>((event, emit) async {
+      if (_loggingOut) return;
+      _loggingOut = true;
+      emit(LoadingMainScreenState());
+      await _notifSub?.cancel();
+      await _chatSub?.cancel();
       await PushService.unregister(appFirebaseService);
+      // online=false i anulowanie onDisconnect, póki reguły RTDB wpuszczają ten uid
+      await appChatService.stopPresence();
       await FirebaseAuth.instance.signOut();
       Globals.instance.anonim = false;
       // tryb widoku jest per sesja — nowe konto zaczyna jako Firma
       await setCompanyView(true);
       ClientNotes.clear();
       NewCounts.clear();
-      await _notifSub?.cancel();
-      state.notifCounter = 0;
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      prefs.setBool('remember_me', false);
-      emit(LogoutMainScreenState());
+      emit(LogoutMainScreenState(toRegister: event.toRegister));
+    });
+
+    on<DeleteAccountEvent>((event, emit) async {
+      emit(LoadingMainScreenState());
+      await appChatService.stopPresence();
+      try {
+        await appFirebaseService.deleteAccount();
+      } catch (e, s) {
+        appChatService.startPresence();
+        showToast(text: 'Nie udało się usunąć konta. Sprawdź połączenie i spróbuj ponownie.');
+        add(GoToHomeEvent());
+        addError(e, s);
+        return;
+      }
+      showToast(text: 'Konto zostało usunięte.');
+      add(LogoutEvent());
     });
 
     on<InitEvent>((event, emit) async {
       state.menuIsVisible = false;
       emit(LoadingMainScreenState());
+      try {
+        await loadCompanyView();
 
-      await loadCompanyView();
+        final currentUser = FirebaseAuth.instance.currentUser;
 
-      if (!kIsWeb) {
-        if (Platform.isIOS) {
-          FirebaseMessaging messaging = FirebaseMessaging.instance;
-          await messaging.requestPermission(
-            alert: true,
-            badge: true,
-            sound: true,
-          );
+        // Użytkownik anonimowy lub brak sesji → tryb przeglądania
+        if (currentUser == null || currentUser.isAnonymous || Globals.instance.anonim == true) {
+          Globals.instance.anonim = true;
+          state.user = AppUser(id: '');
+          // anonim startuje na Odkrywaj (siatka prezentacji + szukaj)
+          add(GoToHomeEvent());
+          listenLinks();
+          return;
         }
-      }
 
-      final currentUser = FirebaseAuth.instance.currentUser;
-
-      // Użytkownik anonimowy lub brak sesji → tryb przeglądania
-      if (currentUser == null || currentUser.isAnonymous || Globals.instance.anonim == true) {
-        Globals.instance.anonim = true;
-        state.user = AppUser(id: '');
-        // anonim startuje na Odkrywaj (siatka prezentacji + szukaj)
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .get();
+        if (!doc.exists) {
+          showToast(
+              text: 'Nie znaleziono profilu tego konta. Zaloguj się ponownie albo załóż nowe konto.');
+          add(LogoutEvent());
+          return;
+        }
+        final userFB = AppUser.fromDoc(doc);
+        if (userFB.firma == true) {
+          await ClientNotes.load(appFirebaseService, userFB.id);
+        } else {
+          ClientNotes.clear();
+        }
+        state.user = userFB;
+        appChatService.startPresence();
+        listenBadges(userFB.id);
         add(GoToHomeEvent());
-        return;
-      }
+        listenLinks();
 
-      // Zalogowany normalny użytkownik
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
-      if (!doc.exists) {
-        emit(LogoutMainScreenState());
-        return;
-      }
-      final userFB = AppUser.fromDoc(doc);
-      if (userFB.firma == true) {
-        await ClientNotes.load(appFirebaseService, userFB.id);
-      } else {
-        ClientNotes.clear();
-      }
-      appChatService.updateUserOnlineStatus();
-      state.chatCounter = await appChatService.getTotalUnreadCount();
-      state.user = userFB;
+        // push: token na konto + ten sam router co dzwonek
+        PushService.register(userFB.id, appFirebaseService,
+            (data) => add(OpenNotificationEvent.fromPush(data)));
 
-      // dzwonek: liczba nieprzeczytanych powiadomień na żywo
-      _notifSub?.cancel();
-      _notifSub = appFirebaseService.notificationsStream(userFB.id).listen((list) {
-        final company = isCompanyMode(state.user);
-        final n = list.where((e) {
-          if (e['read'] == true) return false;
-          final aud = (e['audience'] as String?) ?? 'both';
-          if (aud == 'both') return true;
-          return company ? aud == 'company' : aud == 'user';
-        }).length;
-        if (n != state.notifCounter) {
-          state.notifCounter = n;
-          add(RefreshBadgesEvent());
-        }
-      });
-      add(GoToHomeEvent());
-
-      // push: token na konto + co robić po kliknięciu w powiadomienie
-      PushService.register(userFB.id, appFirebaseService, (data) {
-        switch (data['type']) {
-          case 'offer':          // nowa oferta → Start → Zgłoszenia (user)
-            Globals.instance.startTab = 3;
-            add(GoToHomeEvent());
-            break;
-          case 'booking':        // nowa rezerwacja → Start → Kalendarz (firma)
-          case 'booking_decision': // decyzja firmy → Start → Rezerwacje (user)
-            Globals.instance.startTab = 1;
-            add(GoToHomeEvent());
-            break;
-          case 'contact_request': // prośba o telefon → Kontakty → Aktywność
-            Globals.instance.contactsTab = 0;
-            add(GoToChatEvent(''));
-            break;
-          case 'chat':           // nowa wiadomość → rozmowa
-            final from = data['from'] as String?;
-            if (from != null && from.isNotEmpty) {
-              add(GoToChatEvent(from, chatName: data['fromName'] as String?));
-            }
-            break;
-          case 'realization':    // zdjęcia do potwierdzenia → widok zgłoszenia
-          case 'realization_decision':
-            final rid = data['requestId'] as String?;
-            if (rid != null && rid.isNotEmpty) {
-              appFirebaseService.getRequestById(rid).then((r) {
-                if (r != null) {
-                  Globals.instance.selectedRequest = r;
-                  add(GoToShowRequestEvent());
-                }
-              });
-            }
-            break;
-          case 'review':         // prośba o recenzję → profil firmy
-            final id = data['companyId'] as String?;
-            if (id != null && id.isNotEmpty) {
-              add(GoToProfilPublicznyFirmyEvent(id));
-            }
-            break;
-          default:               // pilne zgłoszenie, decyzja klienta → Start
-            add(GoToHomeEvent());
-        }
-      });
-
-      // Firma (w trybie firmowym): powiadomienie o pilnych zgłoszeniach
-      if (userFB.firma == true &&
-          Globals.instance.companyView &&
-          userFB.companyCategory != null &&
-          userFB.companyLocation != null) {
-        try {
-          final urgent = await appFirebaseService.getUrgentNearbyCount(
-            companyId: userFB.id,
-            category: userFB.companyCategory!,
-            myLocation: userFB.companyLocation!,
-          );
-          if (urgent > 0) {
-            showToast(
-                text: urgent == 1
-                    ? 'Masz 1 pilne zgłoszenie w pobliżu!'
-                    : 'Masz $urgent pilne zgłoszenia w pobliżu!');
-          }
-        } catch (_) {}
+        // Firma (w trybie firmowym): powiadomienie o pilnych zgłoszeniach
+        if (isCompanyMode(userFB)) await toastUrgent(userFB);
+      } catch (e, s) {
+        emit(ErrorMainScreenState(
+            'Nie udało się wczytać konta. Sprawdź połączenie i spróbuj ponownie.'));
+        addError(e, s);
       }
     });
 

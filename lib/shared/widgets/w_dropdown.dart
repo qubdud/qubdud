@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../constants.dart';
@@ -31,7 +32,8 @@ class WAnimatedDropdown extends StatefulWidget {
 }
 
 class _WAnimatedDropdownState extends State<WAnimatedDropdown> {
-  late final TextEditingController _controller;
+  // zawsze aktualny kontroler rodzica (rodzic może go podmienić)
+  TextEditingController get _controller => widget.controller;
   final FocusNode _focusNode = FocusNode();
   bool _isFocused = false;
   bool isDropdownVisible = false;
@@ -40,9 +42,6 @@ class _WAnimatedDropdownState extends State<WAnimatedDropdown> {
   @override
   void initState() {
     super.initState();
-
-    // Initialize the controller with the initial value
-    _controller = widget.controller;
 
     filteredItems = widget.items;
     _focusNode.addListener(() {
@@ -70,11 +69,14 @@ class _WAnimatedDropdownState extends State<WAnimatedDropdown> {
   }
 
   @override
+  void didUpdateWidget(covariant WAnimatedDropdown oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // np. nowa lista branż po zmianie kategorii
+    if (!listEquals(oldWidget.items, widget.items)) filteredItems = widget.items;
+  }
+
+  @override
   void dispose() {
-    if (_focusNode.hasListeners) {
-      _focusNode.removeListener(() {});
-    }
-    //  _controller.dispose();
     _focusNode.dispose();
     super.dispose();
   }

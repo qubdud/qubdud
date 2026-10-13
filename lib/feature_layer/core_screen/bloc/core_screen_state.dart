@@ -8,7 +8,11 @@ class CoreScreenInitialState extends CoreScreenState {
 
 class CoreScreenAuthenticatedState extends CoreScreenState {}
 
-class CoreScreenUnauthenticatedState extends CoreScreenState {}
+class CoreScreenUnauthenticatedState extends CoreScreenState {
+  /// ekran logowania ma otworzyć się od razu na rejestracji
+  final bool toRegister;
+  CoreScreenUnauthenticatedState({this.toRegister = false});
+}
 
 
 class CoreScreenLoadingState extends CoreScreenState {}

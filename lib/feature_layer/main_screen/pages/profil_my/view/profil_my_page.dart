@@ -9,16 +9,15 @@ import 'package:latlong2/latlong.dart';
 import 'package:nominatim_flutter/model/request/search_request.dart';
 import 'package:nominatim_flutter/nominatim_flutter.dart';
 
-import '../../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../dodaj/view/dodaj_page.dart';
+import '../../../../../../shared/widgets/load_error.dart';
 import '../../../../../../domain_layer/chat_service.dart';
 import '../../../../../../domain_layer/firebase_service.dart';
-import '../../../../../../shared/constants.dart';
 import '../../../../../../shared/functions/effective_role.dart';
+import '../../../../../../shared/functions/show_toast_error.dart';
 import '../../../../../../shared/globals.dart';
 import '../../../../../../shared/widgets/anonim_gate.dart';
 import '../../../../../../shared/widgets/loading.dart';
-import '../../../../../../shared/widgets/request_take_status.dart';
 import '../../../../../../shared/widgets/w_button.dart';
 import '../../../../../../shared/widgets/w_input_field.dart';
 import '../../../../../../shared/widgets/w_small_label.dart';
@@ -26,7 +25,6 @@ import '../../../bloc/main_appbar_cubit.dart';
 import '../../../../../../feature_layer/main_screen/bloc/main_bloc.dart';
 import '../bloc/profil_my_page_bloc.dart';
 import 'tab_kalendarz.dart';
-import 'tab_klienci.dart';
 
 class MyProfilPage extends StatelessWidget {
   const MyProfilPage({super.key});
@@ -34,7 +32,9 @@ class MyProfilPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => MyProfilPageBloc(firebase: context.read<FirebaseService>()),
+      create: (_) => MyProfilPageBloc(
+          firebase: context.read<FirebaseService>(),
+          chat: context.read<ChatService>()),
       child: const _ProfilView(),
     );
   }
@@ -183,6 +183,11 @@ class _TabDaneState extends State<_TabDane> {
   bool _isSearching = false;
   Timer? _debounce;
 
+  bool get _saving => widget.state is MyProfilPageSavingState;
+
+  /// Konto firmowe w trybie użytkownika: telefon i opis są polami firmy.
+  bool get _sharedWithCompany => !widget.isCompany && widget.user?.firma == true;
+
   @override
   void initState() {
     super.initState();
@@ -190,7 +195,10 @@ class _TabDaneState extends State<_TabDane> {
     _firstName = TextEditingController(text: u?.firstName ?? '');
     _lastName = TextEditingController(text: u?.lastName ?? '');
     _phone = TextEditingController(text: u?.phone ?? '');
-    _bio = TextEditingController(text: u?.bio ?? widget.state.companyInfo?.description ?? '');
+    final String bio = u?.bio ?? '';
+    // EXPIRES: po uruchomieniu demo/_seed/migrate_profile_bio.js --apply (zostaje samo bio)
+    final oldDescription = widget.state.companyInfo?.description ?? '';
+    _bio = TextEditingController(text: bio.isNotEmpty ? bio : oldDescription);
     _companyName = TextEditingController(text: u?.companyName ?? '');
     final addr = u?.companyAddress ?? {};
     _street = TextEditingController(text: addr['street'] ?? '');
@@ -267,12 +275,18 @@ class _TabDaneState extends State<_TabDane> {
             const SizedBox(height: 16),
             WInputField(controller: _phone, label: 'Telefon',
                 isPassword: false, hintText: 'Numer telefonu',
-
-            ),
+                readOnly: _sharedWithCompany),
             const SizedBox(height: 16),
             WInputField(controller: _bio, label: 'Opis (publiczny)',
                 isPassword: false, hintText: 'Krótki opis widoczny na profilu',
-                maxLines: 4),
+                maxLines: 4, readOnly: _sharedWithCompany),
+            if (_sharedWithCompany) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Telefon i opis należą do profilu firmy — zmienisz je w trybie Firma.',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ],
           ] else ...[
             // ── Dane firmy ────────────────────────────────────
             WInputField(controller: _companyName, label: 'Nazwa firmy',
@@ -402,8 +416,9 @@ class _TabDaneState extends State<_TabDane> {
           const SizedBox(height: 24),
           Center(
             child: WButton(
-            text: 'Zapisz',
-            onPressed: () {
+            text: _saving ? 'Zapisywanie…' : 'Zapisz',
+            isEnabled: !_saving,
+            onPressed: _saving ? null : () {
               if (widget.isCompany) {
                 context.read<MyProfilPageBloc>().add(UpdateCompanyDataEvent(
                   companyName: _companyName.text.trim(),
@@ -427,8 +442,8 @@ class _TabDaneState extends State<_TabDane> {
                 context.read<MyProfilPageBloc>().add(UpdateUserDataEvent(
                   firstName: _firstName.text.trim(),
                   lastName: _lastName.text.trim(),
-                  phone: _phone.text.trim(),
-                  bio: _bio.text.trim(),
+                  phone: _sharedWithCompany ? null : _phone.text.trim(),
+                  bio: _sharedWithCompany ? null : _bio.text.trim(),
                 ));
               }
             },
@@ -442,157 +457,23 @@ class _TabDaneState extends State<_TabDane> {
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// TAB 2 — MOJE ZGŁOSZENIA
-// ──────────────────────────────────────────────────────────────────────────────
-class _TabZgloszenia extends StatelessWidget {
-  final MyProfilPageMainState state;
-
-  const _TabZgloszenia({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    if (state.requests.isEmpty) {
-      return const Center(
-        child: Text('Nie masz żadnych zgłoszeń',
-            style: TextStyle(color: Colors.grey)),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: state.requests.length,
-      itemBuilder: (context, index) {
-        final req = state.requests[index];
-        return _RequestTile(req: req);
-      },
-    );
-  }
-}
-
-class _RequestTile extends StatefulWidget {
-  final Request req;
-  const _RequestTile({required this.req});
-
-  @override
-  State<_RequestTile> createState() => _RequestTileState();
-}
-
-class _RequestTileState extends State<_RequestTile> {
-  bool _editing = false;
-  late final TextEditingController _desc;
-
-  @override
-  void initState() {
-    super.initState();
-    _desc = TextEditingController(text: widget.req.description);
-  }
-
-  @override
-  void dispose() {
-    _desc.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                // Miniatura
-                if (widget.req.thumbUrl.isNotEmpty)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: CachedNetworkImage(
-                      imageUrl: widget.req.thumbUrl,
-                      width: 60, height: 80,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                const SizedBox(width: 12),
-                // Dane
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(widget.req.category,
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                      Text(widget.req.sector,
-                          style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                      if (widget.req.city.isNotEmpty)
-                        Text(widget.req.city,
-                            style: const TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                ),
-                // Akcje
-                Column(
-                  children: [
-                    IconButton(
-                      icon: Icon(_editing ? Icons.close : Icons.edit_outlined,
-                          size: 20),
-                      onPressed: () => setState(() => _editing = !_editing),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline,
-                          size: 20, color: Colors.red),
-                      onPressed: () => context
-                          .read<MyProfilPageBloc>()
-                          .add(TryDeleteMyRequestProfilPageEvent(id: widget.req.id)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-
-            // Edycja opisu
-            if (_editing) ...[
-              const SizedBox(height: 12),
-              WInputField(
-                controller: _desc,
-                label: 'Opis zgłoszenia',
-                isPassword: false,
-                hintText: 'Wpisz opis',
-                maxLines: 3,
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: WButton(
-                  text: 'Zapisz',
-                  onPressed: () {
-                    context.read<MyProfilPageBloc>().add(
-                      UpdateRequestDescriptionEvent(
-                        id: widget.req.id,
-                        newDescription: _desc.text.trim(),
-                      ),
-                    );
-                    setState(() => _editing = false);
-                  },
-                ),
-              ),
-            ] else ...[
-              if (widget.req.description.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(widget.req.description,
-                    style: const TextStyle(fontSize: 13),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
-              ],
-            ],
-            RequestOffersBar(request: widget.req),
-          ],
-        ),
+Future<bool> _confirmDelete(BuildContext context, String title) async =>
+    await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: const Text('Tego nie można cofnąć.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Anuluj')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Usuń', style: TextStyle(color: Colors.red))),
+        ],
       ),
-    );
-  }
-}
+    ) ==
+    true;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // TAB 3 — MOJE RECENZJE
@@ -640,9 +521,14 @@ class _TabRecenzje extends StatelessWidget {
             trailing: IconButton(
               icon: const Icon(Icons.delete_outline,
                   size: 20, color: Colors.red),
-              onPressed: () => context
-                  .read<MyProfilPageBloc>()
-                  .add(TryDeleteMyReviewProfilPageEvent(id: rev.id)),
+              onPressed: () async {
+                if (await _confirmDelete(context, 'Usunąć recenzję?')) {
+                  if (!context.mounted) return;
+                  context
+                      .read<MyProfilPageBloc>()
+                      .add(TryDeleteMyReviewProfilPageEvent(id: rev.id));
+                }
+              },
             ),
           ),
         );
@@ -722,9 +608,14 @@ class _TabPrezentacje extends StatelessWidget {
                   icon: const Icon(Icons.delete, color: Colors.white, size: 18),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
-                  onPressed: () => context
-                      .read<MyProfilPageBloc>()
-                      .add(TryDeleteMyPromoProfilPageEvent(id: video.id)),
+                  onPressed: () async {
+                    if (await _confirmDelete(context, 'Usunąć prezentację?')) {
+                      if (!context.mounted) return;
+                      context
+                          .read<MyProfilPageBloc>()
+                          .add(TryDeleteMyPromoProfilPageEvent(id: video.id));
+                    }
+                  },
                 ),
               ),
             ),
@@ -743,18 +634,46 @@ class _TabPrezentacje extends StatelessWidget {
 // WAŻNE: ukrycie nie usuwa zgłoszenia — inne firmy nadal je widzą
 // ──────────────────────────────────────────────────────────────────────────────
 /// Rozmowy w koszu (ukryte swipe'em w Kontaktach) z przyciskiem Przywróć.
-class _TrashedChats extends StatelessWidget {
+class _TrashedChats extends StatefulWidget {
   /// true = własna zakładka (z pustym stanem); false = sekcja nad zgłoszeniami.
   final bool standalone;
   const _TrashedChats({this.standalone = false});
 
   @override
+  State<_TrashedChats> createState() => _TrashedChatsState();
+}
+
+class _TrashedChatsState extends State<_TrashedChats> {
+  late Stream<List<Map<String, dynamic>>> _chats;
+
+  bool get standalone => widget.standalone;
+
+  @override
+  void initState() {
+    super.initState();
+    _chats = context.read<ChatService>().getChatOverviews(hidden: true);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final chatService = context.read<ChatService>();
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: chatService.getChatOverviews(hidden: true),
+      stream: _chats,
       builder: (context, snap) {
-        final chats = snap.data ?? const [];
+        if (snap.hasError) {
+          return LoadError(
+            message: 'Nie udało się wczytać kosza',
+            compact: !standalone,
+            onRetry: () => setState(() => _chats =
+                chatService.getChatOverviews(hidden: true)),
+          );
+        }
+        if (!snap.hasData) {
+          return standalone
+              ? const Center(child: CircularProgressIndicator())
+              : const SizedBox.shrink();
+        }
+        final chats = snap.data!;
         if (chats.isEmpty) {
           return standalone
               ? const EmptyState(
@@ -802,8 +721,11 @@ class _TrashedChats extends StatelessWidget {
                     trailing: TextButton.icon(
                       icon: const Icon(Icons.restore, size: 16),
                       label: const Text('Przywróć'),
-                      onPressed: () =>
-                          chatService.unhideChat(c['from'] as String),
+                      onPressed: () => chatService
+                          .unhideChat(c['from'] as String)
+                          .catchError((Object _) {
+                        showToastError(text: 'Nie udało się przywrócić rozmowy');
+                      }),
                     ),
                   ),
                 )),

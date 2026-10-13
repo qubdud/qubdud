@@ -9,7 +9,6 @@ class CoreScreenBloc extends Bloc<CoreScreenEvent, CoreScreenState> {
   CoreScreenBloc() : super(CoreScreenLoadingState()) {
     on<CoreScreenCheckAuthenticationEvent>(_onCheckAuth);
     on<CoreScreenGoToMainScreenEvent>(_onGoToMain);
-    on<CoreScreenLogoutEvent>(_onLogout);
 
     add(CoreScreenCheckAuthenticationEvent());
   }
@@ -23,7 +22,7 @@ class CoreScreenBloc extends Bloc<CoreScreenEvent, CoreScreenState> {
     if (user != null) {
       emit(CoreScreenAuthenticatedState());
     } else {
-      emit(CoreScreenUnauthenticatedState());
+      emit(CoreScreenUnauthenticatedState(toRegister: event.toRegister));
     }
   }
 
@@ -32,13 +31,5 @@ class CoreScreenBloc extends Bloc<CoreScreenEvent, CoreScreenState> {
       Emitter<CoreScreenState> emit,
       ) async {
     emit(CoreScreenAuthenticatedState());
-  }
-
-  Future<void> _onLogout(
-      CoreScreenLogoutEvent event,
-      Emitter<CoreScreenState> emit,
-      ) async {
-    await FirebaseAuth.instance.signOut();
-    emit(CoreScreenUnauthenticatedState());
   }
 }

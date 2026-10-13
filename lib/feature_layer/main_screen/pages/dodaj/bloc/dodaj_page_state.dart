@@ -8,18 +8,6 @@ abstract class DodajPageState {
   requestMetadataStatic = value;
   }
 
-  static PromoMetadata? promoMetadataStatic;
-  PromoMetadata? get promoMetadata => promoMetadataStatic;
-  set promoMetadata(PromoMetadata? value) {
-    promoMetadataStatic = value;
-  }
-
-  static ReviewMetadata? reviewMetadataStatic;
-  ReviewMetadata? get reviewMetadata => reviewMetadataStatic;
-  set reviewMetadata(ReviewMetadata? value) {
-    reviewMetadataStatic = value;
-  }
-
 
   static AppUser? appUserStatic;
   AppUser? get appUser => appUserStatic;
@@ -81,19 +69,6 @@ class RequestMetadata  {
   });
 }
 
-class PromoMetadata  {
-  final String category;
-  final String sector;
-  final LatLng location;
-  final String description;
-  PromoMetadata({
-    required this.category,
-    required this.sector,
-    required this.location,
-    required this.description,
-  });
-}
-
 class SelectedContent  {
   final File file;
   final String fileType;
@@ -102,15 +77,5 @@ class SelectedContent  {
     required this.file,
     required this.fileType,
     required this.selectType,
-  });
-}
-
-
-class ReviewMetadata  {
-  final int score;
-  final String description;
-  ReviewMetadata({
-    required this.score,
-    required this.description,
   });
 }

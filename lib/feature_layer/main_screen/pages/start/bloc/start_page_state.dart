@@ -22,7 +22,7 @@ abstract class StartPageState {
   }
 
   static List<Request> myRequestsStatic = [];
-  List<Request> get myRequests => requestsStatic;
+  List<Request> get myRequests => myRequestsStatic;
   set myRequests(List<Request> value) {
     myRequestsStatic = value;
   }
@@ -33,7 +33,7 @@ abstract class StartPageState {
     myReviewStatic = value;
   }
 
-  // Status mojej oferty per zgłoszenie: none/pending/maybe/accepted/rejected
+  // Status mojej oferty per zgłoszenie: none/pending/maybe/accepted/rejected/closed
   static Map<String, String> myOfferStatusesStatic = {};
   Map<String, String> get myOfferStatuses => myOfferStatusesStatic;
   set myOfferStatuses(Map<String, String> value) {
@@ -52,6 +52,13 @@ abstract class StartPageState {
   List<Request> get trashedRequests => trashedRequestsStatic;
   set trashedRequests(List<Request> value) {
     trashedRequestsStatic = value;
+  }
+
+  // Sekcje, których nie udało się wczytać (pasek „Odśwież")
+  static List<String> loadErrorsStatic = [];
+  List<String> get loadErrors => loadErrorsStatic;
+  set loadErrors(List<String> value) {
+    loadErrorsStatic = value;
   }
 
 }

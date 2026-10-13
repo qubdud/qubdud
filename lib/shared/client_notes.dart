@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../domain_layer/firebase_service.dart';
 import '../feature_layer/main_screen/bloc/main_bloc.dart';
 import 'functions/effective_role.dart';
+import 'functions/show_toast_error.dart';
 
 /// Prywatne notatki firmy o klientach — wspólne dla całej apki
 /// (lista zgłoszeń, rozmowy, kontakty, profil użytkownika).
@@ -83,8 +84,13 @@ Future<bool> showClientNoteDialog(
     ),
   );
   if (saved == null || !context.mounted) return false;
-  await ClientNotes.save(context.read<FirebaseService>(), userId, saved);
-  return true;
+  try {
+    await ClientNotes.save(context.read<FirebaseService>(), userId, saved);
+    return true;
+  } catch (_) {
+    showToastError(text: 'Nie udało się zapisać notatki');
+    return false;
+  }
 }
 
 /// Żółta karteczka z notatką — pokazuje się tylko firmie i tylko gdy jest treść.

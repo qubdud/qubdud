@@ -6,24 +6,9 @@ class GetDataMyProfilPageEvent extends MyProfilPageEvent {}
 
 class GoToMainMyProfilPageEvent extends MyProfilPageEvent {}
 
-class SetDataMyProfilPageEvent extends MyProfilPageEvent {
-  final String description;
-  final String videoDescription;
-
-
-  SetDataMyProfilPageEvent({required this.videoDescription,required this.description });
-}
-
-
 class TryDeleteMyPromoProfilPageEvent extends MyProfilPageEvent {
   final String id;
   TryDeleteMyPromoProfilPageEvent({required this.id });
-}
-
-
-class TryDeleteMyRequestProfilPageEvent extends MyProfilPageEvent {
-  final String id;
-  TryDeleteMyRequestProfilPageEvent({required this.id });
 }
 
 
@@ -32,18 +17,14 @@ class TryDeleteMyReviewProfilPageEvent extends MyProfilPageEvent {
   TryDeleteMyReviewProfilPageEvent({required this.id});
 }
 
-class UpdateRequestDescriptionEvent extends MyProfilPageEvent {
-  final String id;
-  final String newDescription;
-  UpdateRequestDescriptionEvent({required this.id, required this.newDescription});
-}
-
+/// [phone]/[bio] = null — pole nie jest zapisywane (u konta firmowego
+/// w trybie użytkownika należy do profilu firmy).
 class UpdateUserDataEvent extends MyProfilPageEvent {
   final String firstName;
   final String lastName;
-  final String phone;
-  final String bio;
-  UpdateUserDataEvent({required this.firstName, required this.lastName, required this.phone, required this.bio});
+  final String? phone;
+  final String? bio;
+  UpdateUserDataEvent({required this.firstName, required this.lastName, this.phone, this.bio});
 }
 
 class UpdateCompanyDataEvent extends MyProfilPageEvent {

@@ -13,8 +13,8 @@ import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../bloc/main_bloc.dart';
 import 'tab_activity.dart';
 import '../bloc/chat_page_bloc.dart';
-import '../functions/format_timestamp.dart';
 import '../pages/messaging_page_mob.dart';
+import '../../../../../shared/widgets/load_error.dart';
 
 class ChatPageMob extends StatefulWidget {
   const ChatPageMob({super.key});
@@ -62,46 +62,31 @@ class _ChatPageMobState extends State<ChatPageMob>
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<ChatPageBloc, ChatPageState>(
+      listenWhen: (previous, current) =>
+          current is MessagingPageMainState &&
+          (previous is! MessagingPageMainState ||
+              previous.name != current.name),
       listener: (context, state) {
-        if (state is MessagingLoadingPageState) {
-          context.read<MainScreenControlCubit>().setIsMenuVisible(true);
-          context.read<MainScreenControlCubit>().updateAppBar(
-                showBack: true,
-                onBackPressed: () =>
-                    context.read<MainScreenBloc>().add(GoToChatEvent('')),
-                backgroundColor: cLighterBrown,
-                title: 'Rozmowa',
-                key: UniqueKey().toString(),
-                child: const SizedBox.shrink(),
-                height: 56,
-              );
-        }
-        if (state is MessagingPageMainState) {
-          final u = state.chatUser;
-          final name = u == null
-              ? 'Rozmowa'
-              : (u.firma == true
-                  ? (u.companyName ?? 'Firma')
-                  : '${u.firstName ?? ''} ${u.lastName ?? ''}'.trim());
-          context.read<MainScreenControlCubit>().updateAppBar(
-                showBack: true,
-                onBackPressed: () =>
-                    context.read<MainScreenBloc>().add(GoToChatEvent('')),
-                backgroundColor: cLighterBrown,
-                title: name.isEmpty ? 'Rozmowa' : name,
-                key: UniqueKey().toString(),
-                child: const SizedBox.shrink(),
-                height: 56,
-              );
-        }
+        // tytuł: nazwa rozmówcy, a do czasu jej wczytania ten z GoToChatEvent
+        context.read<MainScreenControlCubit>().updateAppBar(
+              showBack: true,
+              onBackPressed: () =>
+                  context.read<MainScreenBloc>().add(GoBackEvent()),
+              backgroundColor: cLighterBrown,
+              title: (state as MessagingPageMainState).name,
+              key: UniqueKey().toString(),
+              child: const SizedBox.shrink(),
+              height: 56,
+            );
       },
+      buildWhen: (previous, current) =>
+          previous.runtimeType != current.runtimeType,
       builder: (context, state) {
         if (state is ChatPageLoadingState) {
           return Loading(noText: true, key: UniqueKey());
         }
-        if (state is MessagingPageMainState ||
-            state is MessagingLoadingPageState) {
-          return const MessagingPageMob();
+        if (state is MessagingPageMainState) {
+          return MessagingPageMob(otherUid: state.userChat);
         }
 
         return Column(
@@ -152,11 +137,14 @@ class _ContactsListState extends State<_ContactsList>
 
   List<AppUser> _contacts = [];
   bool _loading = true;
+  bool _failed = false;
   bool? _filter; // null = wszyscy, true = firmy, false = ludzie
+  late final Stream<List<Map<String, dynamic>>> _chats;
 
   @override
   void initState() {
     super.initState();
+    _chats = context.read<ChatService>().getChatOverviews();
     _load();
   }
 
@@ -171,9 +159,23 @@ class _ContactsListState extends State<_ContactsList>
         if (u != null) users.add(u);
       }
       if (mounted) setState(() { _contacts = users; _loading = false; });
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      debugPrint('Kontakty: zapisani: $e');
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _failed = true;
+        });
+      }
     }
+  }
+
+  void _retry() {
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
+    _load();
   }
 
   Future<void> _removeContact(AppUser user) async {
@@ -198,9 +200,15 @@ class _ContactsListState extends State<_ContactsList>
     );
     if (ok != true || !mounted) return;
     final myUid = context.read<MainScreenBloc>().state.user?.id ?? '';
-    await context
-        .read<FirebaseService>()
-        .removeContact(myUserId: myUid, contactUserId: user.id);
+    try {
+      await context
+          .read<FirebaseService>()
+          .removeContact(myUserId: myUid, contactUserId: user.id);
+    } catch (e) {
+      debugPrint('Kontakty: usuwanie: $e');
+      showToast(text: 'Nie udało się usunąć z kontaktów');
+      return;
+    }
     if (mounted) {
       setState(() =>
           _contacts = _contacts.where((c) => c.id != user.id).toList());
@@ -211,6 +219,9 @@ class _ContactsListState extends State<_ContactsList>
   Widget build(BuildContext context) {
     super.build(context);
     if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_failed) {
+      return LoadError(message: 'Nie udało się wczytać zapisanych', onRetry: _retry);
+    }
 
     final shown = _contacts
         .where((u) => _filter == null || (u.firma == true) == _filter)
@@ -252,44 +263,76 @@ class _ContactsListState extends State<_ContactsList>
         ],
       );
     }
-    final chatService = context.read<ChatService>();
+    // rozmowy tylko dopisują licznik nieprzeczytanych — ich błąd nie zasłania listy
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _chats,
+      builder: (context, chatSnap) {
+        final chats = chatSnap.data ?? [];
+        return Column(
+          children: [
+            chips(),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(10),
+                itemCount: shown.length,
+                itemBuilder: (context, i) {
+                  final user = shown[i];
+                  final chat = chats.firstWhere(
+                    (c) => c['from'] == user.id,
+                    orElse: () => {},
+                  );
+                  return _ContactCard(
+                    user: user,
+                    lastMessage: chat['lastMessage'] as String? ?? '',
+                    timestamp: chat['timestamp'] as int? ?? 0,
+                    unreadCount: chat['unreadCount'] as int? ?? 0,
+                    onRemove: () => _removeContact(user),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
 
-    return StreamBuilder<Map<String, bool>>(
-      stream: chatService.getOnlineStatuses(),
-      builder: (context, onlineSnap) {
-        final online = onlineSnap.data ?? {};
-        return StreamBuilder<List<Map<String, dynamic>>>(
-          stream: chatService.getChatOverviews(),
-          builder: (context, chatSnap) {
-            final chats = chatSnap.data ?? [];
-            return Column(
-              children: [
-                chips(),
-                Expanded(
-                  child: ListView.builder(
-              padding: const EdgeInsets.all(10),
-              itemCount: shown.length,
-              itemBuilder: (context, i) {
-                final user = shown[i];
-                final isOnline = online[user.id] ?? false;
-                final chat = chats.firstWhere(
-                      (c) => c['from'] == user.id,
-                  orElse: () => {},
-                );
-                return _ContactCard(
-                  user: user,
-                  isOnline: isOnline,
-                  lastMessage: chat['lastMessage'] as String? ?? '',
-                  timestamp: chat['timestamp'] as int? ?? 0,
-                  unreadCount: chat['unreadCount'] as int? ?? 0,
-                  onRemove: () => _removeContact(user),
-                );
-              },
-                  ),
-                ),
-              ],
-            );
-          },
+/// Zielona kropka: online i ślad obecności młodszy niż 5 min (jak w Cloud Functions).
+class _OnlineDot extends StatefulWidget {
+  final String userId;
+  const _OnlineDot(this.userId, {super.key});
+
+  @override
+  State<_OnlineDot> createState() => _OnlineDotState();
+}
+
+class _OnlineDotState extends State<_OnlineDot> {
+  late final Stream<Map<String, dynamic>?> _status;
+
+  @override
+  void initState() {
+    super.initState();
+    _status = context.read<ChatService>().getUserStatus(widget.userId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<Map<String, dynamic>?>(
+      stream: _status,
+      builder: (context, snap) {
+        final seen = snap.data?['last_seen'];
+        final online = snap.data?['online'] == true &&
+            seen is num &&
+            DateTime.now().millisecondsSinceEpoch - seen < 5 * 60 * 1000;
+        if (!online) return const SizedBox.shrink();
+        return Container(
+          width: 11,
+          height: 11,
+          decoration: BoxDecoration(
+              color: Colors.green,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2)),
         );
       },
     );
@@ -301,7 +344,6 @@ class _ContactsListState extends State<_ContactsList>
 // ─────────────────────────────────────────────────────────────────────────────
 class _ContactCard extends StatelessWidget {
   final AppUser user;
-  final bool isOnline;
   final String lastMessage;
   final int timestamp;
   final int unreadCount;
@@ -309,7 +351,6 @@ class _ContactCard extends StatelessWidget {
 
   const _ContactCard({
     required this.user,
-    required this.isOnline,
     required this.lastMessage,
     required this.timestamp,
     required this.unreadCount,
@@ -365,19 +406,7 @@ class _ContactCard extends StatelessWidget {
                   style: const TextStyle(
                       color: Colors.white, fontWeight: FontWeight.bold)),
             ),
-            if (isOnline)
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  width: 11,
-                  height: 11,
-                  decoration: BoxDecoration(
-                      color: Colors.green,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2)),
-                ),
-              ),
+            Positioned(right: 0, bottom: 0, child: _OnlineDot(user.id, key: ValueKey(user.id))),
           ],
         ),
         title: Text(name,
@@ -423,108 +452,6 @@ class _ContactCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _NotesList extends StatefulWidget {
-  const _NotesList({super.key});
-
-  @override
-  State<_NotesList> createState() => _NotesListState();
-}
-
-class _NotesListState extends State<_NotesList> {
-  Map<String, AppUser?> _people = {};
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final firebase = context.read<FirebaseService>();
-    final myId = context.read<MainScreenBloc>().state.user?.id ?? '';
-    await ClientNotes.load(firebase, myId);
-    final ids = ClientNotes.all.keys.toList();
-    final map = <String, AppUser?>{};
-    for (final id in ids) {
-      map[id] = await firebase.fetchUser(id);
-    }
-    if (mounted) setState(() { _people = map; _loading = false; });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-
-    final entries = ClientNotes.all.entries.toList();
-    if (entries.isEmpty) {
-      return const EmptyState(
-        icon: Icons.sticky_note_2_outlined,
-        title: 'Brak notatek',
-        subtitle:
-            'Dotknij imienia klienta na zgłoszeniu lub w rozmowie, aby dodać prywatną notatkę.',
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: entries.length,
-      itemBuilder: (context, i) {
-        final userId = entries[i].key;
-        final note = entries[i].value;
-        final u = _people[userId];
-        final name = u == null
-            ? 'Użytkownik'
-            : (u.firma == true
-                ? (u.companyName ?? 'Firma')
-                : '${u.firstName ?? ''} ${u.lastName ?? ''}'.trim());
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 10),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            onTap: () async {
-              final changed =
-                  await showClientNoteDialog(context, userId, name);
-              if (changed) _load();
-            },
-            leading: const CircleAvatar(
-              backgroundColor: Color(0xFFFFF6C7),
-              child: Icon(Icons.sticky_note_2, color: Color(0xFF8A6D1B)),
-            ),
-            title: Text(name.isEmpty ? 'Użytkownik' : name,
-                style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w600)),
-            subtitle: Text(note, style: const TextStyle(fontSize: 12)),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                  tooltip: 'Napisz',
-                  onPressed: () => context
-                      .read<MainScreenBloc>()
-                      .add(GoToChatEvent(userId, chatName: name)),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 18),
-                  tooltip: 'Edytuj',
-                  onPressed: () async {
-                    final changed =
-                        await showClientNoteDialog(context, userId, name);
-                    if (changed) _load();
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

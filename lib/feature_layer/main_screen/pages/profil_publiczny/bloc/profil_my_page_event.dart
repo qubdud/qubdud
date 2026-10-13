@@ -6,15 +6,6 @@ class GetDataProfilPubliczyPageEvent extends ProfilPubliczyPageEvent {}
 
 class GoToMainProfilPubliczyPageEvent extends ProfilPubliczyPageEvent {}
 
-class SetDataProfilPubliczyPageEvent extends ProfilPubliczyPageEvent {
-  final String description;
-  final String videoDescription;
-
-
-  SetDataProfilPubliczyPageEvent({required this.videoDescription,required this.description });
-}
-
-
 class TryDeleteMyPromoProfilPageEvent extends ProfilPubliczyPageEvent {
   final String id;
   TryDeleteMyPromoProfilPageEvent({required this.id });

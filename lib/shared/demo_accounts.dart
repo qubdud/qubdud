@@ -1,5 +1,6 @@
-/// TYLKO WERSJA TESTOWA — szybkie wypełnianie loginu na ekranie logowania.
-/// Do usunięcia przed wydaniem produkcyjnym.
+/// Szybkie wypełnianie loginu na ekranie logowania — tylko w buildzie debug.
+/// Używane wyłącznie pod `kDebugMode`, więc w release (AOT) lista nie trafia
+/// do skompilowanego kodu.
 class DemoAccount {
   final String label;
   final String email;

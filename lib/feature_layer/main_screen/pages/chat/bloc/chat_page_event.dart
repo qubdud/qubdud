@@ -2,12 +2,17 @@ part of 'chat_page_bloc.dart';
 
 abstract class ChatPageEvent {}
 
-class GoToMainChatPageEvent extends ChatPageEvent {}
-
 class InitChatPageEvent extends ChatPageEvent {}
 
-class StartUserChatChatPageEvent extends ChatPageEvent {
-  final String uid;
+/// „Spróbuj ponownie” oraz po wysłaniu pierwszej wiadomości (rozmowa już istnieje).
+class RetryMessagesChatPageEvent extends ChatPageEvent {}
 
-  StartUserChatChatPageEvent(this.uid);
+class LoadOlderMessagesChatPageEvent extends ChatPageEvent {}
+
+class _MessagesChatPageEvent extends ChatPageEvent {
+  final List<Map<String, dynamic>> messages;
+
+  _MessagesChatPageEvent(this.messages);
 }
+
+class _MessagesFailedChatPageEvent extends ChatPageEvent {}

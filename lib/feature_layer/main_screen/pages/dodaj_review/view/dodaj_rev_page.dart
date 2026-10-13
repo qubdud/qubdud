@@ -1,32 +1,19 @@
-import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:qb/feature_layer/main_screen/bloc/main_appbar_cubit.dart';
 import 'package:qb/shared/constants.dart';
-import 'package:qb/shared/widgets/w_dropdown.dart';
-import 'package:qb/shared/widgets/w_input_field.dart';
-import 'package:qb/shared/widgets/w_label.dart';
-import 'package:qb/shared/widgets/w_small_label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:path/path.dart' as p;
 
-import 'package:latlong2/latlong.dart';
 
 import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../domain_layer/firebase_service.dart';
 import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/review.dart';
-import '../../../../../shared/widgets/w_button.dart';
 import '../../../bloc/main_bloc.dart';
-import '../../start/components/user2_info/view/user_info_component.dart';
 import '../bloc/dodaj_rev_page_bloc.dart';
 import '../pages/review_page.dart';
 import '../pages/selectror_page.dart';
-import '../widgets/user_info_short/view/user_info_component.dart';
 
 class DodajReviewPage extends StatelessWidget {
   const DodajReviewPage({super.key});
@@ -207,7 +194,7 @@ class _ViewState extends State<View> {
             TweenAnimationBuilder<double>(
               tween: Tween<double>(
                 begin: 0,
-                end: (state as DodajReviewPageUploadingState).progress * 100,
+                end: (state).progress * 100,
               ),
               duration: const Duration(milliseconds: 500),
               builder: (context, value, child) {

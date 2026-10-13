@@ -1,12 +1,7 @@
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/feature_layer/main_screen/bloc/main_bloc.dart';
-import 'package:video_player/video_player.dart';
 
 
 import '../../../../../../../domain_layer/domain_models/promoVideo.dart';

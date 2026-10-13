@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qb/feature_layer/main_screen/pages/profil_publiczny/view/profil_publiczny_page.dart';
 import '../pages/profil_user/view/profil_user_page.dart';
 import 'package:qb/feature_layer/main_screen/pages/show_request/view/show_request_page.dart';
@@ -6,6 +7,7 @@ import 'package:qb/feature_layer/main_screen/pages/show_request/view/show_reques
 import '../../../shared/globals.dart';
 import '../../../shared/widgets/anonim_gate.dart';
 import '../../../shared/widgets/loading.dart';
+import '../../../shared/widgets/w_button.dart';
 import '../bloc/main_bloc.dart';
 import '../pages/chat/view/chat_page.dart';
 import '../pages/dodaj/view/dodaj_page.dart';
@@ -18,6 +20,10 @@ import '../pages/wideo/single_video.dart';
 import '../pages/wyszukaj/view/wyszukaj_page.dart';
 
 Widget buildWidgetBasedOnState(MainScreenState state) {
+  if (state is ErrorMainScreenState) {
+    return _InitErrorView(state.message, key: const ValueKey('InitError'));
+  }
+
   // Anonim: tylko szukanie i oglądanie. Wszystko, co pokazuje dane firmy
   // lub pozwala na kontakt, jest za bramką logowania.
   if (Globals.instance.anonim) {
@@ -90,5 +96,37 @@ Widget buildWidgetBasedOnState(MainScreenState state) {
     return ProfilPublicznyUseraPage(userId: state.userId, key: ValueKey('ProfilUsera'));
   } else {
     return Loading(noText: true, key: ValueKey('Loading'));
+  }
+}
+
+/// Start nie wczytał konta — zamiast wiecznego spinnera komunikat i wyjścia.
+class _InitErrorView extends StatelessWidget {
+  final String message;
+
+  const _InitErrorView(this.message, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final bloc = context.read<MainScreenBloc>();
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 40),
+          Icon(Icons.cloud_off_outlined, size: 64, color: Colors.grey.shade400),
+          const SizedBox(height: 16),
+          Text(message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 15)),
+          const SizedBox(height: 24),
+          WButton(text: 'Spróbuj ponownie', onPressed: () => bloc.add(InitEvent())),
+          const SizedBox(height: 12),
+          TextButton(
+              onPressed: () => bloc.add(LogoutEvent()),
+              child: const Text('Wyloguj się')),
+        ],
+      ),
+    );
   }
 }

@@ -6,9 +6,11 @@ import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../domain_layer/domain_models/relation_link.dart';
 import '../../../../../domain_layer/firebase_service.dart';
 import '../../../../../shared/client_notes.dart';
+import '../../../../../shared/functions/show_toast_error.dart';
 import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/empty_state.dart';
 import '../../../bloc/main_bloc.dart';
+import '../../../../../shared/widgets/load_error.dart';
 import 'tab_kalendarz.dart' show dayLabel;
 
 /// Klienci firmy: osoby po rezerwacji terminu, po zgłoszeniu z ofertą
@@ -26,7 +28,8 @@ class TabKlienci extends StatelessWidget {
         await ClientNotes.load(firebase, companyId);
         final ids = links.map((l) => l.user.id).toSet();
         for (final id in ClientNotes.all.keys) {
-          if (ids.contains(id)) continue;
+          // notatka o samym sobie nie robi z firmy własnego klienta
+          if (ids.contains(id) || id == companyId) continue;
           final u = await firebase.fetchUser(id);
           if (u != null) links.add(RelationLink(user: u));
         }
@@ -86,6 +89,7 @@ class _RelationList extends StatefulWidget {
 class _RelationListState extends State<_RelationList> {
   List<RelationLink> _links = [];
   bool _loading = true;
+  bool _error = false;
 
   @override
   void initState() {
@@ -96,9 +100,20 @@ class _RelationListState extends State<_RelationList> {
   Future<void> _load() async {
     try {
       final list = await widget.loader();
-      if (mounted) setState(() { _links = list; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _links = list;
+          _loading = false;
+          _error = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = true;
+        });
+      }
     }
   }
 
@@ -120,6 +135,16 @@ class _RelationListState extends State<_RelationList> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
+
+    if (_error) {
+      return LoadError(
+        message: 'Nie udało się wczytać listy',
+        onRetry: () {
+          setState(() => _loading = true);
+          _load();
+        },
+      );
+    }
 
     if (_links.isEmpty) {
       return EmptyState(
@@ -316,9 +341,13 @@ class _RelationListState extends State<_RelationList> {
     if (!mounted || choice == null) return;
     if (choice == 'call') {
       await launchUrl(Uri(scheme: 'tel', path: c.phone.replaceAll(RegExp(r'[^0-9+]'), '')));
-    } else {
+      return;
+    }
+    try {
       await context.read<FirebaseService>().setContactRequestDone(c.id);
-      setState(() => c.status = 'done');
+      if (mounted) setState(() => c.status = 'done');
+    } catch (_) {
+      showToastError(text: 'Nie udało się zapisać — spróbuj ponownie');
     }
   }
 
@@ -331,17 +360,12 @@ class _RelationListState extends State<_RelationList> {
   static String _short(String s) =>
       s.length > 32 ? '${s.substring(0, 32).trimRight()}…' : s;
 
-  static Color _slotColor(String status) => switch (status) {
-        'accepted' => Colors.green.shade700,
-        'rejected' => Colors.red.shade600,
-        _ => Colors.amber.shade800,
-      };
+  static Color _slotColor(String status) => status == 'accepted'
+      ? Colors.green.shade700
+      : Colors.amber.shade800;
 
-  static String _slotSuffix(String status) => switch (status) {
-        'accepted' => ' · przyjęta',
-        'rejected' => ' · odrzucona',
-        _ => ' · czeka',
-      };
+  static String _slotSuffix(String status) =>
+      status == 'accepted' ? ' · przyjęta' : ' · czeka';
 }
 
 /// Mały chip „skąd ta osoba": ikona + tekst, opcjonalnie klikalny.

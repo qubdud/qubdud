@@ -1,5 +1,4 @@
 
-import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,7 +7,6 @@ import 'package:fluttertoast/fluttertoast.dart';
 import '../domain_layer/chat_service.dart';
 import '../domain_layer/firebase_service.dart';
 import '../feature_layer/core_screen/view/core_screen.dart';
-import '../feature_layer/main_screen/bloc/main_appbar_cubit.dart';
 import '../shared/constants.dart';
 import '../shared/theme_controller.dart';
 

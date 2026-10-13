@@ -1,19 +1,12 @@
-import 'dart:async';
-import 'dart:developer';
 import 'dart:io';
-import 'package:path/path.dart' as p;
-import 'package:image/image.dart' as img;
 
 import 'package:bloc/bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/shared/functions/show_toast.dart';
 import 'package:qb/shared/functions/show_toast_error.dart';
-import 'package:qb/shared/functions/show_toast_ok.dart';
-import 'package:video_thumbnail/video_thumbnail.dart';
+import '../../dodaj/bloc/dodaj_page_bloc.dart' show makeThumbnail, uploadErrorText;
 import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../shared/globals.dart';
@@ -30,187 +23,77 @@ class DodajReviewPageBloc extends Bloc<DodajReviewPageEvent, DodajReviewPageStat
 
 
     on<SelectedDodajReviewPageEvent>((event, emit) async {
-
       emit(DodajReviewPageLoadingState());
-      String? generatedPath;
       state.selectedContent = SelectedContent(file: event.file, fileType: event.fileType, selectType: event.selectType);
-
-      if(event.selectType == 'review'){
-        if (state.selectedContent!.fileType=='video'){
-          final tempDir = await getTemporaryDirectory();
-          final thumbnailFileName = state.selectedContent!.file.path + '.jpg';
-          final thumbnailPath = p.join(tempDir.path, thumbnailFileName);
-          generatedPath = await VideoThumbnail.thumbnailFile(
-            video: state.selectedContent!.file.path,
-            thumbnailPath: thumbnailPath,
-            imageFormat: ImageFormat.JPEG,
-            maxHeight: 720,
-            quality: 75,
-          );
-        } else {
-          final bytes = await state.selectedContent!.file.readAsBytes();
-          final image = img.decodeImage(bytes);
-
-          if (image != null) {
-            final thumbnail = img.copyResize(image, height: 720);
-            final tempDir = await getTemporaryDirectory();
-            final baseName = p.basename(state.selectedContent!.file.path);
-            final thumbPath = p.join(tempDir.path, '$baseName-thumb.jpg');
-            final thumbFile = File(thumbPath);
-            await thumbFile.writeAsBytes(img.encodeJpg(thumbnail, quality: 75));
-            generatedPath = thumbPath;
-          }
-        }
-
-        emit(DodajRequestPromoState(generatedPath!));
-
-
-      }else {
-        add(DodajDodajReviewPageEvent());
+      state.reviewMetadata = null;
+      String? thumb;
+      try {
+        thumb = await makeThumbnail(event.file, event.fileType);
+      } catch (_) {}
+      if (thumb == null) {
+        showToastError(text: 'Nie udało się odczytać pliku. Wybierz inne zdjęcie lub film.');
+        emit(DodajReviewPageMainState());
+        return;
       }
+      emit(DodajRequestPromoState(thumb));
     });
 
-
-
+    // Cały zapis w jednym handlerze: wyjście z ekranu w trakcie wysyłania
+    // zamyka BLoC (emit staje się no-op), ale recenzja i tak się zapisze.
     on<DodajDodajReviewPageEvent>((event, emit) async {
+      final current = state;
+      final content = state.selectedContent!;
       emit(DodajReviewPageLoadingState());
 
-      String? generatedPath;
-      var userId = FirebaseAuth.instance.currentUser?.uid;
-      state.appUser = await firebase.fetchUser(userId!);
-
-      if (state.selectedContent!.fileType=='video'){
-        final tempDir = await getTemporaryDirectory();
-        final thumbnailFileName = state.selectedContent!.file.path + '.jpg';
-        final thumbnailPath = p.join(tempDir.path, thumbnailFileName);
-        generatedPath = await VideoThumbnail.thumbnailFile(
-          video: state.selectedContent!.file.path,
-          thumbnailPath: thumbnailPath,
-          imageFormat: ImageFormat.JPEG,
-          maxHeight: 720,
-          quality: 75,
-        );
-      } else {
-        final bytes = await state.selectedContent!.file.readAsBytes();
-        final image = img.decodeImage(bytes);
-
-        if (image != null) {
-          final thumbnail = img.copyResize(image, height: 720);
-          final tempDir = await getTemporaryDirectory();
-          final baseName = p.basename(state.selectedContent!.file.path);
-          final thumbPath = p.join(tempDir.path, '$baseName-thumb.jpg');
-          final thumbFile = File(thumbPath);
-          await thumbFile.writeAsBytes(img.encodeJpg(thumbnail, quality: 75));
-          generatedPath = thumbPath;
-        }
-      }
-
-      final baseName = p.basenameWithoutExtension(state.selectedContent!.file.path);
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final thumbExtension = p.extension(generatedPath??''); // <- tutaj pobieramy rozszerzenie
-      final extension = p.extension(state.selectedContent!.file.path); // <- tutaj pobieramy rozszerzenie
-
-
-
-      final cleanFileName = '${baseName}${userId}$timestamp$extension';
-      final cleanThumbName = '${baseName}${userId}$timestamp$thumbExtension';
-
-
-      add(
-
-        UploadDodajReviewPageEvent(
-          file: state.selectedContent!.file,
-          fileName: cleanFileName,
-          fileThumb: File(generatedPath??''),
-          thumbName: cleanThumbName,
-          fileType: state.selectedContent!.fileType,
-          selectType: state.selectedContent!.selectType,
-        ),
-      );
-    });
-
-
-
-
-    on<UploadDodajReviewPageEvent>((event, emit) async {
+      String? thumb;
       try {
-        final taskThumb = await firebase.uploadThumb(
-          file: event.fileThumb,
-          fileName: event.fileName,
-        );
-
-        final TaskSnapshot snap = await taskThumb;
-
-        final task = await firebase.uploadWithProgress(
-          file: event.file,
-          fileName: event.fileName,
-        );
-
-
-        await for (final snapshot in task.snapshotEvents) {
-          final progress = snapshot.bytesTransferred / snapshot.totalBytes;
-
-          if (snapshot.state == TaskState.success) {
-
-            add(UploadMetadataDodajReviewPageEvent(
-              fileRef: snapshot.ref,
-              fileRefThumb: snap.ref,
-              fileName: event.fileName,
-            ));
-
-
-            emit(DodajReviewPageUploadingState(1));
-            break; // kończymy pętlę
-          } else {
-            print(progress);
-            emit(DodajReviewPageUploadingState(progress));
-          }
-        }
-      } catch (e) {
-        showToastError(text: 'Błąd uploadu');
+        thumb = current is DodajRequestPromoState
+            ? current.thumbPath
+            : await makeThumbnail(content.file, content.fileType);
+      } catch (_) {}
+      if (thumb == null) {
+        showToastError(text: 'Nie udało się odczytać pliku. Wybierz inny.');
         emit(DodajReviewPageMainState());
+        return;
       }
-    });
 
-
-    on<UploadMetadataDodajReviewPageEvent>((event, emit) async {
       try {
-        // Pobierz publiczny URL do pliku
-        final downloadUrl = await event.fileRef.getDownloadURL();
-        final thumbUrl = await event.fileRefThumb.getDownloadURL();
-
-        if(state.selectedContent!.selectType=='review') {
-          final promo = Globals.instance.selectedPromo;
-          await firebase.saveReviewMetadata(
-              Review(
-                userId: state.appUser!.id,
-                promoId: promo?.id == 'profile_review' ? '' : (promo?.id ?? ''),
-                reviewedUserId: promo?.userId ?? '',
-                authorName: '${state.appUser!.firstName ?? ''} ${state.appUser!.lastName ?? ''}'.trim(),
-                score: state.reviewMetadata!.score,
-                description: state.reviewMetadata!.description,
-                fileName: event.fileName,
-                fileUrl: downloadUrl,
-                thumbUrl: thumbUrl,
-                id: '',
-                timestamp: null,
-              )
-          );
-        }
-
-
-
-
-
+        final user =
+            await firebase.fetchUser(FirebaseAuth.instance.currentUser!.uid);
+        state.appUser = user;
+        final media = await firebase.uploadMedia(
+          file: content.file,
+          thumb: File(thumb),
+          mediaType: content.fileType == 'video' ? 'video' : 'image',
+          onProgress: (progress) =>
+              emit(DodajReviewPageUploadingState(progress)),
+        );
+        final promo = Globals.instance.selectedPromo;
+        await firebase.saveReviewMetadata(Review(
+          userId: user!.id,
+          promoId: promo?.id == 'profile_review' ? '' : (promo?.id ?? ''),
+          reviewedUserId: promo?.userId ?? '',
+          authorName: '${user.firstName ?? ''} ${user.lastName ?? ''}'.trim(),
+          score: state.reviewMetadata!.score,
+          description: state.reviewMetadata!.description,
+          fileName: media.fileName,
+          fileUrl: media.fileUrl,
+          thumbUrl: media.thumbUrl,
+          id: '',
+          timestamp: null,
+        ));
         showToast(text: 'Przesłano');
         emit(DodajReviewPageNextState());
       } catch (e) {
-        showToastError(text: 'Błąd dodania pliku');
-        emit(DodajReviewPageMainState());
+        // reguły przyjmują jedną recenzję klienta na firmę (id = autor_firma)
+        showToastError(
+            text: e is FirebaseException && e.code == 'permission-denied'
+                ? 'Opinię o tej firmie możesz wystawić tylko raz.'
+                : uploadErrorText(e));
+        // powrót do formularza z oceną i opisem
+        emit(DodajRequestPromoState(thumb));
       }
     });
-
-
 
 
     on<GetDataDodajReviewPageEvent>((event, emit) async {

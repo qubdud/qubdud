@@ -6,10 +6,6 @@ abstract class MyProfilPageState {
   List<Promo> get videos => videosStatic;
   set videos(List<Promo> value) { videosStatic = value; }
 
-  static List<Request> requestsStatic = [];
-  List<Request> get requests => requestsStatic;
-  set requests(List<Request> value) { requestsStatic = value; }
-
   static List<Review> reviewsStatic = [];
   List<Review> get reviews => reviewsStatic;
   set reviews(List<Review> value) { reviewsStatic = value; }
@@ -32,6 +28,9 @@ class MyProfilPageInitialState extends MyProfilPageState {
 class MyProfilPageMainState extends MyProfilPageState {
   MyProfilPageMainState() : super();
 }
+
+/// Zapis „Moich danych" w toku — widok zostaje (formularz nie traci zmian).
+class MyProfilPageSavingState extends MyProfilPageMainState {}
 
 class MyProfilPageLoadingState extends MyProfilPageState {}
 

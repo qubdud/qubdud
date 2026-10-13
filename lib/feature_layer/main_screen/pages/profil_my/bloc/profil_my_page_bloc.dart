@@ -1,6 +1,8 @@
 import 'package:bloc/bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:qb/domain_layer/chat_service.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/shared/functions/show_toast.dart';
 import '../../../../../domain_layer/domain_models/company_info.dart';
@@ -14,33 +16,23 @@ part 'profil_my_page_state.dart';
 class MyProfilPageBloc extends Bloc<MyProfilPageEvent, MyProfilPageState> {
   MyProfilPageBloc({
     required FirebaseService firebase,
+    required ChatService chat,
   }) : super(MyProfilPageInitialState()) {
     on<GoToMainMyProfilPageEvent>((event, emit) async {
       emit(MyProfilPageMainState());
     });
 
-    on<SetDataMyProfilPageEvent>((event, emit) async {
-      emit(MyProfilPageLoadingState());
-      try {
-
-        final userId = FirebaseAuth.instance.currentUser?.uid;
-
-
-
-        await firebase.saveProfile(ProfileInfo(userId: userId!, description: event.description, timestamp: null));
-
-
-
-        showToast(text: 'Zapisano');
-        add(GetDataMyProfilPageEvent());
-      } catch (e) {
-        showToastError(text: 'Błąd zapisu danych\n${e}');
-        emit(MyProfilPageMainState());
-      }
-
-    });
-
-
+    // po zapisie formularz zostaje na ekranie z wpisanymi wartościami;
+    // reszta apki dostaje profil z lokalnej kopii (offline też ze zmianami)
+    Future<void> profileSaved(String userId, bool synced) async {
+      final fresh = await firebase.cachedUser(userId);
+      if (fresh != null) MainScreenState.userStatic = fresh;
+      chat.clearProfileCache();
+      showToast(
+          text: synced
+              ? 'Zapisano'
+              : 'Brak sieci — zmiany zapiszą się po połączeniu');
+    }
 
     on<GetDataMyProfilPageEvent>((event, emit) async {
       emit(MyProfilPageLoadingState());
@@ -58,9 +50,6 @@ class MyProfilPageBloc extends Bloc<MyProfilPageEvent, MyProfilPageState> {
         final companyInfo = await firebase.getProfileByUser(userId);
         state.companyInfo = companyInfo;
 
-        final requests = await firebase.getRequestsMetadataByUser(userId);
-        state.requests = requests;
-
         final reviews = await firebase.getReviewByUser(userId);
         state.reviews = reviews;
 
@@ -69,29 +58,14 @@ class MyProfilPageBloc extends Bloc<MyProfilPageEvent, MyProfilPageState> {
 
         emit(MyProfilPageMainState());
       } catch (e) {
-        print(e);
+        debugPrint('Mój profil: wczytywanie: $e');
         state.videos = [];
         state.companyInfo = null;
-
-        showToastError(text: 'Błąd pobierania danych\n${e}');
+        showToastError(text: 'Nie udało się wczytać profilu');
         emit(MyProfilPageMainState());
       }
     });
 
-
-    on<TryDeleteMyRequestProfilPageEvent>((event, emit) async {
-      try {
-
-        await firebase.deleteRequestMetadata( event.id );
-        showToast(text: 'Usunięto');
-        add(GetDataMyProfilPageEvent());
-      } catch (e) {
-        state.videos =[];
-        showToastError(text: 'Błąd\n${e}');
-        emit(MyProfilPageMainState());
-      }
-
-    });
 
     on<TryDeleteMyPromoProfilPageEvent>((event, emit) async {
       try {
@@ -99,8 +73,8 @@ class MyProfilPageBloc extends Bloc<MyProfilPageEvent, MyProfilPageState> {
         showToast(text: 'Usunięto');
         add(GetDataMyProfilPageEvent());
       } catch (e) {
-        state.videos =[];
-        showToastError(text: 'Błąd\n${e}');
+        debugPrint('Mój profil: usuwanie prezentacji: $e');
+        showToastError(text: 'Nie udało się usunąć prezentacji');
         emit(MyProfilPageMainState());
       }
 
@@ -108,44 +82,31 @@ class MyProfilPageBloc extends Bloc<MyProfilPageEvent, MyProfilPageState> {
 
 
 
-
-    on<UpdateRequestDescriptionEvent>((event, emit) async {
-      try {
-        await firebase.updateRequestDescription(event.id, event.newDescription);
-        showToast(text: 'Zapisano');
-        add(GetDataMyProfilPageEvent());
-      } catch (e) {
-        showToastError(text: 'Błąd zapisu: $e');
-      }
-    });
 
     on<UpdateUserDataEvent>((event, emit) async {
-      emit(MyProfilPageLoadingState());
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) return;
+      emit(MyProfilPageSavingState());
       try {
-        final userId = FirebaseAuth.instance.currentUser?.uid;
-        if (userId == null) return;
-        await firebase.updateUserData(userId, {
+        final synced = await firebase.updateUserData(userId, {
           'firstName': event.firstName,
           'lastName': event.lastName,
-          'phone': event.phone,
-          'bio': event.bio,
+          if (event.phone != null) 'phone': event.phone,
+          if (event.bio != null) 'bio': event.bio,
         });
-        final refreshed = await firebase.fetchUser(userId);
-        if (refreshed != null) MainScreenState.userStatic = refreshed;
-        showToast(text: 'Zapisano');
-        add(GetDataMyProfilPageEvent());
-      } catch (e) {
-        showToastError(text: 'Błąd zapisu: $e');
-        emit(MyProfilPageMainState());
+        await profileSaved(userId, synced);
+      } catch (_) {
+        showToastError(text: 'Nie udało się zapisać zmian');
       }
+      emit(MyProfilPageMainState());
     });
 
     on<UpdateCompanyDataEvent>((event, emit) async {
-      emit(MyProfilPageLoadingState());
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) return;
+      emit(MyProfilPageSavingState());
       try {
-        final userId = FirebaseAuth.instance.currentUser?.uid;
-        if (userId == null) return;
-        await firebase.updateUserData(userId, {
+        var synced = await firebase.updateUserData(userId, {
           'companyName': event.companyName,
           'bio': event.bio,
           'phone': event.phone,
@@ -163,17 +124,16 @@ class MyProfilPageBloc extends Bloc<MyProfilPageEvent, MyProfilPageState> {
         });
         // filmy firmy dziedziczą lokalizację — przepnij istniejące
         if (event.companyLocation != null) {
-          await firebase.updateCompanyPromosLocation(
-              userId, event.companyLocation!);
+          await firebase
+              .updateCompanyPromosLocation(userId, event.companyLocation!)
+              .timeout(const Duration(seconds: 8),
+                  onTimeout: () => synced = false);
         }
-        final refreshed = await firebase.fetchUser(userId);
-        if (refreshed != null) MainScreenState.userStatic = refreshed;
-        showToast(text: 'Zapisano');
-        add(GetDataMyProfilPageEvent());
-      } catch (e) {
-        showToastError(text: 'Błąd zapisu: $e');
-        emit(MyProfilPageMainState());
+        await profileSaved(userId, synced);
+      } catch (_) {
+        showToastError(text: 'Nie udało się zapisać zmian');
       }
+      emit(MyProfilPageMainState());
     });
 
     on<TryDeleteMyReviewProfilPageEvent>((event, emit) async {
@@ -182,7 +142,8 @@ class MyProfilPageBloc extends Bloc<MyProfilPageEvent, MyProfilPageState> {
         showToast(text: 'Usunięto recenzję');
         add(GetDataMyProfilPageEvent());
       } catch (e) {
-        showToastError(text: 'Błąd: $e');
+        debugPrint('Mój profil: usuwanie recenzji: $e');
+        showToastError(text: 'Nie udało się usunąć recenzji');
         emit(MyProfilPageMainState());
       }
     });

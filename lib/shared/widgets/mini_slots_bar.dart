@@ -6,13 +6,25 @@ import 'anonim_gate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import '../../domain_layer/domain_models/app_user.dart';
 import '../../domain_layer/firebase_service.dart';
 import '../../feature_layer/main_screen/bloc/main_bloc.dart';
+import '../functions/effective_role.dart';
 import '../functions/show_toast.dart';
+import '../functions/show_toast_error.dart';
 import '../globals.dart';
+
+/// Nazwa, pod którą rezerwuję termin — zgodna z trybem konta
+/// (firma w trybie użytkownika rezerwuje jako osoba prywatna).
+String bookingName(AppUser? me) {
+  if (isCompanyMode(me)) return me?.companyName ?? 'Firma';
+  final name = '${me?.firstName ?? ''} ${me?.lastName ?? ''}'.trim();
+  return name.isEmpty ? 'Użytkownik' : name;
+}
 
 /// Mini-mapka slotów firmy na panelu z filmem: najbliższe terminy jako
 /// klikalne kropki (rezerwacja jednym tapnięciem). Na żywo.
+/// Anonim nie ma dostępu do terminów — widzi zachętę do logowania.
 class MiniSlotsBar extends StatefulWidget {
   final String companyId;
 
@@ -27,31 +39,36 @@ class _MiniSlotsBarState extends State<MiniSlotsBar> {
   StreamSubscription<List<Map<String, dynamic>>>? _sub;
 
   String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? '';
+  bool get _anonim => Globals.instance.anonim || _myUid.isEmpty;
+  bool get _own => widget.companyId == _myUid;
 
   @override
   void initState() {
     super.initState();
+    _listen();
+  }
+
+  void _listen() {
+    _sub?.cancel();
+    _sub = null;
+    _slots = [];
+    // anonim nie czyta slotów (reguły), własnych terminów firma nie rezerwuje
+    if (_anonim || _own) return;
     _sub = context
         .read<FirebaseService>()
         .slotsStream(widget.companyId)
         .listen((slots) {
       if (mounted) setState(() => _slots = slots);
-    }, onError: (_) {});
+    }, onError: (_) {
+      // pasek jest dodatkiem do filmu — przy błędzie po prostu go nie ma
+      if (mounted) setState(() => _slots = []);
+    });
   }
 
   @override
   void didUpdateWidget(covariant MiniSlotsBar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.companyId != widget.companyId) {
-      _sub?.cancel();
-      _slots = [];
-      _sub = context
-          .read<FirebaseService>()
-          .slotsStream(widget.companyId)
-          .listen((slots) {
-        if (mounted) setState(() => _slots = slots);
-      }, onError: (_) {});
-    }
+    if (oldWidget.companyId != widget.companyId) _listen();
   }
 
   @override
@@ -61,47 +78,61 @@ class _MiniSlotsBarState extends State<MiniSlotsBar> {
   }
 
   Future<void> _tap(Map<String, dynamic> s) async {
-    if (Globals.instance.anonim || _myUid.isEmpty) {
-      showLoginPrompt(context, 'zarezerwować termin');
-      return;
-    }
+    final firebase = context.read<FirebaseService>();
     final status = s['status'] as String;
     final mine = s['bookedBy'] == _myUid;
 
     if (status == 'free') {
-      final me = context.read<MainScreenBloc>().state.user;
-      final myName = me?.firma == true
-          ? (me?.companyName ?? 'Firma')
-          : '${me?.firstName ?? ''} ${me?.lastName ?? ''}'.trim();
       try {
-        await context.read<FirebaseService>().bookSlot(
-              companyId: widget.companyId,
-              slotId: s['id'] as String,
-              myUid: _myUid,
-              myName: myName.isEmpty ? 'Użytkownik' : myName,
-            );
+        await firebase.bookSlot(
+          companyId: widget.companyId,
+          slotId: s['id'] as String,
+          myUid: _myUid,
+          myName: bookingName(context.read<MainScreenBloc>().state.user),
+        );
         showToast(text: 'Zarezerwowano — czeka na akceptację firmy');
-      } catch (_) {
-        showToast(text: 'Ten termin jest już zajęty');
+      } catch (e) {
+        showToastError(text: slotErrorText(e));
       }
       return;
     }
     if (mine && status == 'pending') {
-      await context.read<FirebaseService>().cancelSlotBooking(
-          companyId: widget.companyId,
-          slotId: s['id'] as String,
-          myUid: _myUid);
-      showToast(text: 'Odwołano rezerwację');
+      try {
+        await firebase.cancelSlotBooking(
+            companyId: widget.companyId,
+            slotId: s['id'] as String,
+            myUid: _myUid);
+        showToast(text: 'Odwołano rezerwację');
+      } catch (e) {
+        showToastError(text: slotErrorText(e));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_anonim) {
+      return GestureDetector(
+        onTap: () => showLoginPrompt(context, 'zobaczyć terminy'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          color: Colors.black.withOpacity(0.45),
+          child: const Row(
+            children: [
+              Icon(Icons.event_available_outlined,
+                  color: Colors.white70, size: 16),
+              SizedBox(width: 6),
+              Text('Zaloguj się, aby zobaczyć terminy',
+                  style: TextStyle(color: Colors.white, fontSize: 11)),
+            ],
+          ),
+        ),
+      );
+    }
+
     // pokazujemy: wolne + moje rezerwacje, max 6 najbliższych
     final visible = _slots
-        .where((s) =>
-            s['status'] == 'free' ||
-            (s['bookedBy'] == _myUid && _myUid.isNotEmpty))
+        .where((s) => s['status'] == 'free' || s['bookedBy'] == _myUid)
         .take(6)
         .toList();
     if (visible.isEmpty) return const SizedBox.shrink();
@@ -124,15 +155,12 @@ class _MiniSlotsBarState extends State<MiniSlotsBar> {
                 children: visible.map((s) {
                   final st = s['start'] as DateTime;
                   final status = s['status'] as String;
-                  final mine =
-                      s['bookedBy'] == _myUid && _myUid.isNotEmpty;
-                  final color = status == 'free'
-                      ? Colors.greenAccent
-                      : (status == 'accepted'
-                          ? Colors.green
-                          : (status == 'rejected'
-                              ? Colors.redAccent
-                              : Colors.amber));
+                  final mine = s['bookedBy'] == _myUid;
+                  final color = switch (status) {
+                    'free' => Colors.greenAccent,
+                    'accepted' => Colors.green,
+                    _ => Colors.amber,
+                  };
                   final isToday = st.day == today.day &&
                       st.month == today.month;
                   final label =

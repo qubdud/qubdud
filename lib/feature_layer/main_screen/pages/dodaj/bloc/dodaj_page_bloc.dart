@@ -1,6 +1,5 @@
-import 'dart:async';
-import 'dart:developer';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:image/image.dart' as img;
 
@@ -12,15 +11,47 @@ import 'package:path_provider/path_provider.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/shared/functions/show_toast.dart';
 import 'package:qb/shared/functions/show_toast_error.dart';
-import 'package:qb/shared/functions/show_toast_ok.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
-import '../../../../../shared/globals.dart';
 
 part 'dodaj_page_event.dart';
 
 part 'dodaj_page_state.dart';
+
+/// Miniatura JPG (720 px wysokości) do list; null, gdy pliku nie da się
+/// odczytać (np. HEIC bez dekodera).
+Future<String?> makeThumbnail(File file, String fileType) async {
+  final tempDir = await getTemporaryDirectory();
+  final out = p.join(tempDir.path, '${p.basename(file.path)}-thumb.jpg');
+  if (fileType == 'video') {
+    return VideoThumbnail.thumbnailFile(
+      video: file.path,
+      thumbnailPath: out,
+      imageFormat: ImageFormat.JPEG,
+      maxHeight: 720,
+      quality: 75,
+    );
+  }
+  // dekodowanie dużego zdjęcia poza wątkiem UI
+  final jpg = await compute(_resizeToJpg, await file.readAsBytes());
+  if (jpg == null) return null;
+  await File(out).writeAsBytes(jpg);
+  return out;
+}
+
+Uint8List? _resizeToJpg(Uint8List bytes) {
+  final image = img.decodeImage(bytes);
+  return image == null
+      ? null
+      : img.encodeJpg(img.copyResize(image, height: 720), quality: 75);
+}
+
+/// Komunikat dla użytkownika po nieudanym uploadzie.
+String uploadErrorText(Object e) =>
+    e is FirebaseException && e.code == 'unauthorized'
+        ? 'Plik jest za duży albo ma nieobsługiwany format.'
+        : 'Nie udało się wysłać pliku. Spróbuj ponownie.';
 
 class DodajPageBloc extends Bloc<DodajPageEvent, DodajPageState> {
   DodajPageBloc({required FirebaseService firebase})
@@ -28,229 +59,98 @@ class DodajPageBloc extends Bloc<DodajPageEvent, DodajPageState> {
 
     on<SelectedDodajPageEvent>((event, emit) async {
       emit(DodajPageLoadingState());
-      String? generatedPath;
-
       state.selectedContent = SelectedContent(file: event.file, fileType: event.fileType, selectType: event.selectType);
+      state.requestMetadata = null;
 
-      if(event.selectType == 'request'){
-        if (state.selectedContent!.fileType=='video'){
-          final tempDir = await getTemporaryDirectory();
-          final thumbnailFileName = state.selectedContent!.file.path + '.jpg';
-          final thumbnailPath = p.join(tempDir.path, thumbnailFileName);
-          generatedPath = await VideoThumbnail.thumbnailFile(
-            video: state.selectedContent!.file.path,
-            thumbnailPath: thumbnailPath,
-            imageFormat: ImageFormat.JPEG,
-            maxHeight: 720,
-            quality: 75,
-          );
-        } else {
-          final bytes = await state.selectedContent!.file.readAsBytes();
-          final image = img.decodeImage(bytes);
-
-          if (image != null) {
-            final thumbnail = img.copyResize(image, height: 720);
-            final tempDir = await getTemporaryDirectory();
-            final baseName = p.basename(state.selectedContent!.file.path);
-            final thumbPath = p.join(tempDir.path, '$baseName-thumb.jpg');
-            final thumbFile = File(thumbPath);
-            await thumbFile.writeAsBytes(img.encodeJpg(thumbnail, quality: 75));
-            generatedPath = thumbPath;
-          }
-        }
-
-
-
-        emit(DodajRequestPromoState(generatedPath!));
-
-
-      }else {
+      if (event.selectType != 'request') {
         add(DodajDodajPageEvent());
+        return;
       }
+      String? thumb;
+      try {
+        thumb = await makeThumbnail(event.file, event.fileType);
+      } catch (_) {}
+      if (thumb == null) {
+        showToastError(text: 'Nie udało się odczytać pliku. Wybierz inne zdjęcie lub film.');
+        emit(DodajPageMainState());
+        return;
+      }
+      emit(DodajRequestPromoState(thumb));
     });
 
-
-
+    // Cały zapis w jednym handlerze: wyjście z ekranu w trakcie wysyłania
+    // zamyka BLoC (emit staje się no-op), ale plik i metadane i tak się zapiszą.
     on<DodajDodajPageEvent>((event, emit) async {
+      final current = state;
+      final content = state.selectedContent!;
       emit(DodajPageLoadingState());
 
-      String? generatedPath;
-      var userId = FirebaseAuth.instance.currentUser?.uid;
-      state.appUser = await firebase.fetchUser(userId!);
-
-      if (state.selectedContent!.fileType=='video'){
-      final tempDir = await getTemporaryDirectory();
-      final thumbnailFileName = state.selectedContent!.file.path + '.jpg';
-      final thumbnailPath = p.join(tempDir.path, thumbnailFileName);
-        generatedPath = await VideoThumbnail.thumbnailFile(
-        video: state.selectedContent!.file.path,
-        thumbnailPath: thumbnailPath,
-        imageFormat: ImageFormat.JPEG,
-        maxHeight: 720,
-        quality: 75,
-      );
-      } else {
-        final bytes = await state.selectedContent!.file.readAsBytes();
-        final image = img.decodeImage(bytes);
-
-        if (image != null) {
-          final thumbnail = img.copyResize(image, height: 720);
-          final tempDir = await getTemporaryDirectory();
-          final baseName = p.basename(state.selectedContent!.file.path);
-          final thumbPath = p.join(tempDir.path, '$baseName-thumb.jpg');
-          final thumbFile = File(thumbPath);
-          await thumbFile.writeAsBytes(img.encodeJpg(thumbnail, quality: 75));
-          generatedPath = thumbPath;
-        }
-      }
-
-      final baseName = p.basenameWithoutExtension(state.selectedContent!.file.path);
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final thumbExtension = p.extension(generatedPath??''); // <- tutaj pobieramy rozszerzenie
-      final extension = p.extension(state.selectedContent!.file.path); // <- tutaj pobieramy rozszerzenie
-
-
-
-      final cleanFileName = '${baseName}${userId}$timestamp$extension';
-      final cleanThumbName = '${baseName}${userId}$timestamp$thumbExtension';
-
-
-      add(
-
-        UploadDodajPageEvent(
-          file: state.selectedContent!.file,
-          fileName: cleanFileName,
-          fileThumb: File(generatedPath??''),
-          thumbName: cleanThumbName,
-          fileType: state.selectedContent!.fileType,
-          selectType: state.selectedContent!.selectType,
-        ),
-      );
-    });
-
-
-
-
-
-    on<UploadDodajPageEvent>((event, emit) async {
+      String? thumb;
       try {
-        final taskThumb = await firebase.uploadThumb(
-          file: event.fileThumb,
-          fileName: event.fileName,
-        );
-
-        final TaskSnapshot snap = await taskThumb;
-
-        final task = await firebase.uploadWithProgress(
-          file: event.file,
-          fileName: event.fileName,
-        );
-
-
-        await for (final snapshot in task.snapshotEvents) {
-          final progress = snapshot.bytesTransferred / snapshot.totalBytes;
-
-          if (snapshot.state == TaskState.success) {
-
-            add(UploadMetadataDodajPageEvent(
-              fileRef: snapshot.ref,
-              fileRefThumb: snap.ref,
-              fileName: event.fileName,
-            ));
-
-
-            emit(DodajPageUploadingState(1));
-            break; // kończymy pętlę
-          } else {
-            print(progress);
-            emit(DodajPageUploadingState(progress));
-          }
-        }
-      } catch (e) {
-        showToastError(text: 'Błąd uploadu');
+        thumb = current is DodajRequestPromoState
+            ? current.thumbPath
+            : await makeThumbnail(content.file, content.fileType);
+      } catch (_) {}
+      if (thumb == null) {
+        showToastError(text: 'Nie udało się odczytać pliku. Wybierz inny.');
         emit(DodajPageMainState());
+        return;
       }
-    });
 
-
-    on<UploadMetadataDodajPageEvent>((event, emit) async {
       try {
-        // Pobierz publiczny URL do pliku
-        final downloadUrl = await event.fileRef.getDownloadURL();
-        final thumbUrl = await event.fileRefThumb.getDownloadURL();
+        final user =
+            await firebase.fetchUser(FirebaseAuth.instance.currentUser!.uid);
+        state.appUser = user;
+        final mediaType = content.fileType == 'video' ? 'video' : 'image';
+        final media = await firebase.uploadMedia(
+          file: content.file,
+          thumb: File(thumb),
+          mediaType: mediaType,
+          onProgress: (progress) => emit(DodajPageUploadingState(progress)),
+        );
 
-        if(state.selectedContent!.selectType=='promo'){
-          await firebase.savePromoVideoMetadata(
-            Promo(
-              userId: state.appUser!.id,
-              category: state.appUser!.companyCategory!,
-              sector: state.appUser!.companySector!,
-              location: state.appUser!.companyLocation!,
-              fileName: event.fileName,
-              fileUrl: downloadUrl,
-              thumbUrl: thumbUrl,
-              id: '', timestamp: null, description: '',
-            )
-          );
-        } else if (state.selectedContent!.selectType=='request') {
-          await firebase.saveRequestMetadata(
-            Request(
-              userId: state.appUser!.id,
-              category: state.requestMetadata!.category,
-              sector: state.requestMetadata!.sector,
-              location: state.requestMetadata!.location,
-              city: state.requestMetadata!.city,
-              description: state.requestMetadata!.description,
-              is24: state.requestMetadata!.is24,
-
-              fileName: event.fileName,
-              fileUrl: downloadUrl,
-              thumbUrl: thumbUrl,
-              id: '',
-              timestamp: null,
-            )
-
-
-
-
-          );
-        } else if (state.selectedContent!.selectType=='review') {
-          await firebase.saveReviewMetadata(
-              Review(
-                userId: state.appUser!.id,
-                promoId: Globals.instance.selectedPromo!.id,
-                reviewedUserId: Globals.instance.selectedPromo!.userId,
-                score: state.reviewMetadata!.score,
-                description: state.reviewMetadata!.description,
-
-                fileName: event.fileName,
-                fileUrl: downloadUrl,
-                thumbUrl: thumbUrl,
-                id: '',
-                timestamp: null,
-              )
-
-
-
-
-
-
-          );
+        if (content.selectType == 'promo') {
+          await firebase.savePromoVideoMetadata(Promo(
+            userId: user!.id,
+            category: user.companyCategory!,
+            sector: user.companySector!,
+            location: user.companyLocation!,
+            companyName: user.companyName ?? '',
+            fileName: media.fileName,
+            fileUrl: media.fileUrl,
+            thumbUrl: media.thumbUrl,
+            id: '',
+            timestamp: null,
+            description: '',
+          ));
+        } else {
+          final meta = state.requestMetadata!;
+          await firebase.saveRequestMetadata(Request(
+            userId: user!.id,
+            category: meta.category,
+            sector: meta.sector,
+            location: meta.location,
+            city: meta.city,
+            description: meta.description,
+            is24: meta.is24,
+            fileName: media.fileName,
+            mediaType: mediaType,
+            fileUrl: media.fileUrl,
+            thumbUrl: media.thumbUrl,
+            id: '',
+            timestamp: null,
+          ));
         }
-
-
-
-
 
         showToast(text: 'Przesłano');
         emit(DodajPageNextState());
       } catch (e) {
-        showToastError(text: 'Błąd dodania pliku');
-        emit(DodajPageMainState());
+        showToastError(text: uploadErrorText(e));
+        // zgłoszenie: powrót do formularza z wpisanymi danymi
+        emit(content.selectType == 'request'
+            ? DodajRequestPromoState(thumb)
+            : DodajPageMainState());
       }
     });
-
-
-
   }
 }

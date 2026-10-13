@@ -13,8 +13,8 @@ import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/empty_state.dart';
 import '../../../bloc/main_bloc.dart';
 import '../../profil_my/view/tab_kalendarz.dart' show dayLabel;
-import '../bloc/chat_page_bloc.dart';
 import '../functions/format_timestamp.dart';
+import '../../../../../shared/widgets/load_error.dart';
 
 /// Kontakty → Aktywność: jeden feed wszystkiego, co dzieje się z ludźmi
 /// i firmami — wiadomości, rezerwacje, zgłoszenia, prośby o telefon.
@@ -64,8 +64,10 @@ class _TabActivityState extends State<TabActivity> {
   List<ActivityItem> _relItems = [];
   Set<String> _saved = {};
   bool _loading = true;
+  bool _failed = false;
   String _filter = 'all';
   late final bool _companyMode;
+  late Stream<List<Map<String, dynamic>>> _chats;
 
   String get _myUid => context.read<MainScreenBloc>().state.user?.id ?? '';
 
@@ -73,6 +75,16 @@ class _TabActivityState extends State<TabActivity> {
   void initState() {
     super.initState();
     _companyMode = isCompanyMode(context.read<MainScreenBloc>().state.user);
+    _chats = context.read<ChatService>().getChatOverviews();
+    _load();
+  }
+
+  void _retry() {
+    setState(() {
+      _loading = true;
+      _failed = false;
+      _chats = context.read<ChatService>().getChatOverviews();
+    });
     _load();
   }
 
@@ -101,11 +113,9 @@ class _TabActivityState extends State<TabActivity> {
         final phone = (!isCompany || u.showPhone != false) ? (u.phone ?? '') : '';
 
         for (final s in l.slots) {
-          final (color, suffix) = switch (s.status) {
-            'accepted' => (Colors.green.shade700, 'przyjęta'),
-            'rejected' => (Colors.red.shade600, 'odrzucona'),
-            _ => (Colors.amber.shade800, 'czeka na akceptację'),
-          };
+          final (color, suffix) = s.status == 'accepted'
+              ? (Colors.green.shade700, 'przyjęta')
+              : (Colors.amber.shade800, 'czeka na akceptację');
           items.add(ActivityItem(
             personId: u.id,
             name: name,
@@ -122,18 +132,16 @@ class _TabActivityState extends State<TabActivity> {
 
         for (final r in l.requests) {
           final desc = _short(r.description.isNotEmpty ? r.description : r.sector);
-          final (color, suffix, action) = switch (r) {
-            _ when r.realizationStatus == 'approved' =>
-              (Colors.green.shade700, 'zrealizowane', false),
-            _ when r.realizationStatus == 'pending' => _companyMode
-                ? (Colors.amber.shade800, 'czeka na potwierdzenie zdjęć', false)
-                : (Colors.amber.shade800, 'zdjęcia do potwierdzenia', true),
-            _ when r.closedReason.isNotEmpty =>
-              (Colors.grey.shade600, 'zakończone', false),
-            _ when r.status == 'taken' =>
-              (Colors.blue.shade700, 'oferta przyjęta', false),
-            _ => (Colors.blue.shade700, 'w toku', false),
+          final stage = r.stage;
+          final color = switch (stage) {
+            RequestStage.realized => Colors.green.shade700,
+            RequestStage.photosPending => Colors.amber.shade800,
+            RequestStage.photosRejected => Colors.red.shade600,
+            RequestStage.expired || RequestStage.closed => Colors.grey.shade600,
+            _ => Colors.blue.shade700,
           };
+          final suffix = stage.label(forCompany: _companyMode);
+          final action = !_companyMode && stage == RequestStage.photosPending;
           items.add(ActivityItem(
             personId: u.id,
             name: name,
@@ -173,10 +181,17 @@ class _TabActivityState extends State<TabActivity> {
           _relItems = items;
           _saved = ids.toSet();
           _loading = false;
+          _failed = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      debugPrint('Aktywność: wczytywanie: $e');
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _failed = true;
+        });
+      }
     }
   }
 
@@ -198,15 +213,30 @@ class _TabActivityState extends State<TabActivity> {
 
   Future<void> _toggleSave(ActivityItem it) async {
     final fb = context.read<FirebaseService>();
-    if (_saved.contains(it.personId)) {
-      await fb.removeContact(myUserId: _myUid, contactUserId: it.personId);
-      setState(() => _saved.remove(it.personId));
-      showToast(text: 'Usunięto z Zapisanych');
-    } else {
-      await fb.addContact(myUserId: _myUid, contactUserId: it.personId);
-      setState(() => _saved.add(it.personId));
-      showToast(text: '${it.name} — zapisano w Kontakty → Zapisani');
+    final saved = _saved.contains(it.personId);
+    try {
+      if (saved) {
+        await fb.removeContact(myUserId: _myUid, contactUserId: it.personId);
+      } else {
+        await fb.addContact(myUserId: _myUid, contactUserId: it.personId);
+      }
+    } catch (e) {
+      debugPrint('Aktywność: zapisani: $e');
+      showToast(text: 'Nie udało się zapisać zmiany');
+      return;
     }
+    if (!mounted) return;
+    setState(() {
+      if (saved) {
+        _saved.remove(it.personId);
+      } else {
+        _saved.add(it.personId);
+      }
+    });
+    showToast(
+        text: saved
+            ? 'Usunięto z Zapisanych'
+            : '${it.name} — zapisano w Kontakty → Zapisani');
   }
 
   /// Firma: zadzwoń pod numer z prośby albo oznacz, że już się odezwała.
@@ -238,16 +268,22 @@ class _TabActivityState extends State<TabActivity> {
     if (!mounted || choice == null) return;
     if (choice == 'call') {
       await _call(c.phone);
-    } else {
-      await context.read<FirebaseService>().setContactRequestDone(c.id);
-      _load();
+      return;
     }
+    try {
+      await context.read<FirebaseService>().setContactRequestDone(c.id);
+    } catch (e) {
+      debugPrint('Aktywność: prośba o telefon: $e');
+      showToast(text: 'Nie udało się oznaczyć prośby');
+      return;
+    }
+    _load();
   }
 
   void _open(ActivityItem it) {
     switch (it.kind) {
       case ActivityKind.chat:
-        context.read<ChatPageBloc>().add(StartUserChatChatPageEvent(it.personId));
+        _openChat(it);
       case ActivityKind.slot:
         // firma: Start → Kalendarz; klient: Start → Rezerwacje
         Globals.instance.startTab = 1;
@@ -278,12 +314,20 @@ class _TabActivityState extends State<TabActivity> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_failed) {
+      return LoadError(message: 'Nie udało się wczytać aktywności', onRetry: _retry);
+    }
     final chatService = context.read<ChatService>();
 
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: chatService.getChatOverviews(),
+      stream: _chats,
       builder: (context, snap) {
-        final chats = snap.data ?? [];
+        if (snap.hasError) {
+          debugPrint('Aktywność: rozmowy: ${snap.error}');
+          return LoadError(message: 'Nie udało się wczytać rozmów', onRetry: _retry);
+        }
+        if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+        final chats = snap.data!;
         final chatItems = chats.map((c) {
           final unread = c['unreadCount'] as int? ?? 0;
           final last = c['lastMessage'] as String? ?? '';
@@ -407,7 +451,11 @@ class _TabActivityState extends State<TabActivity> {
       ),
     );
     if (ok != true) return;
-    await chatService.hideChat(it.personId);
+    // offline zapis czeka w kolejce, a lista chowa rozmowę od razu
+    chatService.hideChat(it.personId).catchError((Object e) {
+      debugPrint('Aktywność: kosz: $e');
+      showToast(text: 'Nie udało się przenieść rozmowy do kosza');
+    });
     showToast(text: 'Rozmowa przeniesiona do kosza');
   }
 }

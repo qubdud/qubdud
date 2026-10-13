@@ -1,24 +1,12 @@
 import 'dart:io';
 
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:qb/feature_layer/main_screen/bloc/main_appbar_cubit.dart';
 import 'package:qb/shared/constants.dart';
-import 'package:qb/shared/widgets/w_dropdown.dart';
-import 'package:qb/shared/widgets/w_input_field.dart';
-import 'package:qb/shared/widgets/w_label.dart';
 import 'package:qb/shared/widgets/w_small_label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:path/path.dart' as p;
 
-import 'package:latlong2/latlong.dart';
 
-import '../../../../../../shared/widgets/loading.dart';
-import '../../../../../domain_layer/firebase_service.dart';
-import '../../../../../shared/globals.dart';
-import '../../../../../shared/widgets/w_button.dart';
 import '../../../../../shared/widgets/w_card.dart';
 import '../../../bloc/main_bloc.dart';
 import '../bloc/dodaj_rev_page_bloc.dart';
@@ -48,7 +36,6 @@ class _ViewState extends State<View> {
 
 
 
-    var user = context.read<MainScreenBloc>().state.user;
 
     return BlocConsumer<DodajReviewPageBloc, DodajReviewPageState>(
       listener: (context, state) {
@@ -78,13 +65,10 @@ class _ViewState extends State<View> {
                     InkWell(
                       onTap: () async {
                         final picker = ImagePicker();
-                        final pickedFile = await picker.pickImage(
-                          source: ImageSource.camera,
-                        );
+                        final pickedFile = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
                         if (pickedFile == null) return;
 
                         final file = File(pickedFile.path);
-                        final fileName = pickedFile.name;
 
 
                         context.read<DodajReviewPageBloc>().add(SelectedDodajReviewPageEvent(fileType: 'img', file: file, selectType: 'review', ))  ;},
@@ -121,7 +105,6 @@ class _ViewState extends State<View> {
                         if (pickedFile == null) return;
 
                         final file = File(pickedFile.path);
-                        final fileName = pickedFile.name;
 
 
 
@@ -153,13 +136,10 @@ class _ViewState extends State<View> {
                     InkWell(
                       onTap: () async {
                         final picker = ImagePicker();
-                        final pickedFile = await picker.pickImage(
-                          source: ImageSource.gallery,
-                        );
+                        final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
                         if (pickedFile == null) return;
 
                         final file = File(pickedFile.path);
-                        final fileName = pickedFile.name;
 
 
 
@@ -197,7 +177,6 @@ class _ViewState extends State<View> {
                         if (pickedFile == null) return;
 
                         final file = File(pickedFile.path);
-                        final fileName = pickedFile.name;
 
 
 

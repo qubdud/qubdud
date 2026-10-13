@@ -48,10 +48,13 @@ class Promo {
       fileUrl: data['fileUrl'] ?? '',
       thumbUrl: data['thumbUrl'] ??'',
       fileName: data['fileName'] ?? '',
-      timestamp: (data['timestamp'] as Timestamp?)?.toDate(),
+      // dokument z błędnym typem nie może wywrócić całej listy (QB-76)
+      timestamp: data['timestamp'] is Timestamp
+          ? (data['timestamp'] as Timestamp).toDate()
+          : null,
       description: data['description'] ?? '',
       companyName: data['companyName'] ?? '',
-      views: (data['views'] as num?)?.toInt() ?? 0,
+      views: data['views'] is num ? (data['views'] as num).toInt() : 0,
     );
   }
 
@@ -79,6 +82,29 @@ class Promo {
 
 
 
+/// Etap zgłoszenia — jedno źródło etykiet dla karty klienta i Aktywności.
+enum RequestStage {
+  open,
+  inProgress,
+  photosPending,
+  photosRejected,
+  realized,
+  expired,
+  closed;
+
+  String label({bool forCompany = false}) => switch (this) {
+        open => 'czeka na oferty',
+        inProgress => 'w realizacji',
+        photosPending => forCompany
+            ? 'czeka na potwierdzenie zdjęć'
+            : 'zdjęcia do potwierdzenia',
+        photosRejected => 'zdjęcia odrzucone',
+        realized => 'zrealizowane i potwierdzone',
+        expired => 'wygasło',
+        closed => 'zamknięte',
+      };
+}
+
 class Request {
   final String id;
   final String userId;
@@ -89,8 +115,9 @@ class Request {
   final String fileUrl;
   final String thumbUrl;
   final String fileName;
+  final String mediaType; // image | video
   final DateTime? timestamp;
-  final String closedReason; // '' | expired | done
+  final String closedReason; // '' | expired | byUser | realized
   final String realizationStatus; // '' | pending | approved | rejected
   final bool is24;
   String description;
@@ -99,7 +126,7 @@ class Request {
   // Podjęcie zadania: firma deklaruje się (confirmedByCompany),
   // user potwierdza (confirmedByUser) → status 'taken' i zgłoszenie
   // znika z list innych firm.
-  String status; // 'open' | 'taken'
+  String status; // 'open' | 'taken' | 'closed'
   String takenBy; // uid firmy
   String takenByName;
   bool confirmedByCompany;
@@ -115,6 +142,7 @@ class Request {
     required this.fileUrl,
     required this.thumbUrl,
     required this.fileName,
+    required this.mediaType,
     required this.timestamp,
     this.closedReason = '',
     this.realizationStatus = '',
@@ -148,7 +176,11 @@ class Request {
       fileUrl: data['fileUrl'] ?? '',
       thumbUrl: data['thumbUrl'] ?? '',
       fileName: data['fileName'] ?? '',
-      timestamp: (data['timestamp'] as Timestamp?)?.toDate(),
+      // EXPIRES: po uruchomieniu demo/_seed/migrate_media_type.js
+      mediaType: data['mediaType'] ?? _mediaTypeFromName(data['fileName'] ?? ''),
+      timestamp: data['timestamp'] is Timestamp
+          ? (data['timestamp'] as Timestamp).toDate()
+          : null,
       description: data['description'] ?? '',
       status: data['status'] ?? 'open',
       takenBy: data['takenBy'] ?? '',
@@ -156,6 +188,24 @@ class Request {
       confirmedByCompany: data['confirmedByCompany'] ?? false,
       confirmedByUser: data['confirmedByUser'] ?? false,
     );
+  }
+
+  /// Zgłoszenie widoczne dla firmy: cudze i otwarte albo realizowane przez nią.
+  bool isActiveFor(String companyId) =>
+      userId != companyId &&
+      (status == 'open' || (status == 'taken' && takenBy == companyId));
+
+  RequestStage get stage {
+    if (realizationStatus == 'approved') return RequestStage.realized;
+    if (status == 'closed') {
+      return closedReason == 'expired'
+          ? RequestStage.expired
+          : RequestStage.closed;
+    }
+    if (realizationStatus == 'pending') return RequestStage.photosPending;
+    if (realizationStatus == 'rejected') return RequestStage.photosRejected;
+    if (status == 'taken') return RequestStage.inProgress;
+    return RequestStage.open;
   }
 
   /// 🔸 Metoda konwertująca obiekt na mapę do zapisu w Firestore
@@ -172,6 +222,7 @@ class Request {
       'fileUrl': fileUrl,
       'thumbUrl': thumbUrl,
       'fileName': fileName,
+      'mediaType': mediaType,
       'timestamp': timestamp ?? FieldValue.serverTimestamp(),
       'is24': is24,
       'description': description,
@@ -183,6 +234,13 @@ class Request {
     };
   }
 }
+
+// EXPIRES: po uruchomieniu demo/_seed/migrate_media_type.js
+String _mediaTypeFromName(String name) =>
+    RegExp(r'\.(mp4|mov|m4v|3gp|webm|mkv)$', caseSensitive: false)
+            .hasMatch(name)
+        ? 'video'
+        : 'image';
 
 
 
@@ -221,11 +279,13 @@ class Review {
       promoId: data['promoId'] ?? '',
       userId: data['userId'] ?? '',
       reviewedUserId: data['reviewedUserId'] ?? '',
-      score: data['score']??0,
+      score: data['score'] is num ? (data['score'] as num).toInt() : 0,
       fileUrl: data['fileUrl'] ?? '',
       thumbUrl: data['thumbUrl'] ??'',
       fileName: data['fileName'] ?? '',
-      timestamp: (data['timestamp'] as Timestamp?)?.toDate(),
+      timestamp: data['timestamp'] is Timestamp
+          ? (data['timestamp'] as Timestamp).toDate()
+          : null,
       description: data['description'] ?? '',
       authorName: data['authorName'] ?? '',
     );

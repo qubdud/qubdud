@@ -1,10 +1,10 @@
 {
   "name": "qubdud-functions",
-  "description": "Powiadomienia push QUBDUD (pilne zgłoszenia, oferty, rezerwacje, prośby o recenzję)",
+  "description": "Powiadomienia push QUBDUD (pilne zgłoszenia, oferty, rezerwacje, prośby o recenzję), sprzątanie po usunięciach, usuwanie konta",
   "private": true,
   "main": "index.js",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "scripts": {
     "deploy": "firebase deploy --only functions",

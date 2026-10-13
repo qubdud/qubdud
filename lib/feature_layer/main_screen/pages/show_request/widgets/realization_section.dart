@@ -1,8 +1,5 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:qb/shared/widgets/before_after.dart';
 
 import '../../../../../domain_layer/chat_service.dart';
@@ -10,13 +7,15 @@ import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../domain_layer/firebase_service.dart';
 import '../../../../../shared/functions/show_toast.dart';
 import '../../../../../shared/functions/show_toast_error.dart';
+import '../../../../../shared/realizations.dart';
 import '../../../../../shared/widgets/w_small_label.dart';
 import '../../../bloc/main_bloc.dart';
 
 /// Sekcja „Zdjęcia realizacji" na widoku zgłoszenia — widoczna po
 /// obustronnym potwierdzeniu zadania:
-/// - firma realizująca dodaje zdjęcia,
-/// - właściciel zgłoszenia może poprosić o zdjęcia na czacie.
+/// - firma realizująca dodaje zdjęcia (jedna realizacja; odrzuconą zastępuje),
+/// - właściciel zgłoszenia potwierdza/odrzuca je albo prosi o zdjęcia na czacie,
+/// - zdjęcia dodane przez klienta są pokazywane osobno.
 class RealizationSection extends StatefulWidget {
   final Request request;
 
@@ -36,75 +35,69 @@ class _RealizationSectionState extends State<RealizationSection> {
     _load();
   }
 
+  @override
+  void didUpdateWidget(covariant RealizationSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.request.id != widget.request.id) {
+      _photos = [];
+      _load();
+    }
+  }
+
   Future<void> _load() async {
+    final id = widget.request.id;
     try {
-      final photos = await context
-          .read<FirebaseService>()
-          .getRealizationsForRequest(widget.request.id);
-      if (mounted) setState(() => _photos = photos);
+      final photos =
+          await context.read<FirebaseService>().getRealizationsForRequest(id);
+      if (mounted && id == widget.request.id) setState(() => _photos = photos);
     } catch (_) {}
   }
 
   Future<void> _addPhoto({bool withBefore = false}) async {
-    File? before;
-    if (withBefore) {
-      showToast(text: 'Wybierz zdjęcie PRZED');
-      final pickedBefore = await ImagePicker()
-          .pickImage(source: ImageSource.gallery, imageQuality: 80);
-      if (pickedBefore == null || !mounted) return;
-      before = File(pickedBefore.path);
-      showToast(text: 'Teraz wybierz zdjęcie PO');
-    }
-    final picked = await ImagePicker()
-        .pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked == null || !mounted) return;
     setState(() => _busy = true);
-    try {
-      await context.read<FirebaseService>().addRealization(
-            companyId: widget.request.takenBy,
-            requestId: widget.request.id,
-            requestOwnerId: widget.request.userId,
-            category: widget.request.category,
-            image: File(picked.path),
-            beforeImage: before,
-          );
-      showToast(text: 'Dodano — klient musi jeszcze potwierdzić');
-      await _load();
-    } catch (e) {
-      showToastError(text: 'Błąd: $e');
-    }
+    final ok = await pickAndAddRealization(context, widget.request,
+        mode: withBefore ? 'pair' : 'single');
+    if (ok) await _load();
     if (mounted) setState(() => _busy = false);
   }
 
   Future<void> _askForPhotos() async {
-    await context.read<ChatService>().sendMessage(
-          widget.request.takenBy,
-          'Dzień dobry, czy mogę prosić o zdjęcia z realizacji mojego zgłoszenia (${widget.request.category})?',
-        );
+    try {
+      await context.read<ChatService>().sendMessage(
+            widget.request.takenBy,
+            'Dzień dobry, czy mogę prosić o zdjęcia z realizacji mojego zgłoszenia (${widget.request.category})?',
+          );
+    } catch (_) {
+      showToastError(text: 'Nie udało się wysłać wiadomości');
+      return;
+    }
     if (!mounted) return;
     context
         .read<MainScreenBloc>()
         .add(GoToChatEvent(widget.request.takenBy, chatName: widget.request.takenByName));
   }
 
-  Future<void> _decide(String id, String status) async {
+  Future<void> _decide(String status) async {
     setState(() => _busy = true);
     try {
       await context
           .read<FirebaseService>()
-          .setRealizationStatus(id, status, requestId: widget.request.id);
+          .setRealizationStatus(widget.request.id, status);
       showToast(
           text: status == 'approved'
               ? 'Potwierdzono — zlecenie zamknięte, zdjęcia trafią na profil firmy'
-              : 'Odrzucono — zlecenie zamknięte');
+              : 'Odrzucono — firma może dodać inne zdjęcia');
       await _load();
-    } catch (e) {
-      showToastError(text: 'Błąd: $e');
+    } on StateError catch (e) {
+      showToastError(text: e.message);
+      await _load();
+    } catch (_) {
+      showToastError(text: 'Nie udało się zapisać decyzji');
     }
     if (mounted) setState(() => _busy = false);
   }
 
-  Future<void> _remove(String id) async {
+  Future<void> _withdraw(String id) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -120,13 +113,15 @@ class _RealizationSectionState extends State<RealizationSection> {
         ],
       ),
     );
-    if (ok != true) return;
+    if (ok != true || !mounted) return;
     setState(() => _busy = true);
     try {
-      await context.read<FirebaseService>().deleteRealization(id);
+      await context
+          .read<FirebaseService>()
+          .withdrawRealization(id, widget.request.id);
       await _load();
-    } catch (e) {
-      showToastError(text: 'Błąd: $e');
+    } catch (_) {
+      showToastError(text: 'Nie udało się usunąć zdjęć');
     }
     if (mounted) setState(() => _busy = false);
   }
@@ -163,14 +158,20 @@ class _RealizationSectionState extends State<RealizationSection> {
 
     final isRealizingCompany = me.id == req.takenBy;
     final isOwner = me.id == req.userId;
-    // jedno zgłoszenie = jedna realizacja (zdjęcie lub para Przed/Po)
-    final existing = _photos.isNotEmpty ? _photos.first : null;
+    // zdjęcia firmy i klienta osobno; lista jest od najnowszych
+    final companyPhotos =
+        _photos.where((r) => r['addedByRole'] != 'user').toList();
+    final clientPhotos =
+        _photos.where((r) => r['addedByRole'] == 'user').toList();
+    final existing = companyPhotos.isNotEmpty ? companyPhotos.first : null;
     final status = (existing?['status'] as String?) ?? 'approved';
 
     // osoby postronne widzą tylko potwierdzone
     if (!isRealizingCompany && !isOwner && (existing == null || status != 'approved')) {
       return const SizedBox.shrink();
     }
+
+    final canAdd = isRealizingCompany && (existing == null || status == 'rejected');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -195,10 +196,12 @@ class _RealizationSectionState extends State<RealizationSection> {
         if (_busy)
           const Center(child: CircularProgressIndicator())
         else if (isRealizingCompany) ...[
-          if (existing == null) ...[
+          if (canAdd) ...[
             OutlinedButton.icon(
               icon: const Icon(Icons.add_a_photo_outlined, size: 18),
-              label: const Text('Dodaj zdjęcie realizacji'),
+              label: Text(existing == null
+                  ? 'Dodaj zdjęcie realizacji'
+                  : 'Dodaj właściwe zdjęcie'),
               onPressed: () => _addPhoto(),
             ),
             const SizedBox(height: 8),
@@ -207,11 +210,11 @@ class _RealizationSectionState extends State<RealizationSection> {
               label: const Text('Dodaj parę Przed / Po'),
               onPressed: () => _addPhoto(withBefore: true),
             ),
-          ] else
+          ] else if (status == 'pending')
             TextButton.icon(
               icon: Icon(Icons.delete_outline, size: 18, color: Colors.red.shade400),
               label: Text('Usuń zdjęcia', style: TextStyle(color: Colors.red.shade400)),
-              onPressed: () => _remove(existing['id'] as String),
+              onPressed: () => _withdraw(existing!['id'] as String),
             ),
         ] else if (isOwner) ...[
           if (existing == null)
@@ -234,7 +237,7 @@ class _RealizationSectionState extends State<RealizationSection> {
                     icon: const Icon(Icons.check, size: 18),
                     label: const Text('Potwierdzam'),
                     style: FilledButton.styleFrom(backgroundColor: Colors.green.shade600),
-                    onPressed: () => _decide(existing['id'] as String, 'approved'),
+                    onPressed: () => _decide('approved'),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -245,7 +248,7 @@ class _RealizationSectionState extends State<RealizationSection> {
                     style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red.shade700,
                         side: BorderSide(color: Colors.red.shade300)),
-                    onPressed: () => _decide(existing['id'] as String, 'rejected'),
+                    onPressed: () => _decide('rejected'),
                   ),
                 ),
               ],
@@ -256,6 +259,23 @@ class _RealizationSectionState extends State<RealizationSection> {
               label: const Text('Poproś o inne zdjęcia'),
               onPressed: _askForPhotos,
             ),
+        ],
+        if (clientPhotos.isNotEmpty && (isOwner || isRealizingCompany)) ...[
+          const SizedBox(height: 16),
+          Text(
+            isOwner
+                ? 'Twoje zdjęcia'
+                : 'Zdjęcia od klienta — możesz je opublikować na swoim profilu',
+            style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final p in clientPhotos) RealizationThumb(photo: p, size: 70),
+            ],
+          ),
         ],
         const SizedBox(height: 16),
       ],

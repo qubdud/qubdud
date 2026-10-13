@@ -8,7 +8,6 @@ import 'package:qb/feature_layer/main_screen/bloc/main_appbar_cubit.dart';
 import 'package:qb/shared/constants.dart';
 import 'package:qb/shared/widgets/w_dropdown.dart';
 import 'package:qb/shared/widgets/w_input_field.dart';
-import 'package:qb/shared/widgets/w_label.dart';
 import 'package:qb/shared/widgets/w_small_label.dart';
 import 'package:flutter/material.dart';
 import 'package:qb/shared/widgets/contact_request_button.dart';
@@ -25,11 +24,8 @@ import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/mini_slots_bar.dart';
 import '../../../../../shared/widgets/w_button.dart';
 import '../../../bloc/main_bloc.dart';
-import '../../dodaj/bloc/dodaj_page_bloc.dart';
 import '../../dodaj/view/dodaj_page.dart';
-import '../../start/bloc/start_page_bloc.dart';
-import '../../start/components/rewiev_info/view/rev_info_component.dart';
-import '../../start/components/user2_info/view/user_info_component.dart';
+import '../../../../../shared/widgets/load_error.dart';
 import '../bloc/wyszukaj_page_bloc.dart';
 
 class WyszukajPage extends StatelessWidget {
@@ -219,7 +215,7 @@ class _ViewState extends State<View> {
               WAnimatedDropdown(
                 controller: _sectorCtrl,
                 label: 'Wybierz branżę',
-                items: branze as List<String>,
+                items: branze,
                 hintText: selectedCategory == null
                     ? 'Wybierz najpierw kategorię'
                     : 'Wybierz branżę',
@@ -551,16 +547,21 @@ class VideoPlayerItem extends StatefulWidget {
 
 class _VideoPlayerItemState extends State<VideoPlayerItem> {
   late VideoPlayerController _controller;
+  bool _failed = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.network(widget.promoItem.fileUrl)
-      ..initialize().then((_) {
-        setState(() {});
-        _controller.play();
-        _controller.setLooping(true);
-      });
+    _controller =
+        VideoPlayerController.networkUrl(Uri.parse(widget.promoItem.fileUrl));
+    _controller.initialize().then((_) {
+      if (!mounted) return;
+      setState(() {});
+      _controller.play();
+      _controller.setLooping(true);
+    }).catchError((_) {
+      if (mounted) setState(() => _failed = true);
+    });
   }
 
   @override
@@ -571,6 +572,7 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
 
   @override
   Widget build(BuildContext context) {
+    if (_failed) return const ColoredBox(color: Colors.black, child: VideoError());
     if (!_controller.value.isInitialized) {
       return const Center(child: CircularProgressIndicator());
     }

@@ -8,6 +8,7 @@ import '../bloc/start_page_bloc.dart';
 import '../components/moje_zgloszenia/view/show_requests_view.dart';
 import '../../profil_my/view/tab_kalendarz.dart';
 import '../../../../../shared/functions/effective_role.dart';
+import '../../../../../shared/widgets/load_error.dart';
 import '../widgets/start_tab_favourites.dart';
 import '../widgets/start_tab_rezerwacje.dart';
 import '../widgets/start_tab_moi_klienci.dart';
@@ -180,6 +181,22 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
   /// Zakładki w TabBarView — przełączanie tapnięciem albo przesunięciem
   /// palcem w lewo/prawo.
   Widget _buildContent(StartPageState state) {
+    final content = _buildTabs(state);
+    if (state.loadErrors.isEmpty) return content;
+    return Column(
+      children: [
+        LoadError(
+          compact: true,
+          message: 'Nie udało się wczytać: ${state.loadErrors.join(', ')}',
+          onRetry: () =>
+              context.read<StartPageBloc>().add(GetDataStartPageEvent()),
+        ),
+        Expanded(child: content),
+      ],
+    );
+  }
+
+  Widget _buildTabs(StartPageState state) {
     if (_isAnon) return StartTabWyszukane(state: state);
 
     final List<Widget> pages;

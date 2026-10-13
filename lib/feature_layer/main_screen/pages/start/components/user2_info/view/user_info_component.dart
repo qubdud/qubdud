@@ -1,16 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:qb/shared/globals.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/feature_layer/main_screen/bloc/main_bloc.dart';
-import 'package:video_player/video_player.dart';
 
 
-import '../../../../../../../shared/widgets/loading.dart';
 import '../bloc/user_info_bloc.dart';
 
 
@@ -130,7 +124,7 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
     String companyName ='Polskie Górnictwo Naftowe i Gazownictwo Spółka Akcyjna Example Long Company Name';
     var cN =(state as UserInfoComponentMainState).user.companyName??'Polskie Górnictwo Naftowe i Gazownictwo Spółka Akcyjna';
     String userName ='AA';
-    var uN =(state as UserInfoComponentMainState).user.firstName![0]+state.user!.lastName![0];
+    var uN =(state).user.firstName![0]+state.user.lastName![0];
     if (uN.isNotEmpty){
       userName = uN;
     }
@@ -196,12 +190,12 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
         SizedBox(height: 4,),
         Padding(
           padding: const EdgeInsets.fromLTRB(4,0,0,0),
-          child: Text( (state as UserInfoComponentMainState).user.companyCity??'Kielce'.toString(), style: TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold),),
+          child: Text( (state).user.companyCity??'Kielce'.toString(), style: TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold),),
         ),
         if (!Globals.instance.anonim)
           Padding(
             padding: const EdgeInsets.fromLTRB(4,0,0,0),
-            child: Text( (state as UserInfoComponentMainState).user.email??'', style: TextStyle(color: Colors.black,fontSize: 12, fontWeight: FontWeight.bold)),
+            child: Text( (state).user.email??'', style: TextStyle(color: Colors.black,fontSize: 12, fontWeight: FontWeight.bold)),
           ),
 
       ],

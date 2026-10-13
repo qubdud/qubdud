@@ -1,4 +1,3 @@
-import 'dart:async';
 
 
 import 'package:flutter/material.dart';
@@ -16,12 +15,14 @@ import '../pages/register/view/register_page.dart';
 import '../pages/registration_complete/registration_complete.dart';
 
 class AuthScreen extends StatelessWidget {
-  const AuthScreen({super.key});
+  final bool startOnRegister;
+
+  const AuthScreen({super.key, this.startOnRegister = false});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => AuthBloc(),
+      create: (_) => AuthBloc(startOnRegister: startOnRegister),
       child: const View(),
     );
   }

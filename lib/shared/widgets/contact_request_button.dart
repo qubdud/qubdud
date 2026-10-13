@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain_layer/firebase_service.dart';
 import '../../feature_layer/main_screen/bloc/main_bloc.dart';
 import '../functions/show_toast.dart';
+import '../functions/show_toast_error.dart';
 import '../globals.dart';
 
 /// Słuchawka na filmie: „Poproś firmę o kontakt”.
@@ -24,26 +25,43 @@ class ContactRequestButton extends StatefulWidget {
 }
 
 class _ContactRequestButtonState extends State<ContactRequestButton> {
-  /// status per firma — jeden odczyt na sesję, nie przy każdym filmie
+  /// status prośby per konto i firma — jeden odczyt na sesję, nie przy
+  /// każdym filmie
   static final Map<String, String> _cache = {};
   String? _status;
 
   String get _myUid => context.read<MainScreenBloc>().state.user?.id ?? '';
+  String get _key => '${_myUid}_${widget.companyId}';
+  bool get _own => _myUid == widget.companyId;
 
   @override
   void initState() {
     super.initState();
-    _status = _cache[widget.companyId];
-    if (_status == null && !Globals.instance.anonim && _myUid.isNotEmpty) {
-      context
-          .read<FirebaseService>()
-          .getContactRequest(myUid: _myUid, companyId: widget.companyId)
-          .then((r) {
-        final s = r?['status'] as String? ?? '';
-        _cache[widget.companyId] = s;
-        if (mounted) setState(() => _status = s);
-      }).catchError((_) {});
+    if (Globals.instance.anonim || _myUid.isEmpty || _own) return;
+    _status = _cache[_key];
+    // bez odczytu słuchawka jest szara — prośbę i tak można wysłać
+    if (_status == null) _refresh().ignore();
+  }
+
+  @override
+  void didUpdateWidget(covariant ContactRequestButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.companyId == widget.companyId) return;
+    _status = _cache[_key];
+    if (_status == null && !Globals.instance.anonim && _myUid.isNotEmpty && !_own) {
+      _refresh().ignore();
     }
+  }
+
+  Future<String> _refresh() async {
+    final key = _key;
+    final r = await context
+        .read<FirebaseService>()
+        .getContactRequest(myUid: _myUid, companyId: widget.companyId);
+    final s = r?['status'] as String? ?? '';
+    _cache[key] = s;
+    if (mounted && key == _key) setState(() => _status = s);
+    return s;
   }
 
   Future<void> _tap() async {
@@ -51,33 +69,39 @@ class _ContactRequestButtonState extends State<ContactRequestButton> {
       showLoginPrompt(context, 'poprosić o kontakt');
       return;
     }
-    if (_myUid == widget.companyId) return;
-    if (_status == 'pending') {
-      showToast(text: 'Prośba już wysłana — firma do Ciebie zadzwoni');
-      return;
+    try {
+      // firma mogła już oznaczyć prośbę jako załatwioną — sprawdzamy na świeżo
+      if (_status == 'pending' && await _refresh() == 'pending') {
+        showToast(text: 'Prośba już wysłana — firma do Ciebie zadzwoni');
+        return;
+      }
+      if (!mounted) return;
+      final me = context.read<MainScreenBloc>().state.user;
+      final sent = await showContactRequestDialog(
+        context,
+        companyName: widget.companyName,
+        phone: me?.phone ?? '',
+      );
+      if (sent == null || !mounted) return;
+      await context.read<FirebaseService>().sendContactRequest(
+            myUid: _myUid,
+            companyId: widget.companyId,
+            companyName: widget.companyName,
+            phone: sent.phone,
+            note: sent.note,
+          );
+      _cache[_key] = 'pending';
+      if (mounted) setState(() => _status = 'pending');
+      showToast(
+          text: 'Wysłano. Firma dostała powiadomienie, masz ją w Kontaktach.');
+    } catch (_) {
+      showToastError(text: 'Nie udało się wysłać prośby — spróbuj ponownie');
     }
-    final me = context.read<MainScreenBloc>().state.user;
-    final sent = await showContactRequestDialog(
-      context,
-      companyName: widget.companyName,
-      phone: me?.phone ?? '',
-    );
-    if (sent == null || !mounted) return;
-    await context.read<FirebaseService>().sendContactRequest(
-          myUid: _myUid,
-          companyId: widget.companyId,
-          companyName: widget.companyName,
-          phone: sent.phone,
-          note: sent.note,
-        );
-    _cache[widget.companyId] = 'pending';
-    if (mounted) setState(() => _status = 'pending');
-    showToast(
-        text: 'Wysłano. Firma dostała powiadomienie, masz ją w Kontaktach.');
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_own) return const SizedBox.shrink();
     final (bg, fg) = switch (_status) {
       'pending' => (Colors.amber.shade600, Colors.black87),
       'done' => (Colors.green.shade600, Colors.white),

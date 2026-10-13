@@ -27,4 +27,6 @@ class ShowRequestsComponentMainState extends ShowRequestsComponentState {}
 
 class ShowRequestsComponentLoadingState extends ShowRequestsComponentState {}
 
+class ShowRequestsComponentErrorState extends ShowRequestsComponentState {}
+
 class ShowRequestsComponentNextState extends ShowRequestsComponentState {}

@@ -85,8 +85,10 @@ class RulesPage extends StatelessWidget {
             ),
             _section(
               '9. Usunięcie konta i zmiany regulaminu',
-              'Możesz w każdej chwili zażądać usunięcia konta wraz z danymi, pisząc '
-                  'na $_contact. Recenzje mogą pozostać w formie zanonimizowanej. '
+              'Konto usuniesz w każdej chwili w aplikacji: Menu → Usuń konto. '
+                  'Usuwamy wtedy profil, zgłoszenia, prezentacje, recenzje, rezerwacje, '
+                  'zdjęcia i filmy; w rozmowach u drugiej strony zostaje podpis '
+                  '„Konto usunięte”. W razie problemu napisz na $_contact. '
                   'O istotnych zmianach regulaminu poinformujemy w aplikacji; dalsze '
                   'korzystanie oznacza akceptację zmian.',
             ),
@@ -138,9 +140,10 @@ class RulesPage extends StatelessWidget {
               'Jak długo przechowujemy dane',
               'Dane konta — do usunięcia konta. Zgłoszenia — do 10 dni od '
                   'wystawienia, potem oznaczane jako zamknięte i widoczne tylko dla '
-                  'autora do czasu usunięcia. Wiadomości i rezerwacje — do usunięcia '
-                  'konta. Powiadomienia — do usunięcia przez Ciebie. Po usunięciu konta '
-                  'recenzje mogą pozostać w formie zanonimizowanej.',
+                  'autora do czasu usunięcia. Rezerwacje — do usunięcia konta. '
+                  'Wiadomości — do usunięcia konta; potem zostają tylko u rozmówcy, '
+                  'z podpisem „Konto usunięte”. Powiadomienia — do usunięcia przez '
+                  'Ciebie lub usunięcia konta.',
             ),
             _section(
               'Twoje prawa',

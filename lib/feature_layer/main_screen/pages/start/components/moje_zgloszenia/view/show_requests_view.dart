@@ -1,8 +1,5 @@
 import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:qb/shared/functions/show_toast_error.dart';
 import 'package:qb/shared/functions/show_toast.dart';
@@ -12,17 +9,15 @@ import 'package:qb/shared/constants.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
 import 'package:qb/feature_layer/main_screen/bloc/main_bloc.dart';
-import 'package:video_player/video_player.dart';
 
 
-import '../../../../../../../shared/functions/show_toast.dart';
 import '../../../../../../../shared/globals.dart';
 import '../../../../../../../shared/widgets/loading.dart';
 import '../../../../../../../shared/widgets/request_take_status.dart';
 import '../../../../../../../shared/widgets/w_button.dart';
 import '../../../../../../../shared/widgets/w_input_field.dart';
-import '../../../../../../../shared/widgets/w_small_label.dart';
 import '../../../../../../../domain_layer/domain_models/promoVideo.dart';
+import '../../../../../../../shared/widgets/load_error.dart';
 import '../bloc/show_requests_bloc.dart';
 
 
@@ -135,17 +130,17 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
       return Loading(noText: true, key: UniqueKey());
     }
 
-    int ocena = 0;
-
-    if(state.reviews.isNotEmpty){
-      ocena = state.reviews.first.score;
+    if (state is ShowRequestsComponentErrorState) {
+      return LoadError(
+        key: const ValueKey('error'),
+        message: 'Nie udało się wczytać zgłoszeń.',
+        onRetry: () => context
+            .read<ShowRequestsComponentBloc>()
+            .add(GetDataShowRequestsComponentEvent()),
+      );
     }
 
-
-
-
-
- if (state.requests.isEmpty) {
+    if (state.requests.isEmpty) {
       return const EmptyState(
         icon: Icons.inbox_outlined,
         title: 'Brak zgłoszeń',
@@ -157,8 +152,9 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: state.requests.length,
-      itemBuilder: (context, index) =>
-          _MyRequestTile(req: state.requests[index]),
+      itemBuilder: (context, index) => _MyRequestTile(
+          key: ValueKey(state.requests[index].id),
+          req: state.requests[index]),
     );
 
 
@@ -183,7 +179,7 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
 // ──────────────────────────────────────────────────────────────────────────────
 class _MyRequestTile extends StatefulWidget {
   final Request req;
-  const _MyRequestTile({required this.req});
+  const _MyRequestTile({super.key, required this.req});
 
   @override
   State<_MyRequestTile> createState() => _MyRequestTileState();
@@ -200,9 +196,93 @@ class _MyRequestTileState extends State<_MyRequestTile> {
   }
 
   @override
+  void didUpdateWidget(covariant _MyRequestTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.req.id != widget.req.id) {
+      _desc.text = widget.req.description;
+      _editing = false;
+    }
+  }
+
+  @override
   void dispose() {
     _desc.dispose();
     super.dispose();
+  }
+
+  void _reload() => context
+      .read<ShowRequestsComponentBloc>()
+      .add(GetDataShowRequestsComponentEvent());
+
+  Future<void> _close() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Zamknąć zgłoszenie?'),
+        content: const Text(
+            'Zniknie z list firm i nikt nie wyśle już oferty. Zostanie u Ciebie jako zakończone.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Anuluj')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Zamknij')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await context.read<FirebaseService>().closeRequest(widget.req.id);
+      showToast(text: 'Zgłoszenie zamknięte');
+      if (mounted) _reload();
+    } catch (_) {
+      showToastError(text: 'Nie udało się zamknąć zgłoszenia');
+    }
+  }
+
+  Future<void> _delete() async {
+    final req = widget.req;
+    final company = req.takenByName.isNotEmpty ? req.takenByName : 'Firma';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Usunąć zgłoszenie?'),
+        content: Text(req.status == 'taken'
+            ? '$company realizuje to zgłoszenie — zostanie powiadomiona o usunięciu. Tego nie można cofnąć.'
+            : 'Zgłoszenie i oferty firm znikną. Tego nie można cofnąć.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Anuluj')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Usuń', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    context
+        .read<ShowRequestsComponentBloc>()
+        .add(TryDeleteMyRequestShowRequestsComponentEvent(id: req.id));
+  }
+
+  Future<void> _saveDescription() async {
+    final newDesc = _desc.text.trim();
+    try {
+      await context
+          .read<FirebaseService>()
+          .updateRequestDescription(widget.req.id, newDesc);
+    } catch (_) {
+      showToastError(text: 'Nie udało się zapisać opisu');
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      widget.req.description = newDesc;
+      _editing = false;
+    });
+    showToast(text: 'Zapisano');
   }
 
   @override
@@ -282,7 +362,7 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                               Icon(Icons.schedule,
                                   size: 12, color: Colors.grey.shade500),
                               const SizedBox(width: 4),
-                              Text(_wystawione(widget.req.timestamp!),
+                              Text(_wystawione(widget.req),
                                   style: TextStyle(
                                       fontSize: 11,
                                       color: Colors.grey.shade500)),
@@ -307,43 +387,13 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                         icon: Icon(Icons.lock_outline,
                             size: 20, color: Colors.grey.shade600),
                         tooltip: 'Zamknij zgłoszenie',
-                        onPressed: () async {
-                          final ok = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Zamknąć zgłoszenie?'),
-                              content: const Text(
-                                  'Zniknie z list firm i nikt nie wyśle już oferty. Zostanie u Ciebie jako zakończone.'),
-                              actions: [
-                                TextButton(
-                                    onPressed: () => Navigator.pop(ctx, false),
-                                    child: const Text('Anuluj')),
-                                FilledButton(
-                                    onPressed: () => Navigator.pop(ctx, true),
-                                    child: const Text('Zamknij')),
-                              ],
-                            ),
-                          );
-                          if (ok != true || !context.mounted) return;
-                          await context
-                              .read<FirebaseService>()
-                              .closeRequest(widget.req.id);
-                          if (context.mounted) {
-                            showToast(text: 'Zgłoszenie zamknięte');
-                            context
-                                .read<ShowRequestsComponentBloc>()
-                                .add(GetDataShowRequestsComponentEvent());
-                          }
-                        },
+                        onPressed: _close,
                       ),
                     IconButton(
                         icon: const Icon(Icons.delete_outline,
                             size: 20, color: Colors.red),
                         tooltip: 'Usuń zgłoszenie',
-                        onPressed: () => context
-                            .read<ShowRequestsComponentBloc>()
-                            .add(TryDeleteMyRequestShowRequestsComponentEvent(
-                                id: widget.req.id)),
+                        onPressed: _delete,
                       ),
                   ],
                 ),
@@ -363,17 +413,7 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                 alignment: Alignment.centerRight,
                 child: WButton(
                   text: 'Zapisz',
-                  onPressed: () async {
-                    final newDesc = _desc.text.trim();
-                    await context
-                        .read<FirebaseService>()
-                        .updateRequestDescription(widget.req.id, newDesc);
-                    setState(() {
-                      widget.req.description = newDesc;
-                      _editing = false;
-                    });
-                    showToast(text: 'Zapisano');
-                  },
+                  onPressed: _saveDescription,
                 ),
               ),
             ] else if (widget.req.description.isNotEmpty) ...[
@@ -383,38 +423,11 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis),
             ],
-            if (widget.req.status != 'closed')
-              _RealizationRequest(request: widget.req),
             if (widget.req.status == 'closed')
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Row(
-                  children: [
-                    Icon(
-                        widget.req.realizationStatus == 'rejected'
-                            ? Icons.cancel_outlined
-                            : Icons.task_alt,
-                        size: 18,
-                        color: widget.req.realizationStatus == 'rejected'
-                            ? Colors.red.shade600
-                            : Colors.green.shade700),
-                    const SizedBox(width: 6),
-                    Text(
-                      widget.req.realizationStatus == 'rejected'
-                          ? 'Zakończone — zdjęcia odrzucone'
-                          : 'Zrealizowane i potwierdzone',
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: widget.req.realizationStatus == 'rejected'
-                              ? Colors.red.shade600
-                              : Colors.green.shade700),
-                    ),
-                  ],
-                ),
-              )
+              _ClosedLabel(stage: widget.req.stage)
             else ...[
-              RequestOffersBar(request: widget.req),
+              _RealizationRequest(request: widget.req),
+              RequestOffersBar(request: widget.req, onChanged: _reload),
             ],
           ],
         ),
@@ -423,15 +436,46 @@ class _MyRequestTileState extends State<_MyRequestTile> {
   }
 }
 
-String _wystawione(DateTime d) {
+/// Wygasają tylko otwarte zgłoszenia (cron po 10 dniach).
+String _wystawione(Request req) {
+  final d = req.timestamp!;
   final diff = DateTime.now().difference(d);
-  final data =
-      '${d.day}.${d.month.toString().padLeft(2, '0')}.${d.year}';
   if (diff.inDays == 0) return 'wystawione dziś';
   if (diff.inDays == 1) return 'wystawione wczoraj';
+  final data = 'wystawione ${d.day}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+  if (req.status != 'open') return data;
   final left = 10 - diff.inDays;
-  if (left <= 0) return 'wystawione $data · wygasa';
-  return 'wystawione $data · wygasa za $left dni';
+  if (left <= 0) return '$data · wygasa';
+  return '$data · wygasa za $left dni';
+}
+
+class _ClosedLabel extends StatelessWidget {
+  final RequestStage stage;
+  const _ClosedLabel({required this.stage});
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, color) = switch (stage) {
+      RequestStage.realized => (Icons.task_alt, Colors.green.shade700),
+      RequestStage.expired => (Icons.timer_off_outlined, Colors.grey.shade600),
+      _ => (Icons.lock_outline, Colors.grey.shade600),
+    };
+    final label = stage.label();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 6),
+          Text(
+            '${label[0].toUpperCase()}${label.substring(1)}',
+            style: TextStyle(
+                fontSize: 12.5, fontWeight: FontWeight.w600, color: color),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Zdjęcia realizacji na zgłoszeniu klienta: prośba firmy do potwierdzenia
@@ -454,32 +498,44 @@ class _RealizationRequestState extends State<_RealizationRequest> {
     _load();
   }
 
+  @override
+  void didUpdateWidget(covariant _RealizationRequest oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // świeży obiekt po przeładowaniu listy = mogły się zmienić zdjęcia
+    if (oldWidget.request != widget.request) {
+      if (oldWidget.request.id != widget.request.id) _all = const [];
+      _load();
+    }
+  }
+
   Future<void> _load() async {
+    final id = widget.request.id;
     try {
-      final list = await context
-          .read<FirebaseService>()
-          .getRealizationsForRequest(widget.request.id);
-      if (mounted) setState(() => _all = list);
+      final list =
+          await context.read<FirebaseService>().getRealizationsForRequest(id);
+      if (mounted && id == widget.request.id) setState(() => _all = list);
     } catch (_) {}
   }
 
-  Future<void> _decide(String id, String status) async {
+  Future<void> _decide(String status) async {
+    final approve = status == 'approved';
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Potwierdzasz wykonanie?'),
-        content: const Text(
-            'Zdjęcia pojawią się na profilu firmy, a zgłoszenie zostanie zamknięte. '
-            'Nie musisz nic robić — bez potwierdzenia zgłoszenie po prostu wygaśnie.'),
+        title: Text(approve ? 'Potwierdzasz wykonanie?' : 'To nie Twoje zdjęcia?'),
+        content: Text(approve
+            ? 'Zdjęcia pojawią się na profilu firmy, a zgłoszenie zostanie zamknięte jako zrealizowane.'
+            : 'Firma dostanie informację i będzie mogła dodać właściwe zdjęcia.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Anuluj')),
           FilledButton(
               style: FilledButton.styleFrom(
-                  backgroundColor: Colors.green.shade600),
+                  backgroundColor:
+                      approve ? Colors.green.shade600 : Colors.red.shade600),
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Potwierdzam')),
+              child: Text(approve ? 'Potwierdzam' : 'Odrzuć')),
         ],
       ),
     );
@@ -488,11 +544,21 @@ class _RealizationRequestState extends State<_RealizationRequest> {
     try {
       await context
           .read<FirebaseService>()
-          .setRealizationStatus(id, status, requestId: widget.request.id);
-      showToast(text: 'Potwierdzone — zdjęcia są już na profilu firmy');
-      if (mounted) context.read<ShowRequestsComponentBloc>().add(GetDataShowRequestsComponentEvent());
-    } catch (e) {
-      showToastError(text: 'Błąd: $e');
+          .setRealizationStatus(widget.request.id, status);
+      showToast(
+          text: approve
+              ? 'Potwierdzone — zdjęcia są już na profilu firmy'
+              : 'Odrzucono — firma może dodać inne zdjęcia');
+      if (mounted) {
+        context
+            .read<ShowRequestsComponentBloc>()
+            .add(GetDataShowRequestsComponentEvent());
+      }
+    } on StateError catch (e) {
+      showToastError(text: e.message);
+      await _load();
+    } catch (_) {
+      showToastError(text: 'Nie udało się zapisać decyzji');
     }
     if (mounted) setState(() => _busy = false);
   }
@@ -549,6 +615,15 @@ class _RealizationRequestState extends State<_RealizationRequest> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
+                        TextButton(
+                          style: TextButton.styleFrom(
+                              foregroundColor: Colors.red.shade700,
+                              visualDensity: VisualDensity.compact),
+                          onPressed: () => _decide('rejected'),
+                          child: const Text('To nie moje',
+                              style: TextStyle(fontSize: 13)),
+                        ),
+                        const SizedBox(width: 6),
                         FilledButton.icon(
                           icon: const Icon(Icons.check, size: 15),
                           label: const Text('Potwierdź',
@@ -560,8 +635,7 @@ class _RealizationRequestState extends State<_RealizationRequest> {
                                   horizontal: 14, vertical: 4),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8))),
-                          onPressed: () =>
-                              _decide(pending.first['id'] as String, 'approved'),
+                          onPressed: () => _decide('approved'),
                         ),
                       ],
                     ),

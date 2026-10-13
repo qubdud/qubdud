@@ -33,6 +33,7 @@ class _PromoTileState extends State<PromoTile> {
   void initState() {
     super.initState();
     // starsze prezentacje nie mają zapisanej nazwy firmy — dociągamy raz
+    // EXPIRES: po uruchomieniu demo/_seed/migrate_promo_company_name.js
     if (widget.promo.companyName.isEmpty && !Globals.instance.anonim) {
       final cached = _nameCache[widget.promo.userId];
       if (cached != null) {

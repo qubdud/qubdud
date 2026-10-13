@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../constants.dart';
 
 class Loading extends StatefulWidget {
   final bool? noText;
@@ -66,27 +65,6 @@ class _LoadingState extends State<Loading> with SingleTickerProviderStateMixin {
             ),
           ),
         ),
-        if (false) //if (!(widget.noText ?? false))
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 150),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  const SizedBox(height: 16),
-                  const Text(
-                    "Loading...",
-                    style: TextStyle(
-                      fontSize: 30,
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.bold,
-                      color: cDarkBrown,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
       ],
     );
   }

@@ -11,15 +11,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../../../../domain_layer/chat_service.dart';
 import '../../../../../shared/widgets/before_after.dart';
 import '../../../../../shared/functions/show_toast.dart';
+import '../../../../../shared/functions/show_toast_error.dart';
+import '../../../../../shared/widgets/mini_slots_bar.dart' show bookingName;
+import '../../../../../shared/widgets/load_error.dart';
 import '../../profil_my/view/tab_kalendarz.dart' show dayLabel;
-import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/domain_models/company_info.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../domain_layer/firebase_service.dart';
-import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/loading.dart';
 import '../../../../../shared/widgets/review.dart';
 import '../../../../../shared/widgets/w_small_label.dart';
@@ -106,9 +106,18 @@ class _ProfilViewState extends State<_ProfilView> {
           if (state is ProfilPubliczyPageLoadingState && state.targetUser == null) {
             return const Loading();
           }
+          if (state is ProfilPubliczyPageErrorState) {
+            return LoadError(
+              message: state.errorMessage,
+              onRetry: () => context
+                  .read<ProfilPubliczyPageBloc>()
+                  .add(GetDataProfilPubliczyPageEvent()),
+            );
+          }
 
-          final canBook =
-              state.targetUser != null && state.targetUser!.id != myUid;
+          final canBook = state.targetUser != null &&
+              state.targetUser!.id != myUid &&
+              !Globals.instance.anonim;
 
           return Stack(
             children: [
@@ -183,6 +192,11 @@ class _ProfilViewState extends State<_ProfilView> {
 
   Widget _buildHeader(BuildContext context, AppUser? user, ProfileInfo? info) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final own = user != null &&
+        user.id == (FirebaseAuth.instance.currentUser?.uid ?? '');
+    final bio = user?.bio?.trim() ?? '';
+    // EXPIRES: po uruchomieniu demo/_seed/migrate_profile_bio.js --apply (zostaje samo bio)
+    final description = bio.isNotEmpty ? bio : (info?.description.trim() ?? '');
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
       decoration: BoxDecoration(
@@ -270,60 +284,67 @@ class _ProfilViewState extends State<_ProfilView> {
               ),
             ],
           ),
-          if (info?.description?.isNotEmpty == true) ...[
+          if (description.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text(info!.description,
+            Text(description,
                 style: const TextStyle(fontSize: 14, height: 1.5)),
           ],
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.chat_bubble_outline, size: 16),
-                  label: const Text('Napisz'),
-                  onPressed: () => context
-                      .read<MainScreenBloc>()
-                      .add(GoToChatEvent(user?.id ?? '', chatName: user?.companyName)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: cDarkBlue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+          if (!own) ...[
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                    label: const Text('Napisz'),
+                    onPressed: () => context
+                        .read<MainScreenBloc>()
+                        .add(GoToChatEvent(user?.id ?? '', chatName: user?.companyName)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: cDarkBlue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.bookmark_add_outlined, size: 16),
-                  label: const Text('Zapisz'),
-                  onPressed: () async {
-                    final firebase = context.read<FirebaseService>();
-                    final myUid =
-                        context.read<MainScreenBloc>().state.user?.id ?? '';
-                    await firebase.addContact(
-                        myUserId: myUid, contactUserId: user?.id ?? '');
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Zapisano w Kontakty → Zapisani')),
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        isDark ? Colors.white12 : Colors.grey.shade200,
-                    foregroundColor: isDark ? Colors.white : Colors.black87,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.bookmark_add_outlined, size: 16),
+                    label: const Text('Zapisz'),
+                    onPressed: () async {
+                      final firebase = context.read<FirebaseService>();
+                      final myUid =
+                          context.read<MainScreenBloc>().state.user?.id ?? '';
+                      try {
+                        await firebase.addContact(
+                            myUserId: myUid, contactUserId: user?.id ?? '');
+                      } catch (_) {
+                        showToastError(text: 'Nie udało się zapisać kontaktu');
+                        return;
+                      }
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Zapisano w Kontakty → Zapisani')),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          isDark ? Colors.white12 : Colors.grey.shade200,
+                      foregroundColor: isDark ? Colors.white : Colors.black87,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -419,7 +440,7 @@ class _RealizationsSectionState extends State<_RealizationsSection> {
         ],
       ),
     );
-    if (ok != true) return;
+    if (ok != true || !mounted) return;
     try {
       await context.read<FirebaseService>().deleteRealization(photo['id'] as String);
       await _load();
@@ -561,23 +582,42 @@ class _SlotsSection extends StatefulWidget {
 class _SlotsSectionState extends State<_SlotsSection> {
   List<Map<String, dynamic>> _slots = [];
   bool _loaded = false;
+  bool _error = false;
   StreamSubscription<List<Map<String, dynamic>>>? _sub;
 
   String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? '';
-
-  Future<void> _load() async {}
+  bool get _anonim => Globals.instance.anonim || _myUid.isEmpty;
+  bool get _own => widget.companyId == _myUid;
 
   @override
   void initState() {
     super.initState();
-    // podgląd na żywo — rezerwacje innych osób widać od razu
+    _listen();
+  }
+
+  /// Podgląd na żywo — rezerwacje innych osób widać od razu.
+  /// Anonim nie czyta slotów (reguły) — widzi zachętę do logowania.
+  void _listen() {
+    _sub?.cancel();
+    if (_anonim) return;
     _sub = context
         .read<FirebaseService>()
         .slotsStream(widget.companyId)
         .listen((slots) {
-      if (mounted) setState(() { _slots = slots; _loaded = true; });
+      if (mounted) {
+        setState(() {
+          _slots = slots;
+          _loaded = true;
+          _error = false;
+        });
+      }
     }, onError: (_) {
-      if (mounted) setState(() => _loaded = true);
+      if (mounted) {
+        setState(() {
+          _loaded = true;
+          _error = true;
+        });
+      }
     });
   }
 
@@ -588,10 +628,11 @@ class _SlotsSectionState extends State<_SlotsSection> {
   }
 
   Future<void> _tapSlot(Map<String, dynamic> s) async {
-    if (Globals.instance.anonim || _myUid.isEmpty) {
-      showLoginPrompt(context, 'zarezerwować termin');
+    if (_own) {
+      showToast(text: 'To Twoje terminy — zarządzasz nimi w Kalendarzu');
       return;
     }
+    final firebase = context.read<FirebaseService>();
     final status = s['status'] as String;
     final mine = s['bookedBy'] == _myUid;
 
@@ -656,26 +697,16 @@ class _SlotsSectionState extends State<_SlotsSection> {
         ),
       );
       if (go != true || !mounted) return;
-      final me = context.read<MainScreenBloc>().state.user;
-      final myName = me?.firma == true
-          ? (me?.companyName ?? 'Firma')
-          : '${me?.firstName ?? ''} ${me?.lastName ?? ''}'.trim();
       try {
-        await context.read<FirebaseService>().bookSlot(
-              companyId: widget.companyId,
-              slotId: s['id'] as String,
-              myUid: _myUid,
-              myName: myName.isEmpty ? 'Użytkownik' : myName,
-            );
-        setState(() {
-          s['status'] = 'pending';
-          s['bookedBy'] = _myUid;
-          s['bookedByName'] = myName;
-        });
+        await firebase.bookSlot(
+          companyId: widget.companyId,
+          slotId: s['id'] as String,
+          myUid: _myUid,
+          myName: bookingName(context.read<MainScreenBloc>().state.user),
+        );
         showToast(text: 'Zarezerwowano — czeka na akceptację firmy');
-      } catch (_) {
-        showToast(text: 'Ten termin jest już zajęty');
-        _load();
+      } catch (e) {
+        showToastError(text: slotErrorText(e));
       }
       return;
     }
@@ -687,10 +718,8 @@ class _SlotsSectionState extends State<_SlotsSection> {
         builder: (ctx) => AlertDialog(
           title: const Text('Twoja rezerwacja'),
           content: Text(status == 'accepted'
-              ? 'Termin zaakceptowany przez firmę. Odwołać rezerwację?'
-              : status == 'rejected'
-                  ? 'Firma odrzuciła ten termin. Zwolnić kropkę?'
-                  : 'Czeka na akceptację firmy. Odwołać rezerwację?'),
+              ? 'Termin zaakceptowany przez firmę. Odwołać rezerwację? Firma dostanie powiadomienie.'
+              : 'Czeka na akceptację firmy. Odwołać rezerwację?'),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
@@ -703,15 +732,15 @@ class _SlotsSectionState extends State<_SlotsSection> {
         ),
       );
       if (ok != true || !mounted) return;
-      await context.read<FirebaseService>().cancelSlotBooking(
-          companyId: widget.companyId,
-          slotId: s['id'] as String,
-          myUid: _myUid);
-      setState(() {
-        s['status'] = 'free';
-        s['bookedBy'] = '';
-        s['bookedByName'] = '';
-      });
+      try {
+        await firebase.cancelSlotBooking(
+            companyId: widget.companyId,
+            slotId: s['id'] as String,
+            myUid: _myUid);
+        showToast(text: 'Odwołano rezerwację');
+      } catch (e) {
+        showToastError(text: slotErrorText(e));
+      }
       return;
     }
 
@@ -720,6 +749,36 @@ class _SlotsSectionState extends State<_SlotsSection> {
 
   @override
   Widget build(BuildContext context) {
+    if (_anonim) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            WSmallLabel(text: 'Umów (najbliższe 7 dni)'),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.lock_outline, size: 18),
+              label: const Text('Zaloguj się, aby zobaczyć terminy'),
+              onPressed: () => showLoginPrompt(context, 'zobaczyć terminy'),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_error) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 24),
+        child: LoadError(
+          message: 'Nie udało się wczytać terminów',
+          compact: true,
+          onRetry: () {
+            setState(() => _error = false);
+            _listen();
+          },
+        ),
+      );
+    }
     if (!_loaded || _slots.isEmpty) return const SizedBox.shrink();
 
     // grupowanie po dniach (kolejność chronologiczna — sloty są posortowane)
@@ -772,7 +831,9 @@ class _SlotsSectionState extends State<_SlotsSection> {
               )),
           const SizedBox(height: 4),
           Text(
-            'Kliknij kropkę, aby zarezerwować. Żółta — czeka na akceptację, zielona — przyjęta, czerwona — odrzucona.',
+            _own
+                ? 'Tak klienci widzą Twoje terminy. Zarządzasz nimi w Profilu → Kalendarz.'
+                : 'Kliknij kropkę, aby zarezerwować. Żółta — czeka na akceptację, zielona — przyjęta.',
             style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
           ),
         ],
@@ -783,18 +844,14 @@ class _SlotsSectionState extends State<_SlotsSection> {
   Widget _slotDot(Map<String, dynamic> s) {
     final st = s['start'] as DateTime;
     final status = s['status'] as String;
-    final mine = s['bookedBy'] == _myUid && _myUid.isNotEmpty;
+    final mine = s['bookedBy'] == _myUid;
 
     late final Color color;
     var takenByOther = false;
     if (status == 'free') {
       color = Colors.green.shade400;
     } else if (mine) {
-      color = switch (status) {
-        'accepted' => Colors.green,
-        'rejected' => Colors.red,
-        _ => Colors.amber,
-      };
+      color = status == 'accepted' ? Colors.green : Colors.amber;
     } else {
       color = Colors.grey.shade400;
       takenByOther = true;
@@ -876,12 +933,14 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
       return;
     }
     final firebase = context.read<FirebaseService>();
-    final reviews = await firebase.getReviewsMetadataByReviewedUser(widget.companyId);
-    final already = reviews.any((r) => r.userId == myUid);
-    bool can = false;
+    // opinie są już w stanie strony — bez drugiego zapytania
+    final already = widget.reviews.any((r) => r.userId == myUid);
+    var can = false;
     try {
       can = await firebase.canReviewCompany(myUid, widget.companyId);
-    } catch (_) {}
+    } catch (_) {
+      // bez sprawdzenia nie pokazujemy „Dodaj opinię" — lista opinii działa dalej
+    }
     if (mounted) {
       setState(() {
         _alreadyReviewed = already;

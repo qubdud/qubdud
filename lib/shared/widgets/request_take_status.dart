@@ -63,14 +63,15 @@ class _CompanyOfferSectionState extends State<CompanyOfferSection> {
             companyName: widget.myCompanyName,
             message: text,
           );
+      if (!mounted) return;
       setState(() => _myOffer = {
             'companyId': widget.myCompanyId,
             'message': text,
             'status': 'pending',
           });
       showToast(text: 'Oferta wysłana');
-    } catch (e) {
-      showToastError(text: 'Błąd: $e');
+    } catch (_) {
+      showToastError(text: 'Nie udało się wysłać oferty');
     }
     if (mounted) setState(() => _busy = false);
   }
@@ -95,6 +96,14 @@ class _CompanyOfferSectionState extends State<CompanyOfferSection> {
     }
 
     final status = _myOffer?['status'] as String?;
+
+    if (req.status == 'closed' && status != 'accepted') {
+      return _badge(
+        color: Colors.grey,
+        icon: Icons.lock_outline,
+        text: 'Zgłoszenie jest zamknięte',
+      );
+    }
 
     if (_myOffer == null) {
       // brak oferty — formularz
@@ -148,6 +157,12 @@ class _CompanyOfferSectionState extends State<CompanyOfferSection> {
           icon: Icons.cancel_outlined,
           text: 'Klient odrzucił Twoją ofertę',
         );
+      case 'closed':
+        return _badge(
+          color: Colors.grey,
+          icon: Icons.block,
+          text: 'Klient wybrał inną ofertę',
+        );
       default:
         return _badge(
           color: Colors.blueGrey,
@@ -200,11 +215,20 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
     _load();
   }
 
+  @override
+  void didUpdateWidget(covariant RequestOffersBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.request.id != widget.request.id) {
+      _offers = [];
+      _load();
+    }
+  }
+
   Future<void> _load() async {
+    final id = widget.request.id;
     try {
-      final offers =
-          await context.read<FirebaseService>().getOffers(widget.request.id);
-      if (mounted) setState(() => _offers = offers);
+      final offers = await context.read<FirebaseService>().getOffers(id);
+      if (mounted && id == widget.request.id) setState(() => _offers = offers);
     } catch (_) {}
   }
 
@@ -225,8 +249,8 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
         showToast(text: 'Zaakceptowano — zadanie zablokowane dla tej firmy');
       }
       widget.onChanged?.call();
-    } catch (e) {
-      showToastError(text: 'Błąd: $e');
+    } catch (_) {
+      showToastError(text: 'Nie udało się zapisać decyzji');
     }
     if (mounted) setState(() => _busy = false);
   }
@@ -237,7 +261,8 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
       builder: (ctx) => AlertDialog(
         title: const Text('Odblokować zgłoszenie?'),
         content: const Text(
-            'Zgłoszenie wróci do puli i znów zobaczą je inne firmy.'),
+            'Zgłoszenie wróci do puli i znów zobaczą je inne firmy. '
+            'Zdjęcia realizacji tej firmy zostaną usunięte.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -258,8 +283,8 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
       showToast(text: 'Odblokowano — zgłoszenie wróciło do puli');
       await _load();
       widget.onChanged?.call();
-    } catch (e) {
-      showToastError(text: 'Błąd: $e');
+    } catch (_) {
+      showToastError(text: 'Nie udało się odblokować zgłoszenia');
     }
     if (mounted) setState(() => _busy = false);
   }
@@ -317,8 +342,9 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
       );
     }
 
-    final visible =
-        _offers.where((o) => o['status'] != 'rejected').toList();
+    final visible = _offers
+        .where((o) => o['status'] != 'rejected' && o['status'] != 'closed')
+        .toList();
     if (visible.isEmpty) return const SizedBox.shrink();
 
     return Container(

@@ -9,8 +9,10 @@ import 'package:qb/feature_layer/main_screen/bloc/main_bloc.dart';
 import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../shared/functions/show_toast.dart';
+import '../../../../../shared/functions/show_toast_error.dart';
 import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/mini_slots_bar.dart';
+import '../../../../shared/widgets/load_error.dart';
 
 /// Pionowy feed wideo (styl TikTok): przesuwanie w górę/dół między filmami.
 /// Bez playlisty gra pojedynczy film.
@@ -82,6 +84,7 @@ class _VideoItem extends StatefulWidget {
 
 class _VideoItemState extends State<_VideoItem> {
   VideoPlayerController? _controller;
+  bool _failed = false;
   AppUser? _author;
   int _reviewCount = 0;
   double _rating = 0;
@@ -97,13 +100,15 @@ class _VideoItemState extends State<_VideoItem> {
 
   void _initPlayer() {
     _controller = VideoPlayerController.networkUrl(
-        Uri.parse(widget.promo.fileUrl))
-      ..initialize().then((_) {
-        if (!mounted) return;
-        setState(() {});
-        if (widget.isActive) _controller!.play();
-        _controller!.setLooping(true);
-      });
+        Uri.parse(widget.promo.fileUrl));
+    _controller!.initialize().then((_) {
+      if (!mounted) return;
+      setState(() {});
+      if (widget.isActive) _controller!.play();
+      _controller!.setLooping(true);
+    }).catchError((_) {
+      if (mounted) setState(() => _failed = true);
+    });
   }
 
   Future<void> _loadAuthor() async {
@@ -163,7 +168,9 @@ class _VideoItemState extends State<_VideoItem> {
     return Stack(
       children: [
         // ── Film ─────────────────────────────────────────
-        if (initialized)
+        if (_failed)
+          const VideoError()
+        else if (initialized)
           Positioned.fill(
             child: FittedBox(
               fit: BoxFit.cover,
@@ -213,9 +220,13 @@ class _VideoItemState extends State<_VideoItem> {
                   }
                   final myUid =
                       context.read<MainScreenBloc>().state.user?.id ?? '';
-                  await context.read<FirebaseService>().addPromoToFavorites(
-                      userId: myUid, promoId: widget.promo.id);
-                  showToast(text: 'Dodano do ulubionych');
+                  try {
+                    await context.read<FirebaseService>().addPromoToFavorites(
+                        userId: myUid, promoId: widget.promo.id);
+                    showToast(text: 'Dodano do ulubionych');
+                  } catch (_) {
+                    showToastError(text: 'Nie udało się dodać do ulubionych');
+                  }
                 },
               ),
               const SizedBox(height: 16),
@@ -229,9 +240,13 @@ class _VideoItemState extends State<_VideoItem> {
                   }
                   final myUid =
                       context.read<MainScreenBloc>().state.user?.id ?? '';
-                  await context.read<FirebaseService>().addContact(
-                      myUserId: myUid, contactUserId: widget.promo.userId);
-                  showToast(text: 'Dodano do kontaktów');
+                  try {
+                    await context.read<FirebaseService>().addContact(
+                        myUserId: myUid, contactUserId: widget.promo.userId);
+                    showToast(text: 'Dodano do kontaktów');
+                  } catch (_) {
+                    showToastError(text: 'Nie udało się dodać do kontaktów');
+                  }
                 },
               ),
               const SizedBox(height: 16),

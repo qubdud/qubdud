@@ -9,10 +9,12 @@ import '../../../../../shared/functions/show_toast.dart';
 import '../../../../../shared/functions/show_toast_error.dart';
 import '../../../../../shared/client_notes.dart';
 import '../../../bloc/main_bloc.dart';
+import '../../../../../shared/widgets/load_error.dart';
 
 /// Kalendarz firmy: sloty 1h na najbliższe 7 dni.
-/// Kolory: szary = wolny, żółty = ktoś kliknął (czeka), zielony = zaakceptowany,
-/// czerwony = odrzucony. Rezerwacje do akceptacji na górze (Akceptuj/Odrzuć/Napisz).
+/// Kolory: szary = wolny, żółty = ktoś kliknął (czeka), zielony = zaakceptowany.
+/// Odrzucenie zwalnia termin. Rezerwacje do akceptacji na górze
+/// (Akceptuj/Odrzuć/Napisz).
 class TabKalendarz extends StatefulWidget {
   final String companyId;
 
@@ -37,24 +39,33 @@ class TabKalendarz extends StatefulWidget {
 class _TabKalendarzState extends State<TabKalendarz> {
   List<Map<String, dynamic>> _slots = [];
   bool _loading = true;
+  bool _error = false;
   StreamSubscription<List<Map<String, dynamic>>>? _sub;
   final _infoCtrl = TextEditingController();
   bool _infoDirty = false;
 
   Future<void> _loadInfo() async {
-    final u = await context.read<FirebaseService>().fetchUser(widget.companyId);
-    if (mounted && u?.slotsInfo != null) _infoCtrl.text = u!.slotsInfo!;
+    try {
+      final u =
+          await context.read<FirebaseService>().fetchUser(widget.companyId);
+      if (mounted && u?.slotsInfo != null) _infoCtrl.text = u!.slotsInfo!;
+    } catch (_) {
+      // bez odczytu pole zostaje puste — opis można wpisać od nowa
+    }
   }
 
   Future<void> _saveInfo() async {
     try {
-      await context
+      final synced = await context
           .read<FirebaseService>()
           .updateUserData(widget.companyId, {'slotsInfo': _infoCtrl.text.trim()});
       if (mounted) setState(() => _infoDirty = false);
-      showToast(text: 'Zapisano opis terminów');
-    } catch (e) {
-      showToastError(text: 'Błąd: $e');
+      showToast(
+          text: synced
+              ? 'Zapisano opis terminów'
+              : 'Brak sieci — opis zapisze się po połączeniu');
+    } catch (_) {
+      showToastError(text: 'Nie udało się zapisać opisu');
     }
   }
 
@@ -63,12 +74,29 @@ class _TabKalendarzState extends State<TabKalendarz> {
     super.initState();
     final firebase = context.read<FirebaseService>();
     if (widget.showGenerator) _loadInfo();
-    firebase.cleanupOldSlots(widget.companyId).catchError((_) {});
-    // podgląd na żywo — rezerwacje klientów wpadają bez odświeżania
-    _sub = firebase.slotsStream(widget.companyId).listen((slots) {
-      if (mounted) setState(() { _slots = slots; _loading = false; });
+    firebase.cleanupOldSlots(widget.companyId).ignore();
+    _listen();
+  }
+
+  /// Podgląd na żywo — rezerwacje klientów wpadają bez odświeżania.
+  void _listen() {
+    _sub?.cancel();
+    _sub = context.read<FirebaseService>().slotsStream(widget.companyId).listen(
+        (slots) {
+      if (mounted) {
+        setState(() {
+          _slots = slots;
+          _loading = false;
+          _error = false;
+        });
+      }
     }, onError: (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = true;
+        });
+      }
     });
   }
 
@@ -78,8 +106,6 @@ class _TabKalendarzState extends State<TabKalendarz> {
     _infoCtrl.dispose();
     super.dispose();
   }
-
-  Future<void> _load() async {}
 
   Future<void> _addSlot(DateTime day) async {
     final time = await showTimePicker(
@@ -95,9 +121,8 @@ class _TabKalendarzState extends State<TabKalendarz> {
     }
     try {
       await context.read<FirebaseService>().addSlot(widget.companyId, start);
-      await _load();
-    } catch (e) {
-      showToastError(text: 'Błąd: $e');
+    } catch (_) {
+      showToastError(text: 'Nie udało się dodać terminu');
     }
   }
 
@@ -107,7 +132,8 @@ class _TabKalendarzState extends State<TabKalendarz> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Usunąć zajęty termin?'),
-          content: Text('Rezerwacja: ${slot['bookedByName']}'),
+          content: Text('Rezerwacja: ${slot['bookedByName']}.\n'
+              'Klient dostanie powiadomienie o odwołaniu.'),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
@@ -119,16 +145,18 @@ class _TabKalendarzState extends State<TabKalendarz> {
           ],
         ),
       );
-      if (ok != true) return;
+      if (ok != true || !mounted) return;
     }
     try {
       await context
           .read<FirebaseService>()
           .removeSlot(widget.companyId, slot['id'] as String);
-      setState(
-          () => _slots = _slots.where((s) => s['id'] != slot['id']).toList());
+      if (mounted) {
+        setState(
+            () => _slots = _slots.where((s) => s['id'] != slot['id']).toList());
+      }
     } catch (e) {
-      showToastError(text: 'Błąd: $e');
+      showToastError(text: slotErrorText(e));
     }
   }
 
@@ -261,33 +289,42 @@ class _TabKalendarzState extends State<TabKalendarz> {
           .read<FirebaseService>()
           .addSlotsBatch(widget.companyId, starts, durationMin);
       showToast(text: 'Dodano ${starts.length} slotów');
-      await _load();
-    } catch (e) {
-      showToastError(text: 'Błąd: $e');
+    } catch (_) {
+      showToastError(text: 'Nie udało się dodać terminów');
     }
   }
 
+  /// Akceptacja albo odrzucenie (odrzucenie zwalnia termin dla innych);
+  /// widok odświeża strumień slotów.
   Future<void> _setStatus(Map<String, dynamic> slot, String status) async {
     try {
       await context.read<FirebaseService>().setSlotStatus(
             companyId: widget.companyId,
             slotId: slot['id'] as String,
             status: status,
-            bookedBy: slot['bookedBy'] as String?,
+            bookedBy: slot['bookedBy'] as String,
           );
-      setState(() => slot['status'] = status);
       showToast(
           text: status == 'accepted'
               ? 'Zaakceptowano rezerwację'
-              : 'Odrzucono rezerwację');
+              : 'Odrzucono — termin znów jest wolny');
     } catch (e) {
-      showToastError(text: 'Błąd: $e');
+      showToastError(text: slotErrorText(e));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error) {
+      return LoadError(
+        message: 'Nie udało się wczytać kalendarza',
+        onRetry: () {
+          setState(() => _loading = true);
+          _listen();
+        },
+      );
+    }
 
     final today = DateTime.now();
     final days = List.generate(
@@ -488,7 +525,6 @@ class _TabKalendarzState extends State<TabKalendarz> {
         dot(Colors.grey.shade400, 'wolny'),
         dot(Colors.amber, 'czeka'),
         dot(Colors.green, 'przyjęty'),
-        dot(Colors.red, 'odrzucony'),
       ],
     );
   }
@@ -537,7 +573,6 @@ class _TabKalendarzState extends State<TabKalendarz> {
                   final color = switch (status) {
                     'pending' => Colors.amber,
                     'accepted' => Colors.green,
-                    'rejected' => Colors.red,
                     _ => Colors.grey.shade400,
                   };
                   final label = DateFormat('HH:mm').format(st);

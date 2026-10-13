@@ -2,8 +2,8 @@ rules_version = '2';
 
 // QUBDUD — reguły Firestore.
 // Zasada: anonim (Firebase anonymous auth) widzi WYŁĄCZNIE prezentacje (promos).
-// Wszystko inne wymaga pełnego konta. Zapisy tylko we własnych danych, z kilkoma
-// wyjątkami wynikającymi z mechaniki apki (rezerwacje, relacje, oferty, czat).
+// Wszystko inne wymaga pełnego konta. Zapis przepuszcza tylko te pola i przejścia,
+// które robi apka; zapisy krzyżowe (firma↔klient) wyłącznie między stronami relacji.
 // Cloud Functions działają z Admin SDK i omijają te reguły.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -18,53 +18,163 @@ service cloud.firestore {
     function isMe(uid) {
       return signedIn() && request.auth.uid == uid;
     }
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
     function onlyKeys(keys) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+      return changedKeys().hasOnly(keys);
+    }
+    function validLocation(l) {
+      return l is map && l.keys().hasOnly(['lat', 'lng']) && l.lat is number && l.lng is number;
     }
 
     // ── prezentacje firm: anonim może oglądać ──
     match /promos/{promoId} {
       allow read: if anyAuth();
-      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if signedIn()
-          && (resource.data.userId == request.auth.uid || onlyKeys(['views']));
+      allow create: if signedIn() && validPromo(request.resource.data);
+      // właściciel przepina lokalizację; każdy zalogowany dolicza jedno wyświetlenie
+      allow update: if (isMe(resource.data.userId) && onlyKeys(['location'])
+              && validLocation(request.resource.data.location))
+          || (signedIn() && onlyKeys(['views'])
+              && request.resource.data.views == resource.data.get('views', 0) + 1);
       allow delete: if isMe(resource.data.userId);
+
+      function validPromo(d) {
+        return d.keys().hasOnly(['userId', 'category', 'sector', 'location', 'fileUrl',
+                'thumbUrl', 'fileName', 'timestamp', 'description', 'companyName'])
+            && d.userId == request.auth.uid
+            && d.category is string && d.sector is string && validLocation(d.location)
+            && d.fileUrl is string && d.thumbUrl is string && d.fileName is string
+            && d.timestamp == request.time
+            && d.description is string && d.companyName is string;
+      }
     }
 
     // ── użytkownicy i firmy ──
     match /users/{userId} {
-      allow read: if signedIn();
-      allow create, update: if isMe(userId);
+      // apka czyta profile pojedynczo; listowanie kolekcji ujawniałoby dane wszystkich
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if isMe(userId) && validNewUser(request.resource.data);
+      // rola (firma/isCompany), NIP, e-mail, zgody i pola systemowe są niezmienne
+      allow update: if isMe(userId)
+          && onlyKeys(['firstName', 'lastName', 'phone', 'bio', 'companyName', 'companyCity',
+                       'companyAddress', 'companyLocation', 'www', 'contactEmail', 'showPhone',
+                       'showAddress', 'slotsInfo', 'fcmTokens']);
       allow delete: if false;
 
-      // sloty kalendarza: firma zarządza, klient rezerwuje/odwołuje swoje
+      function validNewUser(d) {
+        return d.keys().hasOnly(['email', 'firstName', 'lastName', 'phone', 'bio', 'isCompany',
+                'firma', 'nip', 'companyName', 'companyCategory', 'companySector', 'companyCity',
+                'companyLocation', 'companyAddress', 'consents', 'createdAt'])
+            && d.email is string && d.firstName is string && d.lastName is string
+            && d.phone is string
+            && d.firma is bool && d.isCompany == d.firma
+            && d.consents.keys().hasOnly(['terms', 'rodo', 'acceptedAt'])
+            && d.consents.terms == true && d.consents.rodo == true
+            && d.consents.acceptedAt == request.time
+            && d.createdAt == request.time
+            && (d.firma
+                ? d.nip is string && d.nip.size() == 10
+                    && d.companyName is string && d.companyName.size() > 0
+                    && d.companyCategory is string && d.companySector is string
+                    && validLocation(d.companyLocation)
+                : !d.keys().hasAny(['nip', 'companyName', 'companyCategory', 'companySector',
+                                    'companyCity', 'companyLocation', 'companyAddress']));
+      }
+
+      // sloty kalendarza: firma zarządza, klient tylko rezerwuje wolny/wygasły i odwołuje swój
       match /slots/{slotId} {
         allow read: if signedIn();
-        allow create, delete: if isMe(userId);
-        allow update: if signedIn()
-            && (request.auth.uid == userId
-                || request.resource.data.bookedBy == request.auth.uid
-                || resource.data.bookedBy == request.auth.uid);
+        allow create: if isMe(userId)
+            && request.resource.data.keys().hasOnly(['start', 'durationMin'])
+            && request.resource.data.start is timestamp;
+        allow delete: if isMe(userId);
+        allow update: if isMe(userId) || clientBooks() || clientCancels();
+
+        // wolny = brak pola status (świeży slot) albo 'free'; żółta rezerwacja wygasa po godzinie
+        function clientBooks() {
+          let d = request.resource.data;
+          return signedIn()
+              && onlyKeys(['status', 'bookedBy', 'bookedByName', 'bookedAt'])
+              && (resource.data.get('status', 'free') == 'free'
+                  || (resource.data.status == 'pending'
+                      && resource.data.bookedAt < request.time - duration.value(60, 'm')))
+              && resource.data.start > request.time
+              && d.status == 'pending' && d.bookedBy == request.auth.uid
+              && d.bookedByName is string && d.bookedAt == request.time;
+        }
+        function clientCancels() {
+          let d = request.resource.data;
+          return signedIn()
+              && resource.data.get('bookedBy', '') == request.auth.uid
+              && resource.data.get('status', 'free') in ['pending', 'accepted']
+              && onlyKeys(['status', 'bookedBy', 'bookedByName', 'releasedBy'])
+              && d.status == 'free' && d.bookedBy == '' && d.bookedByName == ''
+              && d.releasedBy == 'user';
+        }
       }
 
-      // rezerwacje klienta: klient pisze swoje, firma aktualizuje status
+      // kopia rezerwacji klienta (id = {companyId}_{slotId}). Klient zapisuje tylko 'pending';
+      // decyzję ('accepted' = prawo do recenzji, 'rejected', 'cancelled') wpisuje firma
+      // w transakcji ze swoim slotem zajętym przez tego klienta.
       match /myBookings/{bookingId} {
-        allow read: if isMe(userId);
-        allow write: if signedIn();
+        allow read, delete: if isMe(userId);
+        allow create, update: if isMe(userId) && clientBookingOk();
+        allow create: if companyDecisionOk(request.resource.data.keys());
+        allow update: if companyDecisionOk(changedKeys());
+
+        function clientBookingOk() {
+          let d = request.resource.data;
+          return d.keys().hasOnly(['companyId', 'companyName', 'slotId', 'start', 'status', 'bookedAt'])
+              && bookingId == d.companyId + '_' + d.slotId
+              && d.status == 'pending' && d.bookedAt == request.time;
+        }
+        function companyDecisionOk(keys) {
+          let d = request.resource.data;
+          return signedIn()
+              && keys.hasOnly(['companyId', 'companyName', 'slotId', 'start', 'status', 'decidedAt'])
+              && d.companyId == request.auth.uid
+              && bookingId == request.auth.uid + '_' + d.slotId
+              && d.status in ['accepted', 'rejected', 'cancelled']
+              && d.decidedAt == request.time
+              && get(/databases/$(database)/documents/users/$(request.auth.uid)/slots/$(d.slotId)).data.bookedBy == userId;
+        }
       }
 
-      // relacje klient↔firma — zapisuje strona inicjująca (oferta/rezerwacja)
+      // relacje klient↔firma: tworzy klient (oferta, rezerwacja, prośba o kontakt),
+      // firma przy odrzuceniu/usunięciu terminu tylko zdejmuje slot albo kasuje relację.
+      // 'requestId' w update (apka kasuje stare pole) — EXPIRES: po migrate_relation_request_id.js --apply
+      function onlySlotRemoved() {
+        return onlyKeys(['slotIds'])
+            && request.resource.data.get('slotIds', []).toSet()
+                   .difference(resource.data.get('slotIds', []).toSet()).size() == 0;
+      }
       match /clients/{clientId} {
         allow list: if isMe(userId);
-        allow get: if signedIn()
-            && (request.auth.uid == userId || request.auth.uid == clientId);
-        allow write: if signedIn();
+        allow get, delete: if isMe(userId) || isMe(clientId);
+        allow create: if isMe(clientId)
+            && request.resource.data.keys().hasOnly(['userId', 'name', 'addedAt', 'lastAt',
+                   'requestIds', 'slotIds', 'contactRequestId'])
+            && request.resource.data.userId == clientId;
+        allow update: if (isMe(clientId)
+                && onlyKeys(['userId', 'name', 'addedAt', 'lastAt', 'requestIds', 'requestId',
+                             'slotIds', 'contactRequestId'])
+                && request.resource.data.get('userId', clientId) == clientId)
+            || (isMe(userId) && onlySlotRemoved());
       }
       match /myCompanies/{companyId} {
         allow list: if isMe(userId);
-        allow get: if signedIn()
-            && (request.auth.uid == userId || request.auth.uid == companyId);
-        allow write: if signedIn();
+        allow get, delete: if isMe(userId) || isMe(companyId);
+        allow create: if isMe(userId)
+            && request.resource.data.keys().hasOnly(['companyId', 'name', 'addedAt', 'lastAt',
+                   'requestIds', 'slotIds', 'contactRequestId'])
+            && request.resource.data.companyId == companyId;
+        allow update: if (isMe(userId)
+                && onlyKeys(['companyId', 'name', 'addedAt', 'lastAt', 'requestIds', 'requestId',
+                             'slotIds', 'contactRequestId'])
+                && request.resource.data.get('companyId', companyId) == companyId)
+            || (isMe(companyId) && onlySlotRemoved());
       }
 
       // prywatne dane właściciela konta
@@ -82,90 +192,270 @@ service cloud.firestore {
       }
     }
 
-    // ── prośby o telefon: klient tworzy/ponawia, firma oznacza załatwione ──
+    // ── prośby o telefon (id = {companyId}_{userId}): klient tworzy/ponawia, firma oznacza załatwione ──
     match /contactRequests/{id} {
-      allow read: if signedIn()
-          && (resource.data.userId == request.auth.uid
+      // odczyt nieistniejącej prośby to zwykłe „jeszcze nie prosiłem”
+      allow get: if signedIn()
+          && (resource == null
+              || resource.data.userId == request.auth.uid
               || resource.data.companyId == request.auth.uid);
-      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if signedIn()
-          && (resource.data.userId == request.auth.uid
-              || resource.data.companyId == request.auth.uid);
+      allow create: if signedIn() && contactRequestOk();
+      allow update: if (isMe(resource.data.userId) && contactRequestOk())
+          || (isMe(resource.data.companyId) && onlyKeys(['status', 'doneAt'])
+              && request.resource.data.status == 'done'
+              && request.resource.data.doneAt == request.time);
       allow delete: if false;
+
+      function contactRequestOk() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['userId', 'companyId', 'userName', 'companyName', 'phone',
+                'note', 'status', 'createdAt', 'doneAt'])
+            && d.userId == request.auth.uid && d.companyId != request.auth.uid
+            && id == d.companyId + '_' + request.auth.uid
+            && d.userName is string && d.companyName is string
+            && d.phone is string && d.note is string
+            && d.status == 'pending' && d.createdAt == request.time && d.doneAt == null;
+      }
     }
 
-    // ── profil rozszerzony (kolekcja `profile`) ──
+    // ── stary opis firmy (kolekcja `profile`), apka już nie zapisuje ──
+    // EXPIRES: po migrate_profile_bio.js --apply i usunięciu kolekcji `profile`
     match /profile/{userId} {
       allow read: if signedIn();
-      allow write: if isMe(userId);
+      allow write: if false;
     }
 
     // ── zgłoszenia i oferty ──
+    // Przejęcie (takenBy) ustawia tylko właściciel razem z akceptacją oferty tej firmy;
+    // firma realizująca zmienia wyłącznie realizationStatus (zdjęcia czekają / wycofane);
+    // 'approved' (prawo do recenzji, licznik zleceń) tylko z 'pending' decyzją właściciela.
     match /requests/{requestId} {
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if signedIn()
-          && (resource.data.userId == request.auth.uid
-              || resource.data.takenBy == request.auth.uid
-              || request.resource.data.takenBy == request.auth.uid);
+      allow create: if signedIn() && validNewRequest(request.resource.data);
+      allow update: if isMe(resource.data.userId) && ownerUpdate();
+      allow update: if isMe(resource.data.takenBy) && takerUpdate();
       allow delete: if isMe(resource.data.userId);
 
+      function validNewRequest(d) {
+        return d.keys().hasOnly(['userId', 'category', 'sector', 'location', 'city', 'fileUrl',
+                'thumbUrl', 'fileName', 'mediaType', 'timestamp', 'is24', 'description', 'status',
+                'takenBy', 'takenByName', 'confirmedByCompany', 'confirmedByUser'])
+            && d.userId == request.auth.uid
+            && d.category is string && d.sector is string
+            && validLocation(d.location) && d.city is string
+            && d.fileUrl is string && d.thumbUrl is string && d.fileName is string
+            && d.mediaType in ['image', 'video']
+            && d.timestamp == request.time && d.is24 is bool && d.description is string
+            && d.status == 'open' && d.takenBy == '' && d.takenByName == ''
+            && d.confirmedByCompany == false && d.confirmedByUser == false;
+      }
+      function ownerUpdate() {
+        let before = resource.data;
+        let d = request.resource.data;
+        let status = before.get('status', 'open');
+        let photos = before.get('realizationStatus', '');
+        return (onlyKeys(['description']) && d.description is string)
+            // akceptacja oferty — w tym samym batchu oferta tej firmy dostaje 'accepted'
+            || (onlyKeys(['takenBy', 'takenByName', 'confirmedByCompany', 'confirmedByUser',
+                          'status', 'takenAt'])
+                && status != 'taken' && photos == ''
+                && d.status == 'taken' && d.takenBy is string && d.takenBy != ''
+                && d.takenByName is string
+                && d.confirmedByCompany == true && d.confirmedByUser == true
+                && d.takenAt == request.time
+                && getAfter(/databases/$(database)/documents/requests/$(requestId)/offers/$(d.takenBy)).data.status == 'accepted')
+            // odblokowanie
+            || (onlyKeys(['takenBy', 'takenByName', 'confirmedByCompany', 'confirmedByUser',
+                          'status', 'realizationStatus'])
+                && status == 'taken'
+                && d.status == 'open' && d.takenBy == '' && d.takenByName == ''
+                && d.confirmedByCompany == false && d.confirmedByUser == false
+                && !('realizationStatus' in d))
+            // ręczne zamknięcie
+            || (onlyKeys(['status', 'closedAt', 'closedReason'])
+                && status != 'closed'
+                && d.status == 'closed' && d.closedReason == 'byUser' && d.closedAt == request.time)
+            // decyzja o zdjęciach firmy
+            || (status == 'taken' && photos == 'pending'
+                && ((onlyKeys(['realizationStatus', 'status', 'closedReason', 'closedAt'])
+                     && d.realizationStatus == 'approved' && d.status == 'closed'
+                     && d.closedReason == 'realized' && d.closedAt == request.time)
+                    || (onlyKeys(['realizationStatus']) && d.realizationStatus == 'rejected')));
+      }
+      function takerUpdate() {
+        let photos = resource.data.get('realizationStatus', '');
+        return resource.data.get('status', 'open') == 'taken'
+            && onlyKeys(['realizationStatus'])
+            && ((photos in ['', 'rejected'] && request.resource.data.realizationStatus == 'pending')
+                || (photos in ['', 'pending'] && !('realizationStatus' in request.resource.data)));
+      }
+
+      // oferta firmy (id = companyId): treść widzi tylko ta firma i właściciel zgłoszenia,
+      // status zmienia wyłącznie właściciel zgłoszenia
       match /offers/{companyId} {
-        allow read: if signedIn();
-        allow create: if isMe(companyId);
-        allow update: if signedIn()
-            && (request.auth.uid == companyId
-                || get(/databases/$(database)/documents/requests/$(requestId)).data.userId == request.auth.uid);
-        allow delete: if isMe(companyId);
+        allow get: if isMe(companyId) || isRequestOwner();
+        allow list: if isRequestOwner();
+        allow create: if isMe(companyId) && newOfferOk();
+        allow update: if isRequestOwner() && onlyKeys(['status', 'decidedAt'])
+            && request.resource.data.status in ['pending', 'maybe', 'accepted', 'rejected', 'closed']
+            && (!('decidedAt' in changedKeys()) || request.resource.data.decidedAt == request.time);
+        allow delete: if false;
+
+        function parentRequest() {
+          return get(/databases/$(database)/documents/requests/$(requestId)).data;
+        }
+        function isRequestOwner() {
+          return signedIn() && parentRequest().userId == request.auth.uid;
+        }
+        function newOfferOk() {
+          let d = request.resource.data;
+          let r = parentRequest();
+          return d.keys().hasOnly(['companyId', 'companyName', 'message', 'status', 'timestamp'])
+              && d.companyId == companyId && d.companyName is string && d.message is string
+              && d.status == 'pending' && d.timestamp == request.time
+              && r.userId != request.auth.uid && r.get('status', 'open') == 'open';
+        }
       }
     }
 
-    // ── recenzje i komentarze ──
+    // ── recenzje i komentarze: jedna recenzja na parę klient–firma, jeden komentarz na osobę ──
     match /reviews/{reviewId} {
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isMe(resource.data.userId);
+      allow create: if signedIn() && validReview(request.resource.data);
+      allow update: if false;
+      allow delete: if isMe(resource.data.userId);
+
+      function validReview(d) {
+        return d.keys().hasOnly(['userId', 'promoId', 'authorName', 'reviewedUserId', 'score',
+                'fileUrl', 'thumbUrl', 'fileName', 'timestamp', 'description'])
+            && d.userId == request.auth.uid
+            && reviewId == request.auth.uid + '_' + d.reviewedUserId
+            && d.reviewedUserId is string && d.reviewedUserId.size() > 0
+            && d.reviewedUserId != request.auth.uid
+            && d.score is int && d.score >= 1 && d.score <= 5
+            && d.promoId is string && d.authorName is string && d.description is string
+            && d.fileUrl is string && d.thumbUrl is string && d.fileName is string
+            && d.timestamp == request.time;
+      }
 
       match /comments/{commentId} {
         allow read: if signedIn();
-        allow create: if signedIn() && request.resource.data.authorId == request.auth.uid;
-        allow update, delete: if isMe(resource.data.authorId);
+        allow create: if signedIn() && validComment(request.resource.data);
+        allow update: if false;
+        allow delete: if isMe(resource.data.authorId);
+
+        // znaczek „właściciel” tylko dla firmy, której dotyczy recenzja
+        function validComment(d) {
+          return d.keys().hasOnly(['reviewId', 'authorId', 'authorName', 'isOwner', 'text', 'timestamp'])
+              && d.reviewId == reviewId && d.authorId == request.auth.uid
+              && commentId == request.auth.uid
+              && d.authorName is string && d.text is string && d.text.size() > 0
+              && d.timestamp == request.time
+              && d.isOwner == (get(/databases/$(database)/documents/reviews/$(reviewId)).data.reviewedUserId == request.auth.uid);
+        }
       }
     }
 
-    // ── czat: tylko uczestnicy ──
+    // ── czat: chatId = posortowane "uidA_uidB"; uczestnictwo wynika z id ──
+    // (okno nasłuchuje wiadomości, zanim powstanie dokument rozmowy)
     match /chats/{chatId} {
-      allow read: if signedIn() && request.auth.uid in resource.data.participants;
-      allow create: if signedIn() && request.auth.uid in request.resource.data.participants;
-      allow update: if signedIn()
-          && request.auth.uid in resource.data.participants
-          && request.auth.uid in request.resource.data.participants;
+      allow get: if inChat(chatId);
+      allow list: if signedIn() && request.auth.uid in resource.data.participants;
+      allow create: if inChat(chatId) && chatId.split('_')[0] < chatId.split('_')[1]
+          && chatWriteOk({});
+      allow update: if inChat(chatId) && chatWriteOk(resource.data);
       allow delete: if false;
 
+      // każdy wpisuje tylko swoją nazwę i flagę firmy, zeruje swój licznik,
+      // rozmówcy dolicza dokładnie jedną wiadomość, do kosza wkłada tylko siebie
+      function chatWriteOk(before) {
+        let me = request.auth.uid;
+        let pair = chatId.split('_');
+        let other = pair[0] == me ? pair[1] : pair[0];
+        let after = request.resource.data;
+        let changed = after.diff(before).affectedKeys();
+        let names = after.get('names', {}).diff(before.get('names', {})).affectedKeys();
+        let flags = after.get('isCompany', {}).diff(before.get('isCompany', {})).affectedKeys();
+        let u0 = before.get('unread', {});
+        let u1 = after.get('unread', {});
+        let unread = u1.diff(u0).affectedKeys();
+        return pair.size() == 2 && pair[0] != pair[1]
+            && changed.hasOnly(['participants', 'names', 'isCompany', 'lastMessage',
+                                'lastTimestamp', 'unread', 'hiddenFor'])
+            && after.participants.size() == 2 && after.participants.hasAll(pair)
+            && names.hasOnly([me]) && (!(me in names) || after.names[me] is string)
+            && flags.hasOnly([me]) && (!(me in flags) || after.isCompany[me] is bool)
+            && unread.hasOnly([me, other])
+            && (!(me in unread) || u1[me] == 0)
+            && (!(other in unread) || u1[other] == u0.get(other, 0) + 1)
+            && after.get('hiddenFor', []).toSet()
+                   .difference(before.get('hiddenFor', []).toSet()).hasOnly([me])
+            && (!('lastMessage' in changed) || after.lastMessage is string)
+            && (!('lastTimestamp' in changed) || after.lastTimestamp == request.time);
+      }
+
       match /messages/{messageId} {
-        allow read, create, update: if signedIn()
-            && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow read: if inChat(chatId);
+        allow create: if inChat(chatId)
+            && request.resource.data.keys().hasOnly(['from', 'content', 'timestamp', 'read'])
+            && request.resource.data.from == request.auth.uid
+            && request.resource.data.content is string
+            && request.resource.data.content.size() > 0
+            && request.resource.data.timestamp == request.time
+            && request.resource.data.read == false;
+        // odbiorca oznacza przeczytane
+        allow update: if inChat(chatId) && resource.data.from != request.auth.uid
+            && onlyKeys(['read']) && request.resource.data.read == true;
         allow delete: if false;
       }
+    }
+    function inChat(chatId) {
+      return signedIn() && request.auth.uid in chatId.split('_');
     }
 
     // ── realizacje (zdjęcia Przed/Po) ──
     match /realizations/{realizationId} {
       allow read: if signedIn();
-      // dodaje firma realizująca albo sam klient (zdjęcia „od siebie")
-      allow create: if signedIn()
-          && (request.resource.data.companyId == request.auth.uid
-              || request.resource.data.userId == request.auth.uid);
-      // klient potwierdza/odrzuca, firma decyduje o publikacji zdjęć klienta
-      allow update: if (isMe(resource.data.userId) && onlyKeys(['status', 'decidedAt']))
-          || (isMe(resource.data.companyId) && onlyKeys(['publishedByCompany']));
+      // firma realizująca (czeka na potwierdzenie) albo właściciel zgłoszenia („od siebie”)
+      allow create: if signedIn() && newRealizationOk(request.resource.data);
+      // klient potwierdza/odrzuca czekające zdjęcia firmy, firma publikuje zdjęcia klienta
+      allow update: if (isMe(resource.data.userId)
+              && resource.data.get('addedByRole', 'company') != 'user'
+              && resource.data.get('status', 'approved') == 'pending'
+              && onlyKeys(['status', 'decidedAt'])
+              && request.resource.data.status in ['approved', 'rejected']
+              && request.resource.data.decidedAt == request.time)
+          || (isMe(resource.data.companyId)
+              && resource.data.get('addedByRole', 'company') == 'user'
+              && onlyKeys(['publishedByCompany'])
+              && request.resource.data.publishedByCompany is bool);
       allow delete: if isMe(resource.data.companyId) || isMe(resource.data.userId);
+
+      function newRealizationOk(d) {
+        let r = get(/databases/$(database)/documents/requests/$(d.requestId)).data;
+        return d.keys().hasOnly(['companyId', 'requestId', 'userId', 'category', 'imageUrl',
+                'beforeUrl', 'addedByRole', 'status', 'publishedByCompany', 'timestamp'])
+            && d.category is string && d.imageUrl is string
+            && (!('beforeUrl' in d) || d.beforeUrl is string)
+            && d.publishedByCompany == false && d.timestamp == request.time
+            && d.companyId is string && d.companyId != ''
+            && r.userId == d.userId && r.takenBy == d.companyId
+            && ((d.addedByRole == 'company' && d.companyId == request.auth.uid
+                    && d.status == 'pending' && r.status == 'taken')
+                || (d.addedByRole == 'user' && d.userId == request.auth.uid
+                    && d.status == 'approved'));
+      }
     }
 
     // ── powiadomienia (dzwonek): pisze backend, czyta i odczytuje właściciel ──
     match /notifications/{notifId} {
       allow read: if isMe(resource.data.userId);
-      allow update: if isMe(resource.data.userId) && onlyKeys(['read']);
+      // oznaczenie nieistniejącego wpisu (np. chat_{ja}_{rozmówca}) kończy się
+      // NOT_FOUND, które apka ignoruje — update nie może utworzyć dokumentu
+      allow update: if signedIn()
+          && (resource == null
+              || (resource.data.userId == request.auth.uid && onlyKeys(['read'])
+                  && request.resource.data.read == true));
       allow create: if false;
       allow delete: if isMe(resource.data.userId);
     }

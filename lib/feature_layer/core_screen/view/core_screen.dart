@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../shared/constants.dart';
 import '../../auth_screen/view/auth_screen.dart';
 import '../../main_screen/bloc/main_appbar_cubit.dart';
 import '../../main_screen/view/main_page.dart';
@@ -58,7 +57,8 @@ class View extends StatelessWidget {
     if (state is CoreScreenInitialState) {
       return SizedBox(key: UniqueKey());
     } else if (state is CoreScreenUnauthenticatedState) {
-      return const AuthScreen(key: ValueKey('AuthScreen'));
+      return AuthScreen(
+          key: const ValueKey('AuthScreen'), startOnRegister: state.toRegister);
     } else if (state is CoreScreenAuthenticatedState) {
       return const MainScreen(key: ValueKey('MainMob'));
     } else if (state is CoreScreenLoadingState) {

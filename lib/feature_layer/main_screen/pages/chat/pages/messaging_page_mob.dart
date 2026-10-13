@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:qb/shared/functions/show_toast.dart';
+import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:qb/shared/widgets/w_input_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,9 +9,12 @@ import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../domain_layer/chat_service.dart';
 import '../bloc/chat_page_bloc.dart';
 import '../widgets/bubbles.dart';
+import '../../../../../shared/widgets/load_error.dart';
 
 class MessagingPageMob extends StatefulWidget {
-  const MessagingPageMob({super.key});
+  final String otherUid;
+
+  const MessagingPageMob({super.key, required this.otherUid});
 
   @override
   State<MessagingPageMob> createState() => _MessagingPageMobState();
@@ -19,24 +23,54 @@ class MessagingPageMob extends StatefulWidget {
 class _MessagingPageMobState extends State<MessagingPageMob> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  late final ChatService _chat;
+  late final Stream<bool> _typing;
   Timer? _typingTimer;
-  String _typingTo = '';
 
-  void _onTyping(String otherUid) {
-    _typingTo = otherUid;
-    context.read<ChatService>().setTyping(otherUid, true);
+  @override
+  void initState() {
+    super.initState();
+    _chat = context.read<ChatService>();
+    _typing = _chat.typingStream(widget.otherUid);
+  }
+
+  void _onTyping() {
+    if (_typingTimer?.isActive != true) _chat.setTyping(widget.otherUid, true);
     _typingTimer?.cancel();
-    _typingTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted) context.read<ChatService>().setTyping(otherUid, false);
-    });
+    _typingTimer = Timer(const Duration(seconds: 3),
+        () => _chat.setTyping(widget.otherUid, false));
+  }
+
+  void _stopTyping() {
+    if (_typingTimer?.isActive == true) _chat.setTyping(widget.otherUid, false);
+    _typingTimer?.cancel();
+  }
+
+  Future<void> _send() async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+    final bloc = context.read<ChatPageBloc>();
+    _messageController.clear();
+    _stopTyping();
+    try {
+      await _chat.sendMessage(widget.otherUid, text);
+      // pierwsza wiadomość założyła rozmowę — odrzucony wcześniej nasłuch ruszy teraz
+      final s = bloc.state;
+      if (!bloc.isClosed && s is MessagingPageMainState && s.failed) {
+        bloc.add(RetryMessagesChatPageEvent());
+      }
+    } catch (e) {
+      debugPrint('Czat: wysyłka: $e');
+      if (mounted && _messageController.text.isEmpty) {
+        _messageController.text = text;
+      }
+      showToast(text: 'Nie udało się wysłać wiadomości');
+    }
   }
 
   @override
   void dispose() {
-    _typingTimer?.cancel();
-    if (_typingTo.isNotEmpty) {
-      ChatService().setTyping(_typingTo, false);
-    }
+    _stopTyping();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -44,19 +78,14 @@ class _MessagingPageMobState extends State<MessagingPageMob> {
 
   @override
   Widget build(BuildContext context) {
-    final chatService = context.read<ChatService>();
-
     return BlocBuilder<ChatPageBloc, ChatPageState>(
+      buildWhen: (_, current) => current is MessagingPageMainState,
       builder: (context, state) {
         if (state is! MessagingPageMainState) {
           return const SizedBox.shrink();
         }
 
-        final otherUid = state.userChat;
-        final chatUser = state.chatUser;
-        final otherName = chatUser?.firma == true
-            ? (chatUser?.companyName ?? 'Firma')
-            : '${chatUser?.firstName ?? ''} ${chatUser?.lastName ?? ''}'.trim();
+        final otherName = state.name ?? '';
         final avatarLetter =
             otherName.isNotEmpty ? otherName[0].toUpperCase() : '?';
 
@@ -67,40 +96,9 @@ class _MessagingPageMobState extends State<MessagingPageMob> {
               40,
           child: Column(
             children: [
-              Expanded(
-                child: StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: chatService.getMessages(otherUid),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Center(child: Loading());
-                    }
-                    final messages = snapshot.data!;
-                    return ListView.builder(
-                      controller: _scrollController,
-                      reverse: true, // najnowsze na dole
-                      itemCount: messages.length,
-                      itemBuilder: (context, index) {
-                        final msg = messages[index];
-                        final isMe = msg["from"] ==
-                            FirebaseAuth.instance.currentUser?.uid;
-
-                        return isMe
-                            ? MyMessageBubble(
-                                content: msg["content"],
-                                timestamp: msg["timestamp"])
-                            : UserMessageBubble(
-                                content: msg["content"],
-                                timestamp: msg["timestamp"],
-                                userName: otherName,
-                                country: avatarLetter,
-                              );
-                      },
-                    );
-                  },
-                ),
-              ),
+              Expanded(child: _messages(state, otherName, avatarLetter)),
               StreamBuilder<bool>(
-                stream: chatService.typingStream(otherUid),
+                stream: _typing,
                 builder: (context, snap) {
                   if (snap.data != true) return const SizedBox.shrink();
                   return Padding(
@@ -116,33 +114,89 @@ class _MessagingPageMobState extends State<MessagingPageMob> {
                   );
                 },
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: WInputField(
-                        hintText: 'Twoja wiadomość',
-                        isSend: true,
-                        onChanged: (_) => _onTyping(otherUid),
-                        onSend: () async {
-                          final text = _messageController.text.trim();
-                          if (text.isEmpty) return;
-                          _messageController.clear();
-                          _typingTimer?.cancel();
-                          chatService.setTyping(otherUid, false);
-                          await chatService.sendMessage(otherUid, text);
-                        },
-                        controller: _messageController,
+              if (state.canWrite)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: WInputField(
+                          hintText: 'Twoja wiadomość',
+                          isSend: true,
+                          onChanged: (_) => _onTyping(),
+                          onSend: _send,
+                          controller: _messageController,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text('To konto zostało usunięte — nie można odpisać.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey.shade600)),
                 ),
-              ),
               const SizedBox(height: 32),
             ],
           ),
         );
+      },
+    );
+  }
+
+  Widget _messages(
+      MessagingPageMainState state, String otherName, String avatarLetter) {
+    final bloc = context.read<ChatPageBloc>();
+    final messages = state.messages;
+    if (state.failed) {
+      return LoadError(
+        message: 'Nie udało się wczytać wiadomości',
+        onRetry: () => bloc.add(RetryMessagesChatPageEvent()),
+      );
+    }
+    if (messages == null) return const Center(child: Loading());
+    if (messages.isEmpty) {
+      return EmptyState(
+        icon: Icons.chat_bubble_outline,
+        title: state.canWrite ? 'Napisz pierwszą wiadomość' : 'Brak wiadomości',
+      );
+    }
+
+    final myUid = _chat.myUid;
+    return ListView.builder(
+      controller: _scrollController,
+      reverse: true, // najnowsze na dole
+      itemCount: messages.length + (state.hasMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == messages.length) {
+          // przewinięto do najstarszej wczytanej — dociągamy kolejną porcję
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!bloc.isClosed) bloc.add(LoadOlderMessagesChatPageEvent());
+          });
+          return const Padding(
+            padding: EdgeInsets.all(12),
+            child: Center(
+              child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+          );
+        }
+        final msg = messages[index];
+        return msg["from"] == myUid
+            ? MyMessageBubble(
+                content: msg["content"],
+                timestamp: msg["timestamp"],
+                pending: msg["pending"] == true)
+            : UserMessageBubble(
+                content: msg["content"],
+                timestamp: msg["timestamp"],
+                userName: otherName,
+                country: avatarLetter,
+              );
       },
     );
   }

@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
+import 'package:qb/shared/functions/show_toast.dart';
+import 'package:qb/shared/functions/show_toast_error.dart';
 import 'package:qb/shared/widgets/empty_state.dart';
 
 import '../../../bloc/main_bloc.dart';
+import '../../../../../shared/widgets/load_error.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Moje rezerwacje (firma + godzina + status)
@@ -20,6 +23,7 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
   List<Map<String, dynamic>> _bookings = [];
   final Map<String, String> _phones = {};
   bool _loading = true;
+  bool _error = false;
 
   Future<void> _call(String phone) async {
     final uri = Uri(scheme: 'tel', path: phone.replaceAll(RegExp(r'[^0-9+]'), ''));
@@ -42,36 +46,57 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
         final u = await firebase.fetchUser(id);
         if (u?.phone?.isNotEmpty == true) _phones[id] = u!.phone!;
       }
-      if (mounted) setState(() { _bookings = bookings; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _bookings = bookings;
+          _loading = false;
+          _error = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = true;
+        });
+      }
     }
   }
 
-  Future<void> _cancel(Map<String, dynamic> b) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Odwołać rezerwację?'),
-        content: Text('${b['companyName']}'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Zostaw')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child:
-                  const Text('Odwołaj', style: TextStyle(color: Colors.red))),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
+  /// Oczekująca/przyjęta: odwołanie (z potwierdzeniem, firma dostaje
+  /// powiadomienie). Odrzucona/odwołana przez firmę: tylko zniknięcie z listy.
+  Future<void> _remove(Map<String, dynamic> b) async {
+    final active = b['status'] == 'pending' || b['status'] == 'accepted';
+    if (active) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Odwołać rezerwację?'),
+          content: Text('${b['companyName']}'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Zostaw')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Odwołaj',
+                    style: TextStyle(color: Colors.red))),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
     final myUid = context.read<MainScreenBloc>().state.user?.id ?? '';
-    await context.read<FirebaseService>().cancelSlotBooking(
-          companyId: b['companyId'] as String,
-          slotId: b['slotId'] as String,
-          myUid: myUid,
-        );
+    try {
+      await context.read<FirebaseService>().cancelSlotBooking(
+            companyId: b['companyId'] as String,
+            slotId: b['slotId'] as String,
+            myUid: myUid,
+          );
+      if (active) showToast(text: 'Odwołano rezerwację');
+    } catch (e) {
+      showToastError(text: slotErrorText(e));
+    }
     _load();
   }
 
@@ -79,22 +104,21 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
 
+    if (_error) {
+      return LoadError(
+        message: 'Nie udało się wczytać rezerwacji',
+        onRetry: () {
+          setState(() => _loading = true);
+          _load();
+        },
+      );
+    }
+
     if (_bookings.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.event_busy_outlined,
-                size: 56, color: Colors.grey.shade300),
-            const SizedBox(height: 12),
-            Text('Brak rezerwacji',
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
-            const SizedBox(height: 6),
-            Text('Kliknij kropkę-termin na profilu firmy,\naby umówić wizytę.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
-          ],
-        ),
+      return const EmptyState(
+        icon: Icons.event_busy_outlined,
+        title: 'Brak rezerwacji',
+        subtitle: 'Kliknij kropkę-termin na profilu firmy,\naby umówić wizytę.',
       );
     }
 
@@ -109,14 +133,16 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
           final b = _bookings[i];
           final start = b['start'] as DateTime;
           final status = b['status'] as String? ?? 'pending';
+          final active = status == 'pending' || status == 'accepted';
           final color = switch (status) {
             'accepted' => Colors.green,
-            'rejected' => Colors.red,
+            'rejected' || 'cancelled' => Colors.red,
             _ => Colors.amber,
           };
           final statusText = switch (status) {
             'accepted' => 'przyjęta',
-            'rejected' => 'odrzucona',
+            'rejected' => 'odrzucona przez firmę',
+            'cancelled' => 'odwołana przez firmę',
             _ => 'czeka na akceptację',
           };
           final today = DateTime.now();
@@ -136,7 +162,7 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
               '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
           final dark = switch (status) {
             'accepted' => Colors.green.shade800,
-            'rejected' => Colors.red.shade700,
+            'rejected' || 'cancelled' => Colors.red.shade700,
             _ => Colors.amber.shade900,
           };
 
@@ -151,7 +177,7 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // nazwa + X (odwołaj) w rogu
+                    // nazwa + X (odwołaj / usuń z listy) w rogu
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
@@ -162,16 +188,13 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
                               style: const TextStyle(
                                   fontSize: 15, fontWeight: FontWeight.w700)),
                         ),
-                        if (status != 'rejected')
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            icon: Icon(Icons.close,
-                                size: 20, color: Colors.red.shade400),
-                            tooltip: 'Odwołaj',
-                            onPressed: () => _cancel(b),
-                          )
-                        else
-                          const SizedBox(width: 40, height: 40),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          icon: Icon(Icons.close,
+                              size: 20, color: Colors.red.shade400),
+                          tooltip: active ? 'Odwołaj' : 'Usuń z listy',
+                          onPressed: () => _remove(b),
+                        ),
                       ],
                     ),
                     // balonik z terminem + ikona statusu, po prawej telefon i czat
@@ -216,13 +239,22 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
                           child: Icon(
                             switch (status) {
                               'accepted' => Icons.check_circle,
-                              'rejected' => Icons.cancel,
+                              'rejected' || 'cancelled' => Icons.cancel,
                               _ => Icons.schedule,
                             },
                             color: color,
                             size: 24,
                           ),
                         ),
+                        // odrzucenie/odwołanie przez firmę musi być widać od razu
+                        if (!active) ...[
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(statusText,
+                                maxLines: 2,
+                                style: TextStyle(fontSize: 12, color: dark)),
+                          ),
+                        ],
                         const Spacer(),
                         if (_phones[b['companyId']] != null)
                           IconButton(

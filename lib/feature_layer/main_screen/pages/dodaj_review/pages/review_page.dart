@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:qb/shared/constants.dart';
 import 'package:qb/shared/widgets/w_button.dart';
 import 'package:qb/shared/widgets/w_input_field.dart';
 import 'package:qb/shared/widgets/w_small_label.dart';
@@ -28,8 +27,17 @@ class _View extends StatefulWidget {
 }
 
 class _ViewState extends State<_View> {
-  final _desc = TextEditingController();
-  int _rating = 0;
+  late final TextEditingController _desc;
+  late int _rating;
+
+  @override
+  void initState() {
+    super.initState();
+    // po nieudanej wysyłce formularz wraca z oceną i opisem
+    final meta = context.read<DodajReviewPageBloc>().state.reviewMetadata;
+    _desc = TextEditingController(text: meta?.description ?? '');
+    _rating = meta?.score ?? 0;
+  }
 
   @override
   void dispose() {

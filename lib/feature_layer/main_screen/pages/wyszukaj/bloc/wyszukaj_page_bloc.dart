@@ -1,5 +1,3 @@
-import 'dart:async';
-import 'dart:developer';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:bloc/bloc.dart';
@@ -37,7 +35,13 @@ class WyszukajPageBloc extends Bloc<WyszukajPageEvent, WyszukajPageState> {
       if (history.length > 10) history.removeLast();
       await prefs.setStringList('search_history', history);
 
-      state.videos = await firebase.getNearbyPromos(category: event.category, sector: event.sector, myLocation: event.location);
+      try {
+        state.videos = await firebase.getNearbyPromos(category: event.category, sector: event.sector, myLocation: event.location);
+      } catch (_) {
+        showToastError(text: 'Nie udało się wyszukać. Sprawdź połączenie i spróbuj ponownie.');
+        emit(WyszukajPageMainState());
+        return;
+      }
       Globals.instance.lastSearch = state.videos;
       Globals.instance.lastSearchIndex = 0;
       emit(WyszukajPageResultsState());
@@ -69,12 +73,8 @@ class WyszukajPageBloc extends Bloc<WyszukajPageEvent, WyszukajPageState> {
 
         showToast(text: 'Dodano do ulubionych');
 
-      } catch (e) {
-
-        state.videos =[];
-        showToastError(text: 'Błąd nie dodano\n${e}');
-
-
+      } catch (_) {
+        showToastError(text: 'Nie udało się dodać do ulubionych');
       }
 
     });
@@ -87,8 +87,8 @@ class WyszukajPageBloc extends Bloc<WyszukajPageEvent, WyszukajPageState> {
           contactUserId: event.contactUserId,
         );
         showToast(text: 'Dodano do kontaktów');
-      } catch (e) {
-        showToastError(text: 'Błąd: $e');
+      } catch (_) {
+        showToastError(text: 'Nie udało się dodać do kontaktów');
       }
     });
 

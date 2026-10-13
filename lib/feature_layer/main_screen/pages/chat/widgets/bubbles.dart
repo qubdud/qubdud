@@ -6,8 +6,10 @@ import '../functions/format_timestamp.dart';
 class MyMessageBubble extends StatelessWidget {
   final String content;
   final int timestamp;
+  final bool pending;
 
-  MyMessageBubble({required this.content, required this.timestamp});
+  MyMessageBubble(
+      {required this.content, required this.timestamp, this.pending = false});
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +23,7 @@ class MyMessageBubble extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(0,0,12,0),
               child: SelectableText(
-                "You • ${formatTimestamp(timestamp)}",
+                pending ? "Ty • wysyłanie…" : "Ty • ${formatTimestamp(timestamp)}",
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ),

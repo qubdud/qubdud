@@ -1,13 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qb/shared/constants.dart';
-import 'package:qb/shared/globals.dart';
 import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:qb/shared/widgets/promo_tile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../bloc/main_bloc.dart';
 import '../bloc/start_page_bloc.dart';
 
