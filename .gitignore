@@ -52,3 +52,12 @@ firebase-debug.log
 
 # klucze kont usługi Firebase — nigdy w repo
 *firebase-adminsdk*.json
+
+# wideo demo, zależności Node i archiwa — poza repo
+*.mp4
+node_modules/
+*.7z
+# prawdziwe dane firm (RODO) i materiały z ich filmów — tylko lokalnie
+/demo/_seed/companies_real.tsv
+/demo/_thumbs/
+/demo/Lista testowa branż dla wojtek.xlsx
