@@ -229,7 +229,7 @@ class _RequestCard extends StatelessWidget {
                       width: 80,
                       height: 130,
                       color: Colors.grey.shade200,
-                      child: const Icon(Icons.image_not_supported_outlined),
+                      child: const Icon(Icons.description_outlined),
                     ),
                   ),
                   if (request.is24)

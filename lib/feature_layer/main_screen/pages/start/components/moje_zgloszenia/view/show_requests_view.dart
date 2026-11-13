@@ -270,6 +270,10 @@ class _MyRequestTileState extends State<_MyRequestTile> {
 
   Future<void> _saveDescription() async {
     final newDesc = _desc.text.trim();
+    if (widget.req.fileUrl.isEmpty && newDesc.length < 10) {
+      showToastError(text: 'Zgłoszenie bez zdjęcia potrzebuje opisu (min. 10 znaków)');
+      return;
+    }
     try {
       await context
           .read<FirebaseService>()
@@ -316,7 +320,7 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                             height: 80,
                             color: Colors.grey.shade200,
                             child:
-                                const Icon(Icons.image_not_supported_outlined),
+                                const Icon(Icons.description_outlined),
                           ),
                   ),
                 ),
@@ -439,7 +443,10 @@ class _MyRequestTileState extends State<_MyRequestTile> {
               _ClosedLabel(stage: widget.req.stage)
             else ...[
               _RealizationRequest(request: widget.req),
-              RequestOffersBar(request: widget.req, onChanged: _reload),
+              RequestOffersBar(
+                  request: widget.req,
+                  onChanged: _reload,
+                  onEditDescription: () => setState(() => _editing = true)),
             ],
           ],
         ),

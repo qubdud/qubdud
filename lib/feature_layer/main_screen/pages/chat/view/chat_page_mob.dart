@@ -155,7 +155,7 @@ class _ContactsListState extends State<_ContactsList>
       final ids = await firebase.getContactIds(myUid);
       final users = <AppUser>[];
       for (final uid in ids) {
-        final u = await firebase.fetchUser(uid);
+        final u = await firebase.fetchUser(uid, withContact: true);
         if (u != null) users.add(u);
       }
       if (mounted) setState(() { _contacts = users; _loading = false; });

@@ -155,7 +155,7 @@ Future<ContactRequestInput?> showContactRequestDialog(
             Text(companyName,
                 style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
-            Text('Firma dostanie Twój numer i powiadomienie, że czekasz na telefon.',
+            Text('Firma dostanie tylko ten numer i powiadomienie, że czekasz na telefon.',
                 style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600)),
             const SizedBox(height: 14),
             TextField(

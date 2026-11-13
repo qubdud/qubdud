@@ -83,12 +83,31 @@ class _MiniSlotsBarState extends State<MiniSlotsBar> {
     final mine = s['bookedBy'] == _myUid;
 
     if (status == 'free') {
+      final st = s['start'] as DateTime;
+      final myName = bookingName(context.read<MainScreenBloc>().state.user);
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('Zarezerwować ${DateFormat('dd.MM, HH:mm').format(st)}?'),
+          content: const Text(
+              'Firma zobaczy Twój telefon i e-mail, potwierdzi albo odrzuci rezerwację — dostaniesz powiadomienie.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Anuluj')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Rezerwuj')),
+          ],
+        ),
+      );
+      if (go != true || !mounted) return;
       try {
         await firebase.bookSlot(
           companyId: widget.companyId,
           slotId: s['id'] as String,
           myUid: _myUid,
-          myName: bookingName(context.read<MainScreenBloc>().state.user),
+          myName: myName,
         );
         showToast(text: 'Zarezerwowano — czeka na akceptację firmy');
       } catch (e) {

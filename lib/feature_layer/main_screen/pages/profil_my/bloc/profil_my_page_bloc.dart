@@ -91,9 +91,10 @@ class MyProfilPageBloc extends Bloc<MyProfilPageEvent, MyProfilPageState> {
         final synced = await firebase.updateUserData(userId, {
           'firstName': event.firstName,
           'lastName': event.lastName,
-          if (event.phone != null) 'phone': event.phone,
+          // telefon klienta tylko w private/contact; jawne pole czyścimy (stare konta)
+          if (event.phone != null) 'phone': '',
           if (event.bio != null) 'bio': event.bio,
-        });
+        }, privatePhone: event.phone);
         await profileSaved(userId, synced);
       } catch (_) {
         showToastError(text: 'Nie udało się zapisać zmian');

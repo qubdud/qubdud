@@ -261,6 +261,11 @@ exports.notifySlot = onDocumentUpdated('users/{companyId}/slots/{slotId}', async
   if (before.status === after.status && before.bookedBy === after.bookedBy && !rebooked) return;
   const when = fmtWhen(after.start);
   const wasBooked = BOOKED.includes(before.status) && !!before.bookedBy;
+  // klient stracił termin (zwolnienie, przejęcie, dowolna zmiana statusu przez firmę) —
+  // relacja nie może dalej dawać firmie dostępu do jego telefonu
+  if (wasBooked && (after.bookedBy !== before.bookedBy || !BOOKED.includes(after.status))) {
+    await unlinkSlot(companyId, before.bookedBy, slotId);
+  }
 
   // ktoś kliknął kropkę (także przejęcie wygasłej żółtej rezerwacji)
   if (after.status === 'pending' && after.bookedBy) {
@@ -329,6 +334,7 @@ exports.notifySlotDeleted = onDocumentDeleted('users/{companyId}/slots/{slotId}'
   // przeszłe terminy kasuje sprzątanie kalendarza — to nie odwołanie,
   // a przypomnienie o recenzji ma zostać
   if (!s || !BOOKED.includes(s.status) || !s.bookedBy || !s.start || s.start.toMillis() <= Date.now()) return;
+  await unlinkSlot(companyId, s.bookedBy, slotId);
   await db.collection('reviewReminders').doc(`slot_${slotId}`).delete();
   // nazwa z kopii u klienta: przy usuwaniu konta firmy jej dokumentu może już nie być
   const copy = (await db.doc(`users/${s.bookedBy}/myBookings/${companyId}_${slotId}`).get()).data() || {};
@@ -550,6 +556,37 @@ async function unlinkRequest(companyId, userId, requestId) {
   });
 }
 
+/** Termin znika z relacji klient↔firma, gdy wraca do puli albo przejmuje go inny klient
+ *  (apka robi to sama tylko przy odwołaniu, odrzuceniu i usunięciu). Od relacji zależy
+ *  dostęp firmy do users/{klient}/private/contact. */
+async function unlinkSlot(companyId, userId, slotId) {
+  const refs = [db.doc(`users/${companyId}/clients/${userId}`), db.doc(`users/${userId}/myCompanies/${companyId}`)];
+  const slotRef = db.doc(`users/${companyId}/slots/${slotId}`);
+  await db.runTransaction(async (tx) => {
+    const [slotSnap, ...snaps] = await tx.getAll(slotRef, ...refs);
+    const slot = slotSnap.data();
+    // klient zdążył ponownie zarezerwować ten termin — relacja zostaje
+    if (slot && slot.bookedBy === userId && BOOKED.includes(slot.status)) return;
+    for (const s of snaps) {
+      const d = s.data();
+      const ids = (d && d.slotIds) || [];
+      // EXPIRES (pole requestId): po uruchomieniu demo/_seed/migrate_relation_request_id.js --apply
+      const legacy = !!d && d.requestId === `slot_${slotId}`;
+      if (!d || (!ids.includes(slotId) && !legacy)) continue;
+      const left = ids.some((x) => x !== slotId) || (d.requestIds || []).length > 0
+        || (!!d.requestId && !legacy) || !!d.contactRequestId;
+      if (!left) {
+        tx.delete(s.ref);
+        continue;
+      }
+      tx.update(s.ref, {
+        slotIds: FieldValue.arrayRemove(slotId),
+        ...(legacy && { requestId: FieldValue.delete() }),
+      });
+    }
+  });
+}
+
 // zdjęcia realizacji: plik leży pod uid tego, kto go wgrał
 exports.cleanupDeletedRealization = onDocumentDeleted('realizations/{id}', async (event) => {
   const d = event.data && event.data.data();
@@ -665,6 +702,9 @@ async function deleteUserData(uid) {
     await db.recursiveDelete(r);
   }
   await db.recursiveDelete(me);
+  // syncPrivateContact z zapisu sprzed usunięcia nie odtworzy już danych (sprawdza users/{uid}),
+  // ale kasujemy też jawnie — recursiveDelete nie widzi dokumentu dopisanego w trakcie
+  await me.collection('private').doc('contact').delete();
 
   await getDatabase().ref(`users/${uid}`).remove();
   const bucket = getStorage().bucket();
@@ -682,6 +722,29 @@ async function deleteUserData(uid) {
 }
 
 // ── 11) zmiana profilu: nazwa w rozmowach, token FCM przy jednym koncie ─────
+// ── 11b) telefon i e-mail → users/{uid}/private/contact (RODO) ──────────────
+// users/{uid} czyta każde zalogowane konto, private/contact tylko właściciel i firma z relacją.
+// Apka ≤1.4.0+22 zapisuje je jawnie (rejestracja, edycja profilu): niepustą wartość kopiujemy
+// i czyścimy jawne pole. Pusta nie nadpisuje zapisanej. Telefon firmy jest jawny i zostaje.
+const contactFields = (d) => (d.firma === true || d.isCompany === true ? ['email'] : ['email', 'phone'])
+  .filter((k) => typeof d[k] === 'string' && d[k]);
+
+exports.syncPrivateContact = onDocumentWritten('users/{uid}', async (event) => {
+  if (!event.data.after.exists || !contactFields(event.data.after.data()).length) return;
+  const ref = db.collection('users').doc(event.params.uid);
+  // bieżący stan, nie migawka: konto mogło zostać usunięte, a pole zmienione ponownie
+  await db.runTransaction(async (tx) => {
+    const s = await tx.get(ref);
+    if (!s.exists) return;
+    const d = s.data();
+    const found = contactFields(d);
+    if (!found.length) return;
+    tx.set(ref.collection('private').doc('contact'),
+      Object.fromEntries(found.map((k) => [k, d[k]])), { merge: true });
+    tx.update(ref, Object.fromEntries(found.map((k) => [k, ''])));
+  });
+});
+
 exports.onUserUpdated = onDocumentUpdated('users/{uid}', async (event) => {
   const before = event.data.before.data() || {};
   const after = event.data.after.data() || {};

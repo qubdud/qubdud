@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
@@ -78,12 +79,55 @@ class DodajPageBloc extends Bloc<DodajPageEvent, DodajPageState> {
       emit(DodajRequestPromoState(thumb));
     });
 
+    on<SkipFileDodajPageEvent>((event, emit) {
+      state.selectedContent = null;
+      state.requestMetadata = null;
+      emit(DodajRequestPromoState(''));
+    });
+
     // Cały zapis w jednym handlerze: wyjście z ekranu w trakcie wysyłania
     // zamyka BLoC (emit staje się no-op), ale plik i metadane i tak się zapiszą.
     on<DodajDodajPageEvent>((event, emit) async {
       final current = state;
-      final content = state.selectedContent!;
+      final content = state.selectedContent;
+      final meta = state.requestMetadata;
       emit(DodajPageLoadingState());
+
+      if (content == null) {
+        if (meta == null) {
+          emit(DodajPageMainState());
+          return;
+        }
+        try {
+          await firebase.saveRequestMetadata(Request(
+            userId: FirebaseAuth.instance.currentUser!.uid,
+            category: meta.category,
+            sector: meta.sector,
+            location: meta.location,
+            city: meta.city,
+            description: meta.description,
+            is24: meta.is24,
+            timing: meta.timing,
+            budget: meta.budget,
+            answers: meta.answers,
+            fileName: '',
+            mediaType: 'none',
+            fileUrl: '',
+            thumbUrl: '',
+            id: '',
+            timestamp: null,
+          )).timeout(const Duration(seconds: 10));
+          showToast(text: 'Przesłano');
+          emit(DodajPageNextState());
+        } on TimeoutException {
+          showToast(text: 'Brak internetu — zgłoszenie wyśle się po połączeniu');
+          emit(DodajPageNextState());
+        } catch (e) {
+          showToastError(text: 'Nie udało się dodać zgłoszenia. Sprawdź internet i spróbuj ponownie.');
+          emit(DodajRequestPromoState(''));
+        }
+        return;
+      }
 
       String? thumb;
       try {
@@ -123,8 +167,7 @@ class DodajPageBloc extends Bloc<DodajPageEvent, DodajPageState> {
             timestamp: null,
             description: '',
           ));
-        } else {
-          final meta = state.requestMetadata!;
+        } else if (meta != null) {
           await firebase.saveRequestMetadata(Request(
             userId: user!.id,
             category: meta.category,
@@ -143,6 +186,8 @@ class DodajPageBloc extends Bloc<DodajPageEvent, DodajPageState> {
             id: '',
             timestamp: null,
           ));
+        } else {
+          throw StateError('Brak danych zgłoszenia');
         }
 
         showToast(text: 'Przesłano');

@@ -239,7 +239,7 @@ class _ProfilViewState extends State<_ProfilView> {
                       Text(user!.companyCategory!,
                           style: TextStyle(
                               color: Colors.grey.shade500, fontSize: 12)),
-                    if (user != null && !Globals.instance.anonim)
+                    if (user != null && user.firma == true && !Globals.instance.anonim)
                       _CompanyContact(user: user),
                     if (user != null)
                       FutureBuilder<int>(
@@ -710,7 +710,7 @@ class _SlotsSectionState extends State<_SlotsSection> {
                 ),
               ],
               const SizedBox(height: 12),
-              Text('Firma potwierdzi albo odrzuci rezerwację — dostaniesz powiadomienie.',
+              Text('Firma zobaczy Twój telefon i e-mail, potwierdzi albo odrzuci rezerwację — dostaniesz powiadomienie.',
                   style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600)),
             ],
           ),

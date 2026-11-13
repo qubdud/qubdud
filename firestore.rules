@@ -60,7 +60,11 @@ service cloud.firestore {
       allow update: if isMe(userId)
           && onlyKeys(['firstName', 'lastName', 'phone', 'bio', 'companyName', 'companyCity',
                        'companyAddress', 'companyLocation', 'www', 'contactEmail', 'showPhone',
-                       'showAddress', 'slotsInfo', 'fcmTokens']);
+                       'showAddress', 'slotsInfo', 'fcmTokens'])
+          // telefon klienta jest tylko w private/contact (jawny ma wyłącznie firma)
+          && (!changedKeys().hasAny(['phone'])
+              || resource.data.get('firma', resource.data.get('isCompany', false)) == true
+              || request.resource.data.phone == '');
       allow delete: if false;
 
       function validNewUser(d) {
@@ -197,6 +201,33 @@ service cloud.firestore {
       match /contacts/{contactId} {
         allow read, write: if isMe(userId);
       }
+      // telefon i e-mail konta (RODO): właściciel oraz firma, u której ten użytkownik jest
+      // klientem z przyjętej oferty albo rezerwacji — users/{firma}/clients/{uid} zakłada wyłącznie
+      // klient, firma może go tylko usunąć. Prośba o kontakt daje firmie tylko numer z prośby.
+      // Telefon firmy jest jawny w users/{uid}.
+      match /private/{docId} {
+        allow get: if isMe(userId)
+            || (docId == 'contact' && signedIn()
+                && relOk(get(/databases/$(database)/documents/users/$(request.auth.uid)/clients/$(userId)).data));
+        allow list: if false;
+        allow create: if isMe(userId) && docId == 'contact' && contactOk(request.resource.data);
+        // e-mail logowania jest niezmienny, jak w users/{uid}
+        allow update: if isMe(userId) && docId == 'contact' && onlyKeys(['phone'])
+            && contactOk(request.resource.data);
+        allow delete: if false;
+
+        function relOk(r) {
+          return r.get('requestIds', []).size() > 0 || r.get('slotIds', []).size() > 0
+              // EXPIRES (pole requestId): po migrate_relation_request_id.js --apply
+              || r.get('requestId', '') != '';
+        }
+        function contactOk(d) {
+          return d.keys().hasOnly(['email', 'phone'])
+              && d.get('email', '') is string
+              && d.get('email', '').lower() in ['', request.auth.token.get('email', '').lower()]
+              && d.get('phone', '') is string && d.get('phone', '').size() <= 50;
+        }
+      }
     }
 
     // ── prośby o telefon (id = {companyId}_{userId}): klient tworzy/ponawia, firma oznacza załatwione ──
@@ -255,7 +286,8 @@ service cloud.firestore {
             && d.category is string && d.sector is string
             && validLocation(d.location) && d.city is string
             && d.fileUrl is string && d.thumbUrl is string && d.fileName is string
-            && d.mediaType in ['image', 'video']
+            && (d.mediaType in ['image', 'video']
+                || (d.mediaType == 'none' && d.fileUrl == '' && d.thumbUrl == '' && d.fileName == ''))
             && d.timestamp == request.time && d.is24 is bool && d.description is string
             && d.status == 'open' && d.takenBy == '' && d.takenByName == ''
             && d.confirmedByCompany == false && d.confirmedByUser == false;
@@ -321,6 +353,8 @@ service cloud.firestore {
         function newOfferOk() {
           let d = request.resource.data;
           let r = parentRequest();
+          // tylko konto firmowe, pod nazwą ze swojego profilu (przyjęcie oferty daje dostęp do telefonu klienta)
+          let me = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
           return d.keys().hasOnly(['companyId', 'companyName', 'message', 'status', 'timestamp',
                   'price', 'priceTo', 'when'])
               && d.companyId == companyId && d.companyName is string && d.message is string
@@ -329,6 +363,8 @@ service cloud.firestore {
                   && d.priceTo > d.price && d.priceTo <= 999999))
               && (!('when' in d) || d.when in ['today', 'tomorrow', 'week', 'agree'])
               && d.status == 'pending' && d.timestamp == request.time
+              && me.get('firma', me.get('isCompany', false)) == true
+              && d.companyName == me.get('companyName', '')
               && r.userId != request.auth.uid && r.get('status', 'open') == 'open';
         }
       }

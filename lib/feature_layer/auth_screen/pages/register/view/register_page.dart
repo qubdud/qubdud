@@ -94,7 +94,9 @@ class _RegisterPageState extends State<RegisterPage> {
           : (!emailRegex.hasMatch(_email.text.trim())
               ? 'Nieprawidłowy adres e-mail'
               : null);
-      _phoneError = _phone.text.trim().isEmpty ? 'Pole wymagane' : null;
+      _phoneError = _phone.text.trim().isEmpty
+          ? 'Pole wymagane'
+          : (_phone.text.trim().length > 50 ? 'Za długi numer' : null);
       _passwordError = _password.text.length < 6
           ? 'Hasło musi mieć min. 6 znaków'
           : null;
@@ -266,7 +268,10 @@ class _RegisterPageState extends State<RegisterPage> {
              // keyboardType: TextInputType.phone
               ),
           const SizedBox(height: 6),
-          Text('Numer telefonu widoczny wyłącznie dla firm.',
+          Text(_isCompany
+                  ? 'Telefon firmy jest widoczny na jej profilu (możesz go ukryć w ustawieniach).'
+                  : 'Telefon i e-mail zobaczy tylko firma, której ofertę przyjmiesz '
+                      'albo u której zarezerwujesz termin.',
               style: TextStyle(fontSize: 12, color: Colors.grey[600])),
           const SizedBox(height: 24),
 

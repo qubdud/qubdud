@@ -4,6 +4,8 @@ abstract class DodajPageEvent {}
 
 class DodajDodajPageEvent extends DodajPageEvent {}
 
+class SkipFileDodajPageEvent extends DodajPageEvent {}
+
 class SelectedDodajPageEvent extends DodajPageEvent {
   final File file;
   final String fileType;

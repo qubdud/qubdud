@@ -19,7 +19,7 @@ class ShowRequestPageBloc extends Bloc<ShowRequestPageEvent, ShowRequestPageStat
       try {
         // null = autor usunął konto
         state.appUser = await firebase
-            .fetchUser(Globals.instance.selectedRequest!.userId);
+            .fetchUser(Globals.instance.selectedRequest!.userId, withContact: true);
         emit(ShowRequestPageMainState());
       } catch (_) {
         emit(ShowRequestPageErrorState());

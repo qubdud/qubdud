@@ -442,7 +442,11 @@ class _TabDaneState extends State<_TabDane> {
                 context.read<MyProfilPageBloc>().add(UpdateUserDataEvent(
                   firstName: _firstName.text.trim(),
                   lastName: _lastName.text.trim(),
-                  phone: _sharedWithCompany ? null : _phone.text.trim(),
+                  // tylko po zmianie — offline bez kopii private nie nadpisze telefonu pustym
+                  phone: _sharedWithCompany ||
+                          _phone.text.trim() == (widget.user?.phone ?? '')
+                      ? null
+                      : _phone.text.trim(),
                   bio: _sharedWithCompany ? null : _bio.text.trim(),
                 ));
               }
@@ -795,7 +799,7 @@ class _TabKosz extends StatelessWidget {
                       : Container(
                     width: 64, height: 100,
                     color: Colors.grey.shade200,
-                    child: const Icon(Icons.image_not_supported_outlined),
+                    child: const Icon(Icons.description_outlined),
                   ),
                 ),
                 const SizedBox(width: 12),

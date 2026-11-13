@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 
+import '../../domain_layer/domain_models/app_user.dart';
 import '../../domain_layer/domain_models/promoVideo.dart';
 import '../../domain_layer/firebase_service.dart';
 import '../../feature_layer/main_screen/bloc/main_bloc.dart';
@@ -182,17 +184,35 @@ class _CompanyOfferSectionState extends State<CompanyOfferSection> {
 class RequestOffersBar extends StatefulWidget {
   final Request request;
   final VoidCallback? onChanged;
+  final VoidCallback? onEditDescription;
 
-  const RequestOffersBar({super.key, required this.request, this.onChanged});
+  const RequestOffersBar(
+      {super.key, required this.request, this.onChanged, this.onEditDescription});
 
   @override
   State<RequestOffersBar> createState() => _RequestOffersBarState();
 }
 
+typedef _CompanyStats = ({double rating, int reviews, int jobs, double? km, int? sinceYear});
+
+String _opinions(int n) {
+  if (n == 1) return 'opinia';
+  final d = n % 10, h = n % 100;
+  return d >= 2 && d <= 4 && (h < 12 || h > 14) ? 'opinie' : 'opinii';
+}
+
+String _jobsWord(int n) {
+  if (n == 1) return 'zlecenie';
+  final d = n % 10, h = n % 100;
+  return d >= 2 && d <= 4 && (h < 12 || h > 14) ? 'zlecenia' : 'zleceń';
+}
+
 class _RequestOffersBarState extends State<RequestOffersBar> {
   List<Map<String, dynamic>> _offers = [];
+  bool _offersLoaded = false;
   bool _busy = false;
   StreamSubscription<List<Map<String, dynamic>>>? _sub;
+  final Map<String, _CompanyStats?> _companies = {};
 
   @override
   void initState() {
@@ -205,6 +225,8 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.request.id != widget.request.id) {
       _offers = [];
+      _offersLoaded = false;
+      _companies.clear();
       _listen();
     }
   }
@@ -219,14 +241,88 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
     _sub?.cancel();
     final id = widget.request.id;
     _sub = context.read<FirebaseService>().offersStream(id).listen((offers) {
-      if (mounted && id == widget.request.id) setState(() => _offers = offers);
+      if (mounted && id == widget.request.id) {
+        setState(() {
+          _offers = offers;
+          _offersLoaded = true;
+        });
+        for (final o in offers) {
+          _loadCompany((o['companyId'] ?? '').toString());
+        }
+      }
     }, onError: (_) {});
   }
 
+  Future<void> _loadCompany(String companyId) async {
+    if (companyId.isEmpty || _companies.containsKey(companyId)) return;
+    _companies[companyId] = null;
+    final firebase = context.read<FirebaseService>();
+    try {
+      final r = await Future.wait([
+        firebase.fetchUser(companyId),
+        firebase.getReviewsMetadataByReviewedUser(companyId),
+        firebase.getCompletedJobsCount(companyId).catchError((_) => 0),
+      ]);
+      final company = r[0] as AppUser?;
+      final reviews = r[1] as List<Review>;
+      final jobs = r[2] as int;
+      final from = widget.request.location;
+      final to = company?.companyLocation;
+      final km = to != null &&
+              (to.latitude != 0 || to.longitude != 0) &&
+              (from.latitude != 0 || from.longitude != 0)
+          ? Geolocator.distanceBetween(
+                  from.latitude, from.longitude, to.latitude, to.longitude) /
+              1000
+          : null;
+      if (!mounted) return;
+      if (company == null) return;
+      setState(() => _companies[companyId] = (
+            rating: reviews.isEmpty
+                ? 0
+                : reviews.map((e) => e.score).reduce((a, b) => a + b) / reviews.length,
+            reviews: reviews.length,
+            jobs: jobs,
+            km: km,
+            sinceYear: company.createdAt?.year,
+          ));
+    } catch (_) {
+      _companies.remove(companyId);
+    }
+  }
+
+  Future<bool> _confirm(Map<String, dynamic> offer, String status) async {
+    final name = (offer['companyName'] ?? 'Firma').toString();
+    final accept = status == 'accepted';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(accept ? 'Przyjąć ofertę firmy $name?' : 'Odrzucić ofertę firmy $name?'),
+        content: Text(accept
+            ? 'Firma dostanie powiadomienie i zobaczy Twój telefon i e-mail, żeby się z Tobą skontaktować. '
+                'Zgłoszenie zniknie z listy innych firm, a ich oferty zostaną zamknięte. '
+                'Zgłoszenie możesz później odblokować.'
+            : 'Firma dostanie powiadomienie, że jej oferta została odrzucona.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Anuluj')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(accept ? 'Przyjmij' : 'Odrzuć',
+                  style: TextStyle(color: accept ? Colors.green : Colors.red))),
+        ],
+      ),
+    );
+    return ok == true && mounted;
+  }
+
   Future<void> _setStatus(Map<String, dynamic> offer, String status) async {
+    final firebase = context.read<FirebaseService>();
+    if (status != 'maybe' && !await _confirm(offer, status)) return;
     setState(() => _busy = true);
     try {
-      await context.read<FirebaseService>().setOfferStatus(
+      await firebase.setOfferStatus(
             request: widget.request,
             companyId: offer['companyId'] ?? '',
             companyName: offer['companyName'] ?? 'Firma',
@@ -239,10 +335,12 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
         widget.request.takenByName = offer['companyName'] ?? '';
         showToast(text: 'Zaakceptowano — zadanie zablokowane dla tej firmy');
       }
-      widget.onChanged?.call();
     } catch (_) {
       showToastError(text: 'Nie udało się zapisać decyzji');
+      if (mounted) setState(() => _busy = false);
+      return;
     }
+    if (mounted) widget.onChanged?.call();
     if (mounted) setState(() => _busy = false);
   }
 
@@ -272,10 +370,12 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
       widget.request.takenBy = '';
       widget.request.takenByName = '';
       showToast(text: 'Odblokowano — zgłoszenie wróciło do puli');
-      widget.onChanged?.call();
     } catch (_) {
       showToastError(text: 'Nie udało się odblokować zgłoszenia');
+      if (mounted) setState(() => _busy = false);
+      return;
     }
+    if (mounted) widget.onChanged?.call();
     if (mounted) setState(() => _busy = false);
   }
 
@@ -335,7 +435,7 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
     final visible = _offers
         .where((o) => o['status'] != 'rejected' && o['status'] != 'closed')
         .toList();
-    if (visible.isEmpty) return const SizedBox.shrink();
+    if (visible.isEmpty) return _noOffersHint(req);
     final prices = visible.map((o) => o['price']).whereType<int>().toList();
     final cheapest = prices.length > 1 ? prices.reduce((a, b) => a < b ? a : b) : null;
 
@@ -392,6 +492,35 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
                                 ),
                               ],
                             ),
+                            if (_companies[o['companyId']] case final s?)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Wrap(
+                                  spacing: 6,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    if (s.reviews > 0) ...[
+                                      const Icon(Icons.star_rounded,
+                                          size: 14, color: Colors.amber),
+                                      Text(
+                                          '${s.rating.toStringAsFixed(1).replaceAll('.', ',')} '
+                                          '(${s.reviews} ${_opinions(s.reviews)})',
+                                          style: const TextStyle(fontSize: 11)),
+                                    ] else
+                                      const Text('Bez opinii',
+                                          style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                    if (s.jobs > 0)
+                                      Text('· ${s.jobs} ${_jobsWord(s.jobs)}',
+                                          style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                    if (s.km != null)
+                                      Text('· ${s.km! < 10 ? s.km!.toStringAsFixed(1).replaceAll('.', ',') : s.km!.round()} km',
+                                          style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                    if (s.sinceYear != null)
+                                      Text('· w QUBDUD od ${s.sinceYear}',
+                                          style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                  ],
+                                ),
+                              ),
                             if (offerPriceLabel(o) != null || kOfferWhen[o['when']] != null)
                               Padding(
                                 padding: const EdgeInsets.only(top: 2),
@@ -438,6 +567,65 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
                 ),
               );
           }),
+        ],
+      ),
+    );
+  }
+
+  Widget _noOffersHint(Request req) {
+    final ts = req.timestamp;
+    if (!_offersLoaded || _offers.isNotEmpty || req.status != 'open' || ts == null ||
+        DateTime.now().difference(ts) < const Duration(hours: 3)) {
+      return const SizedBox.shrink();
+    }
+    final shortDesc = req.description.trim().length < 40;
+    final tips = [
+      if (shortDesc)
+        'Dopisz w opisie szczegóły: co dokładnie, wymiary, stan, na kiedy i za ile mniej więcej.',
+      if (req.fileUrl.isEmpty)
+        'Zgłoszenia ze zdjęciem dostają więcej ofert — możesz dodać nowe ze zdjęciem.',
+    ];
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.amber.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.lightbulb_outline, size: 16, color: Colors.orange),
+              SizedBox(width: 6),
+              Expanded(
+                child: Text('Jeszcze brak ofert',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+              tips.isEmpty
+                  ? 'Firmy z okolicy widzą Twoje zgłoszenie. Czasem odpowiedź przychodzi następnego dnia.'
+                  : 'Firmy chętniej odpowiadają na konkretne zgłoszenia:',
+              style: const TextStyle(fontSize: 12)),
+          for (final t in tips)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text('• $t', style: const TextStyle(fontSize: 12)),
+            ),
+          if (widget.onEditDescription != null && shortDesc)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: widget.onEditDescription,
+                icon: const Icon(Icons.edit_outlined, size: 16),
+                label: const Text('Uzupełnij opis'),
+              ),
+            ),
         ],
       ),
     );

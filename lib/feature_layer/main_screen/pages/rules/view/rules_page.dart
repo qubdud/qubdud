@@ -121,9 +121,11 @@ class RulesPage extends StatelessWidget {
             ),
             _section(
               'Kto widzi Twoje dane',
-              'Prezentacje firm i recenzje są publiczne. Dane zgłoszenia wraz z '
-                  'imieniem i telefonem widzą zalogowane firmy z danej branży w '
-                  'okolicy, aby mogły się z Tobą skontaktować. Dane firmy (telefon, '
+              'Prezentacje firm i recenzje są publiczne. Treść zgłoszenia i Twoje '
+                  'imię widzą zalogowane firmy z danej branży w okolicy. Telefon i '
+                  'e-mail zobaczy tylko firma, której ofertę przyjmiesz albo u której '
+                  'zarezerwujesz termin; prosząc firmę o kontakt, przekazujesz jej numer '
+                  'podany w prośbie. Dane firmy (telefon, '
                   'adres, www) widzą zalogowani użytkownicy — firma decyduje w profilu, '
                   'co pokazać. Prywatne notatki firmy o klientach widzi tylko ta firma. '
                   'Wiadomości widzą wyłącznie uczestnicy rozmowy.',

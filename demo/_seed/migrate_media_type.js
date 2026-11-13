@@ -25,7 +25,7 @@ const mediaTypeFromName = (name) =>
   let changed = 0;
   for (const d of snap.docs) {
     const r = d.data();
-    if (r.mediaType === 'image' || r.mediaType === 'video') continue;
+    if (['image', 'video', 'none'].includes(r.mediaType)) continue;
     const mediaType = mediaTypeFromName(r.fileName);
     console.log(`${apply ? '+' : '?'} ${d.id}: ${r.fileName || '(brak fileName)'} → ${mediaType}`);
     changed++;

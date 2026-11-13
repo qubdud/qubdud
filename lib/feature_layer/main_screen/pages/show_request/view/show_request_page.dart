@@ -180,7 +180,8 @@ class _ViewState extends State<View> {
           child: Column(
             children: [
           WSmallLabel(text: 'Widok zgłoszenia'),
-          if (Globals.instance.selectedRequest!.mediaType == 'image')
+          if (Globals.instance.selectedRequest!.mediaType == 'image' &&
+              Globals.instance.selectedRequest!.fileUrl.isNotEmpty)
             GestureDetector(
               onTap: () => _openImageFullscreen(
                   context, Globals.instance.selectedRequest!.fileUrl),
@@ -211,7 +212,8 @@ class _ViewState extends State<View> {
               ),
             ),
 
-              if (Globals.instance.selectedRequest!.mediaType == 'video')
+              if (Globals.instance.selectedRequest!.mediaType == 'video' &&
+                  Globals.instance.selectedRequest!.fileUrl.isNotEmpty)
                 GestureDetector(
                   onTap: () => _openVideoFullscreen(
                       context, Globals.instance.selectedRequest!.fileUrl),
@@ -379,7 +381,11 @@ class _ViewState extends State<View> {
                             decoration: TextDecoration.underline)),
                   )
                 else
-                  const Text('brak'),
+                  Text(author != null && author.firma != true &&
+                          meId != Globals.instance.selectedRequest!.userId
+                      ? 'Zobaczysz go, gdy klient przyjmie Twoją ofertę albo zarezerwuje termin'
+                      : 'brak',
+                      textAlign: TextAlign.center),
 
                 SizedBox(height: 24,),
 

@@ -46,7 +46,7 @@ async function deleteSubcollection(uid, name) {
   console.log(`Do usunięcia firm: ${toDelete.length}`);
   for (const { uid, email } of toDelete) {
     for (const sub of ['slots', 'clients', 'myBookings', 'contacts',
-        'favoritePromos', 'skippedRequests', 'myCompanies']) {
+        'favoritePromos', 'skippedRequests', 'myCompanies', 'private']) {
       await deleteSubcollection(uid, sub);
     }
     await db.collection('users').doc(uid).delete();

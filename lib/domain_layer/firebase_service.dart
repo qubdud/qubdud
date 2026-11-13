@@ -66,12 +66,16 @@ class FirebaseService {
     }
 
     final user = userCredential.user!;
+    final userRef = _firestore.collection('users').doc(user.uid);
     try {
-      await _firestore.collection('users').doc(user.uid).set({
-        'email': email,
+      await (_firestore.batch()
+        ..set(userRef, {
+        // EXPIRES: pusty klucz tylko dla APK ≤1.3.x (`email!` na stronie zgłoszenia)
+        'email': '',
         'firstName': firstName,
         'lastName': lastName,
-        'phone': phone,
+        // telefon firmy jest jawny; klienta tylko w private/contact
+        'phone': isCompany ? phone : '',
         if (bio != null && bio.isNotEmpty) 'bio': bio,
         'isCompany': isCompany,
         'firma': isCompany, // kompatybilność wsteczna
@@ -92,7 +96,13 @@ class FirebaseService {
           'acceptedAt': FieldValue.serverTimestamp(),
         },
         'createdAt': FieldValue.serverTimestamp(),
-      }).timeout(const Duration(seconds: 15));
+      })
+        ..set(userRef.collection('private').doc('contact'), {
+          'email': user.email ?? email,
+          if (!isCompany) 'phone': phone,
+        }))
+          .commit()
+          .timeout(const Duration(seconds: 15));
     } on TimeoutException {
       // brak sieci po utworzeniu konta: zapis czeka w lokalnej kolejce i wyśle się po powrocie połączenia
       return null;
@@ -116,13 +126,26 @@ class FirebaseService {
         .call<void>();
   }
 
-  Future<AppUser?> fetchUser(String userId) async {
+  /// [withContact] dociąga telefon i e-mail z private/contact — dostępne tylko dla
+  /// właściciela i firmy, u której ten użytkownik jest klientem (reguły).
+  Future<AppUser?> fetchUser(String userId, {bool withContact = false}) async {
+    final doc = await _firestore.collection('users').doc(userId).get();
+    if (!doc.exists) return null;
+    final contact = withContact ? await privateContact(userId) : null;
+    return AppUser.fromDoc(doc,
+        contact: contact, contactDenied: withContact && contact == null);
+  }
+
+  /// Telefon i e-mail z users/{uid}/private/contact ({} gdy dokumentu jeszcze nie ma);
+  /// bez uprawnień albo bez kopii w cache: null.
+  Future<Map<String, dynamic>?> privateContact(String uid,
+      {Source source = Source.serverAndCache}) async {
     try {
-      final doc = await _firestore.collection('users').doc(userId).get();
-      if (!doc.exists) return null;// Map<String, dynamic>?
-      return AppUser.fromDoc(doc);
-    } catch (e) {
-      rethrow;
+      final d = await _firestore.collection('users').doc(uid)
+          .collection('private').doc('contact').get(GetOptions(source: source));
+      return d.data() ?? const {};
+    } on FirebaseException {
+      return null;
     }
   }
 
@@ -561,13 +584,17 @@ class FirebaseService {
   /// Zapis pól profilu. Bez sieci nie czeka na serwer w nieskończoność —
   /// zmiana zostaje w kolejce Firestore i wyśle się po powrocie połączenia.
   /// Zwraca false, gdy serwer jeszcze nie potwierdził zapisu.
-  Future<bool> updateUserData(String userId, Map<String, dynamic> data) async {
+  /// [privatePhone] trafia do private/contact (telefon klienta nie jest jawny).
+  Future<bool> updateUserData(String userId, Map<String, dynamic> data,
+      {String? privatePhone}) async {
+    final ref = _firestore.collection('users').doc(userId);
+    final batch = _firestore.batch()..update(ref, data);
+    if (privatePhone != null) {
+      batch.set(ref.collection('private').doc('contact'), {'phone': privatePhone},
+          SetOptions(merge: true));
+    }
     try {
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .update(data)
-          .timeout(const Duration(seconds: 8));
+      await batch.commit().timeout(const Duration(seconds: 8));
       return true;
     } on TimeoutException {
       return false;
@@ -582,7 +609,10 @@ class FirebaseService {
           .collection('users')
           .doc(userId)
           .get(const GetOptions(source: Source.cache));
-      return doc.exists ? AppUser.fromDoc(doc) : null;
+      return doc.exists
+          ? AppUser.fromDoc(doc,
+              contact: await privateContact(userId, source: Source.cache))
+          : null;
     } on FirebaseException {
       return null;
     }
@@ -654,7 +684,8 @@ class FirebaseService {
   }) async {
     final me = await fetchUser(myUid);
     final id = _contactRequestId(companyId, myUid);
-    await _firestore.collection('contactRequests').doc(id).set({
+    final batch = _firestore.batch()
+      ..set(_firestore.collection('contactRequests').doc(id), {
       'userId': myUid,
       'companyId': companyId,
       'userName': '${me?.firstName ?? ''} ${me?.lastName ?? ''}'.trim(),
@@ -665,7 +696,10 @@ class FirebaseService {
       'createdAt': FieldValue.serverTimestamp(),
       'doneAt': null,
     });
-    await _linkClient(companyId: companyId, userId: myUid, requestId: 'contact_$id');
+    // relacja w tym samym zapisie — od niej zależy dostęp firmy do telefonu klienta
+    await _linkClient(
+        companyId: companyId, userId: myUid, requestId: 'contact_$id', batch: batch);
+    await batch.commit();
   }
 
   Future<void> setContactRequestDone(String id) async {
@@ -1256,8 +1290,15 @@ class FirebaseService {
     return snap.docs.map((d) => d.id).toSet();
   }
 
-  Future<void> blockUser(String uid, String otherUid) =>
-      _blocked(uid).doc(otherUid).set({'createdAt': FieldValue.serverTimestamp()});
+  /// Blokada odbiera też zablokowanej firmie dostęp do mojego telefonu i e-maila (relacja).
+  Future<void> blockUser(String uid, String otherUid) {
+    final users = _firestore.collection('users');
+    return (_firestore.batch()
+          ..set(_blocked(uid).doc(otherUid), {'createdAt': FieldValue.serverTimestamp()})
+          ..delete(users.doc(otherUid).collection('clients').doc(uid))
+          ..delete(users.doc(uid).collection('myCompanies').doc(otherUid)))
+        .commit();
+  }
 
   Future<void> unblockUser(String uid, String otherUid) =>
       _blocked(uid).doc(otherUid).delete();
@@ -1348,13 +1389,11 @@ class FirebaseService {
         'status': 'taken',
         'takenAt': FieldValue.serverTimestamp(),
       });
+      // relacja w tym samym zapisie — od niej zależy dostęp firmy do telefonu klienta
+      await _linkClient(
+          companyId: companyId, userId: request.userId, requestId: request.id, batch: batch);
     }
     await batch.commit();
-
-    if (status == 'accepted') {
-      await _linkClient(
-          companyId: companyId, userId: request.userId, requestId: request.id);
-    }
   }
 
   /// Odblokowanie zadania przez klienta — wraca do puli, oferta firmy
@@ -1364,33 +1403,38 @@ class FirebaseService {
   Future<void> unlockRequest(Request request) async {
     final companyId = request.takenBy;
     final reqRef = _firestore.collection('requests').doc(request.id);
-    final batch = _firestore.batch();
-    batch.update(reqRef, {
-      'takenBy': '',
-      'takenByName': '',
-      'confirmedByCompany': false,
-      'confirmedByUser': false,
-      'status': 'open',
-      'realizationStatus': FieldValue.delete(),
-    });
     final offers = await reqRef
         .collection('offers')
         .where('status', whereIn: ['accepted', 'closed']).get();
-    for (final d in offers.docs) {
-      batch.update(d.reference, {'status': 'pending'});
-    }
-    if (companyId.isNotEmpty) {
-      final photos = await _firestore
-          .collection('realizations')
-          .where('requestId', isEqualTo: request.id)
-          .where('userId', isEqualTo: request.userId)
-          .where('companyId', isEqualTo: companyId)
-          .get();
-      for (final d in photos.docs) {
-        if (d.data()['addedByRole'] != 'user') batch.delete(d.reference);
+    final photos = companyId.isEmpty
+        ? null
+        : await _firestore
+            .collection('realizations')
+            .where('requestId', isEqualTo: request.id)
+            .where('userId', isEqualTo: request.userId)
+            .where('companyId', isEqualTo: companyId)
+            .get();
+    // relacja znika w tym samym zapisie — od niej zależy dostęp firmy do telefonu klienta
+    await _firestore.runTransaction((tx) async {
+      final relation = companyId.isEmpty
+          ? null
+          : await _readRelationTx(tx, companyId, request.userId);
+      tx.update(reqRef, {
+        'takenBy': '',
+        'takenByName': '',
+        'confirmedByCompany': false,
+        'confirmedByUser': false,
+        'status': 'open',
+        'realizationStatus': FieldValue.delete(),
+      });
+      for (final d in offers.docs) {
+        tx.update(d.reference, {'status': 'pending'});
       }
-    }
-    await batch.commit();
+      for (final d in photos?.docs ?? const <QueryDocumentSnapshot<Map<String, dynamic>>>[]) {
+        if (d.data()['addedByRole'] != 'user') tx.delete(d.reference);
+      }
+      if (relation != null) _unlinkTx(tx, relation, requestId: request.id);
+    });
     if (companyId.isEmpty) return;
 
     // powiadomienia o tej realizacji, żeby nie wisiały w dzwonku
@@ -1405,16 +1449,14 @@ class FirebaseService {
         if (t.startsWith('realization')) await d.reference.delete();
       }
     } catch (_) {}
-
-    await _firestore.runTransaction((tx) async => _unlinkTx(
-        tx, await _readRelationTx(tx, companyId, request.userId),
-        requestId: request.id));
   }
 
+  /// Z [batch] relacja zapisuje się razem z resztą operacji (commit robi wywołujący).
   Future<void> _linkClient({
     required String companyId,
     required String userId,
     required String requestId,
+    WriteBatch? batch,
   }) async {
     final userDoc = await _firestore.collection('users').doc(userId).get();
     final companyDoc = await _firestore.collection('users').doc(companyId).get();
@@ -1446,8 +1488,8 @@ class FirebaseService {
         .doc(companyId);
     final firstTime = !(await clientRef.get()).exists;
 
-    final batch = _firestore.batch();
-    batch.set(
+    final b = batch ?? _firestore.batch();
+    b.set(
       clientRef,
       {
         'userId': userId,
@@ -1458,7 +1500,7 @@ class FirebaseService {
       },
       SetOptions(merge: true),
     );
-    batch.set(
+    b.set(
       companyRef,
       {
         'companyId': companyId,
@@ -1468,7 +1510,7 @@ class FirebaseService {
       },
       SetOptions(merge: true),
     );
-    await batch.commit();
+    if (batch == null) await b.commit();
   }
 
   /// Zgłoszenie po id (do odnośników z listy klientów).
@@ -1504,7 +1546,7 @@ class FirebaseService {
   /// [clientId] — klient tej relacji (rezerwacje pokazujemy tylko jego).
   Future<RelationLink?> _linkFromDoc(DocumentSnapshot<Map<String, dynamic>> d,
       String personId, String companyId, String clientId) async {
-    final u = await fetchUser(personId);
+    final u = await fetchUser(personId, withContact: personId == clientId);
     if (u == null) return null;
     final data = d.data() ?? {};
     final reqIds = <String>{

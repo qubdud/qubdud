@@ -56,6 +56,7 @@ class _ViewState extends State<View> {
   String? _categoryError;
   String? _sectorError;
   String? _locationError;
+  String? _descError;
   Timer? debounce;
   bool isSearching = false;
   final MapController mapController = MapController();
@@ -135,8 +136,13 @@ class _ViewState extends State<View> {
       _locationError = selectedLocation == null
           ? 'Wpisz miejscowość albo wskaż punkt na mapie'
           : null;
+      _descError = context.read<DodajPageBloc>().state.selectedContent == null &&
+              name.text.trim().length < 10
+          ? 'Bez zdjęcia opisz dokładniej, czego potrzebujesz (min. 10 znaków)'
+          : null;
     });
-    if (_categoryError != null || _sectorError != null || _locationError != null) {
+    if (_categoryError != null || _sectorError != null || _locationError != null ||
+        _descError != null) {
       showToastError(text: 'Uzupełnij zaznaczone pola');
       return;
     }
@@ -208,6 +214,7 @@ class _ViewState extends State<View> {
                   label: 'Opis zgłoszenia',
                   controller: name,
                   maxLines: 8,
+                  errorText: _descError,
                 ),
 
                 SizedBox(height: 24),

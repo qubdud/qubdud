@@ -508,17 +508,17 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
           return;
         }
 
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUser.uid)
-            .get();
+        final (doc, contact) = await (
+          FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get(),
+          appFirebaseService.privateContact(currentUser.uid),
+        ).wait;
         if (!doc.exists) {
           showToast(
               text: 'Nie znaleziono profilu tego konta. Zaloguj się ponownie albo załóż nowe konto.');
           add(LogoutEvent());
           return;
         }
-        final userFB = AppUser.fromDoc(doc);
+        final userFB = AppUser.fromDoc(doc, contact: contact);
         if (userFB.firma == true) {
           await ClientNotes.load(appFirebaseService, userFB.id);
         } else {
