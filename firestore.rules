@@ -246,7 +246,11 @@ service cloud.firestore {
       function validNewRequest(d) {
         return d.keys().hasOnly(['userId', 'category', 'sector', 'location', 'city', 'fileUrl',
                 'thumbUrl', 'fileName', 'mediaType', 'timestamp', 'is24', 'description', 'status',
-                'takenBy', 'takenByName', 'confirmedByCompany', 'confirmedByUser'])
+                'takenBy', 'takenByName', 'confirmedByCompany', 'confirmedByUser',
+                'timing', 'budget', 'answers'])
+            && (!('timing' in d) || d.timing in ['asap', 'week', 'month', 'flexible'])
+            && (!('budget' in d) || (d.budget is int && d.budget >= 0 && d.budget <= 9999999))
+            && (!('answers' in d) || (d.answers is map && d.answers.size() <= 10))
             && d.userId == request.auth.uid
             && d.category is string && d.sector is string
             && validLocation(d.location) && d.city is string
@@ -317,8 +321,13 @@ service cloud.firestore {
         function newOfferOk() {
           let d = request.resource.data;
           let r = parentRequest();
-          return d.keys().hasOnly(['companyId', 'companyName', 'message', 'status', 'timestamp'])
+          return d.keys().hasOnly(['companyId', 'companyName', 'message', 'status', 'timestamp',
+                  'price', 'priceTo', 'when'])
               && d.companyId == companyId && d.companyName is string && d.message is string
+              && (!('price' in d) || (d.price is int && d.price >= 0 && d.price <= 999999))
+              && (!('priceTo' in d) || ('price' in d && d.priceTo is int
+                  && d.priceTo > d.price && d.priceTo <= 999999))
+              && (!('when' in d) || d.when in ['today', 'tomorrow', 'week', 'agree'])
               && d.status == 'pending' && d.timestamp == request.time
               && r.userId != request.auth.uid && r.get('status', 'open') == 'open';
         }

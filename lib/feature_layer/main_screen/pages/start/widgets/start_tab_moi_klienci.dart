@@ -15,6 +15,8 @@ import '../../../../../shared/client_notes.dart';
 import '../../../../../shared/globals.dart';
 import '../../../bloc/main_bloc.dart';
 import '../bloc/start_page_bloc.dart';
+import '../../../../../shared/widgets/offer_dialog.dart';
+import '../../../../../shared/request_questions.dart';
 
 class MoiKlienciTab extends StatefulWidget {
   final StartPageState state;
@@ -315,6 +317,18 @@ class _RequestCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
+                      if (requestBriefLabel(timing: request.timing, budget: request.budget,
+                              answers: request.answers).isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          requestBriefLabel(timing: request.timing, budget: request.budget,
+                              answers: request.answers),
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w600, color: cDarkBlue),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -478,10 +492,14 @@ class _RequestCard extends StatelessWidget {
 
   /// Prywatna notatka o kliencie — widzi ją tylko firma.
   Future<void> _sendOffer(BuildContext context) async {
-    final msg = await showOfferDialog(
+    final draft = await showOfferDialog(
         context, _requesterNameCache[request.userId] ?? '');
-    if (msg == null || !context.mounted) return;
-    context.read<StartPageBloc>().add(TryQuickOfferEvent(request.id, message: msg));
+    if (draft == null || !context.mounted) return;
+    context.read<StartPageBloc>().add(TryQuickOfferEvent(request.id,
+        message: draft.message,
+        price: draft.price,
+        priceTo: draft.priceTo,
+        when: draft.when));
   }
 
   Future<void> _editNote(BuildContext context) async {
@@ -825,81 +843,4 @@ class _OfferButton extends StatelessWidget {
         );
     }
   }
-}
-
-/// Dialog oferty: gotowa treść do edycji (cena, termin) + Wyślij.
-Future<String?> showOfferDialog(BuildContext context, String clientName) {
-  final ctrl = TextEditingController(text: kDefaultOfferMessage);
-  return showDialog<String>(
-    context: context,
-    builder: (ctx) => Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.local_offer_outlined, color: cDarkBlue),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                      clientName.isEmpty ? 'Oferta' : 'Oferta dla: $clientName',
-                      style: const TextStyle(
-                          fontSize: 19, fontWeight: FontWeight.w700)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: ctrl,
-              maxLines: 7,
-              minLines: 5,
-              maxLength: 400,
-              autofocus: true,
-              style: const TextStyle(fontSize: 16),
-              decoration: const InputDecoration(
-                hintText: 'Co oferujesz, cena, termin…',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.all(14),
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-                'Klient zobaczy ofertę przy swoim zgłoszeniu.',
-                style: TextStyle(fontSize: 12, color: Colors.grey)),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14)),
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Anuluj'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 2,
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                        backgroundColor: cDarkBlue,
-                        padding: const EdgeInsets.symmetric(vertical: 14)),
-                    icon: const Icon(Icons.send, size: 18),
-                    label: const Text('Wyślij ofertę',
-                        style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w600)),
-                    onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }

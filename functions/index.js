@@ -209,9 +209,12 @@ exports.notifyNewOffer = onDocumentCreated('requests/{id}/offers/{companyId}', a
   if (!offer) return;
   const req = (await db.collection('requests').doc(event.params.id).get()).data();
   if (!req) return;
+  const price = Number.isInteger(offer.price)
+    ? (Number.isInteger(offer.priceTo) ? `${offer.price}–${offer.priceTo} zł` : `${offer.price} zł`)
+    : '';
   await pushTo(req.userId, {
     title: `Nowa oferta: ${offer.companyName || 'firma'}`,
-    body: short(offer.message, 100),
+    body: price ? `${price} · ${short(offer.message, 80)}` : short(offer.message, 100),
     data: { type: 'offer', requestId: event.params.id, audience: 'user' },
   });
 });

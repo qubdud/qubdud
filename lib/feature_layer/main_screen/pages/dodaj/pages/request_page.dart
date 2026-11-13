@@ -18,6 +18,7 @@ import '../../../../../shared/widgets/w_checkbox.dart';
 import '../../../bloc/main_bloc.dart';
 import '../view/dodaj_page.dart';
 import '../bloc/dodaj_page_bloc.dart';
+import '../../../../../shared/request_questions.dart';
 
 class DodajRequestFormPage extends StatelessWidget {
   const DodajRequestFormPage({super.key});
@@ -46,6 +47,9 @@ class _ViewState extends State<View> {
 
   LatLng? selectedLocation;
   bool is24 = false;
+  String _timing = '';
+  final TextEditingController _budget = TextEditingController();
+  Map<String, String> _answers = {};
 
   String? selectedCategory;
   String? selectedBranza;
@@ -71,6 +75,9 @@ class _ViewState extends State<View> {
     selectedBranza = meta?.sector;
     selectedLocation = meta?.location;
     is24 = meta?.is24 ?? false;
+    _timing = meta?.timing ?? '';
+    _budget.text = meta?.budget?.toString() ?? '';
+    _answers = {...?meta?.answers};
   }
 
   @override
@@ -80,6 +87,7 @@ class _ViewState extends State<View> {
     businessCity.dispose();
     _categoryCtrl.dispose();
     _sectorCtrl.dispose();
+    _budget.dispose();
     super.dispose();
   }
 
@@ -140,8 +148,37 @@ class _ViewState extends State<View> {
       city: businessCity.text.trim(),
       description: name.text.trim(),
       is24: is24,
+      timing: _timing,
+      budget: int.tryParse(_budget.text.trim()),
+      answers: _answers,
     );
     bloc.add(DodajDodajPageEvent());
+  }
+
+  Widget _chipsQuestion(String label, List<String> options, String? selected,
+      ValueChanged<String?> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          WSmallLabel(text: label),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final o in options)
+                ChoiceChip(
+                  label: Text(o),
+                  selected: selected == o,
+                  onSelected: (s) => onChanged(s ? o : null),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -183,6 +220,7 @@ class _ViewState extends State<View> {
                   onItemSelected: (val) {
                     setState(() {
                       selectedCategory = val.isEmpty ? null : val;
+                      _answers = {};
                       if (selectedCategory != null) _categoryError = null;
                       // reset branży przy zmianie kategorii
                       selectedBranza = null;
@@ -271,6 +309,25 @@ class _ViewState extends State<View> {
                     child: Text(_locationError!,
                         style: const TextStyle(fontSize: 14, color: cMidPink)),
                   ),
+
+                const SizedBox(height: 24),
+                _chipsQuestion('Kiedy?', kRequestTiming.values.toList(),
+                    kRequestTiming[_timing], (v) {
+                  setState(() => _timing = v == null
+                      ? ''
+                      : kRequestTiming.entries.firstWhere((e) => e.value == v).key);
+                }),
+                for (final q in kCategoryQuestions[selectedCategory] ?? const <RequestQuestion>[])
+                  _chipsQuestion(q.label, q.options, _answers[q.label], (v) {
+                    setState(() => v == null ? _answers.remove(q.label) : _answers[q.label] = v);
+                  }),
+                WInputField(
+                  controller: _budget,
+                  label: 'Budżet (opcjonalnie, zł)',
+                  isPassword: false,
+                  hintText: 'np. 500',
+                  keyboardType: TextInputType.number,
+                ),
 
                 SizedBox(height: 24),
 

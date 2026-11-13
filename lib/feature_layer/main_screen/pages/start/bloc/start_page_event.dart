@@ -38,7 +38,11 @@ class TryAddContactStartPageEvent extends StartPageEvent {
 class TryQuickOfferEvent extends StartPageEvent {
   final String requestId;
   final String? message;
-  TryQuickOfferEvent(this.requestId, {this.message});
+  final int? price;
+  final int? priceTo;
+  final String? when;
+  TryQuickOfferEvent(this.requestId,
+      {this.message, this.price, this.priceTo, this.when});
 }
 
 class TryHideRequestEvent extends StartPageEvent {

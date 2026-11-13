@@ -25,6 +25,7 @@ import '../bloc/show_request_page_bloc.dart';
 import '../widgets/realization_section.dart';
 import '../../../../../shared/widgets/load_error.dart';
 import '../../dodaj/view/dodaj_page.dart' show osmAttribution;
+import '../../../../../shared/request_questions.dart';
 
 class ShowRequestPage extends StatelessWidget {
   const ShowRequestPage({super.key});
@@ -241,6 +242,18 @@ class _ViewState extends State<View> {
               SizedBox(height: 24,),
               WSmallLabel(text: 'Opis zgłoszenia'),
               Text(Globals.instance.selectedRequest!.description),
+              if (Globals.instance.selectedRequest!.timing.isNotEmpty ||
+                  Globals.instance.selectedRequest!.budget != null ||
+                  Globals.instance.selectedRequest!.answers.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                WSmallLabel(text: 'Szczegóły'),
+                if (kRequestTiming[Globals.instance.selectedRequest!.timing] != null)
+                  Text('Kiedy: ${kRequestTiming[Globals.instance.selectedRequest!.timing]}'),
+                if (Globals.instance.selectedRequest!.budget != null)
+                  Text('Budżet: do ${Globals.instance.selectedRequest!.budget} zł'),
+                for (final e in Globals.instance.selectedRequest!.answers.entries)
+                  Text('${e.key}: ${e.value}'),
+              ],
 
               SizedBox(height: 24,),
               WSmallLabel(text: 'Lokalizacja zgłoszenia'),

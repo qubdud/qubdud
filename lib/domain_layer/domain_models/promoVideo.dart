@@ -120,6 +120,10 @@ class Request {
   final String closedReason; // '' | expired | byUser | realized
   final String realizationStatus; // '' | pending | approved | rejected
   final bool is24;
+  // kreator zgłoszenia (opcjonalne, brak w zgłoszeniach sprzed 1.4.0)
+  final String timing; // '' | asap | week | month | flexible
+  final int? budget;
+  final Map<String, String> answers; // pytanie → odpowiedź
   String description;
   double? distance;
 
@@ -147,6 +151,9 @@ class Request {
     this.closedReason = '',
     this.realizationStatus = '',
     required this.is24,
+    this.timing = '',
+    this.budget,
+    this.answers = const {},
     required this.description,
     this.distance,
     this.status = 'open',
@@ -165,6 +172,9 @@ class Request {
       closedReason: data['closedReason'] ?? '',
       realizationStatus: data['realizationStatus'] ?? '',
       is24: data['is24'] ?? false,
+      timing: data['timing'] as String? ?? '',
+      budget: data['budget'] is int ? data['budget'] as int : null,
+      answers: (data['answers'] as Map?)?.map((k, v) => MapEntry('$k', '$v')) ?? const {},
       userId: data['userId'] ?? '',
       category: data['category'] ?? '',
       sector: data['sector'] ?? '',
@@ -225,6 +235,9 @@ class Request {
       'mediaType': mediaType,
       'timestamp': timestamp ?? FieldValue.serverTimestamp(),
       'is24': is24,
+      if (timing.isNotEmpty) 'timing': timing,
+      if (budget != null) 'budget': budget,
+      if (answers.isNotEmpty) 'answers': answers,
       'description': description,
       'status': status,
       'takenBy': takenBy,

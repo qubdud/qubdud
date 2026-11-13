@@ -141,8 +141,11 @@ TileLayer get openStreetMap => TileLayer(
   userAgentPackageName: 'com.qb.zkv.pl.qb',
 );
 
-Widget get osmAttribution => SimpleAttributionWidget(
-  source: const Text('OpenStreetMap'),
-  onTap: () => launchUrl(Uri.parse('https://www.openstreetmap.org/copyright')),
+Widget get osmAttribution => RichAttributionWidget(
+  showFlutterMapAttribution: false,
+  attributions: [
+    TextSourceAttribution('OpenStreetMap',
+        onTap: () => launchUrl(Uri.parse('https://www.openstreetmap.org/copyright'))),
+  ],
 );
 

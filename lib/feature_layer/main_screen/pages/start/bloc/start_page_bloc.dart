@@ -8,12 +8,12 @@ import 'package:qb/shared/functions/effective_role.dart';
 import 'package:qb/shared/new_counts.dart';
 import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
+import '../../../../../shared/widgets/offer_dialog.dart';
 
 part 'start_page_event.dart';
 part 'start_page_state.dart';
 
 
-const kDefaultOfferMessage = 'Jestem zainteresowany. Proszę o kontakt.';
 
 class StartPageBloc extends Bloc<StartPageEvent, StartPageState> {
   StartPageBloc({
@@ -185,6 +185,9 @@ class StartPageBloc extends Bloc<StartPageEvent, StartPageState> {
           message: event.message?.trim().isNotEmpty == true
               ? event.message!.trim()
               : kDefaultOfferMessage,
+          price: event.price,
+          priceTo: event.priceTo,
+          when: event.when,
         );
         state.myOfferStatuses = {
           ...state.myOfferStatuses,

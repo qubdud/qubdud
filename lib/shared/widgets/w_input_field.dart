@@ -19,6 +19,7 @@ class WInputField extends StatefulWidget {
   final Function()? onTogglePasswordVisibility;
   final Function()? onSend;
   final Function()? onEditingComplete;
+  final TextInputType? keyboardType;
 
 
   const WInputField({
@@ -37,6 +38,7 @@ class WInputField extends StatefulWidget {
     this.onTogglePasswordVisibility,
     this.onSend,
     this.onEditingComplete,
+    this.keyboardType,
     this.prefixIcon,
     this.focusColor,
     this.onChanged,
@@ -116,6 +118,7 @@ class _WInputFieldState extends State<WInputField> {
             children: [
               Expanded(
                 child: TextFormField(
+                  keyboardType: widget.keyboardType,
 
 
                   enableInteractiveSelection: !widget.blockCopy, // blokuje zaznaczanie i kopiowanie

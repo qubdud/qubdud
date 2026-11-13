@@ -1192,6 +1192,9 @@ class FirebaseService {
     required String companyId,
     required String companyName,
     required String message,
+    int? price,
+    int? priceTo,
+    String? when,
   }) async {
     await _firestore
         .collection('requests')
@@ -1202,6 +1205,10 @@ class FirebaseService {
       'companyId': companyId,
       'companyName': companyName,
       'message': message,
+      // pola opcjonalne — bez nich oferta jest taka jak w 1.3.x
+      if (price != null) 'price': price,
+      if (price != null && priceTo != null) 'priceTo': priceTo,
+      if (when != null) 'when': when,
       'status': 'pending',
       'timestamp': FieldValue.serverTimestamp(),
     });
@@ -1289,6 +1296,15 @@ class FirebaseService {
       for (final d in snap.docs) d.id: (d.data()['note'] ?? '') as String
     };
   }
+
+  /// Oferty zgłoszenia na żywo — klient widzi nową ofertę bez wychodzenia z ekranu.
+  Stream<List<Map<String, dynamic>>> offersStream(String requestId) => _firestore
+      .collection('requests')
+      .doc(requestId)
+      .collection('offers')
+      .orderBy('timestamp')
+      .snapshots()
+      .map((snap) => snap.docs.map((d) => d.data()).toList());
 
   Future<List<Map<String, dynamic>>> getOffers(String requestId) async {
     final snap = await _firestore

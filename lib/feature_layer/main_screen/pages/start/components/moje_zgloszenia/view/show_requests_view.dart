@@ -19,6 +19,7 @@ import '../../../../../../../shared/widgets/w_input_field.dart';
 import '../../../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../../../shared/widgets/load_error.dart';
 import '../bloc/show_requests_bloc.dart';
+import '../../../../../../../shared/request_questions.dart';
 
 
 class ShowRequestsComponent extends StatelessWidget {
@@ -423,6 +424,17 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis),
             ],
+            if (requestBriefLabel(timing: widget.req.timing, budget: widget.req.budget,
+                    answers: widget.req.answers).isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                    requestBriefLabel(timing: widget.req.timing, budget: widget.req.budget,
+                        answers: widget.req.answers),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+              ),
             if (widget.req.status == 'closed')
               _ClosedLabel(stage: widget.req.stage)
             else ...[

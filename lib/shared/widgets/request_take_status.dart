@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -6,6 +8,7 @@ import '../../domain_layer/firebase_service.dart';
 import '../../feature_layer/main_screen/bloc/main_bloc.dart';
 import '../functions/show_toast.dart';
 import '../functions/show_toast_error.dart';
+import 'offer_dialog.dart';
 
 /// Sekcja dla FIRMY na widoku zgłoszenia: napisz ofertę / status decyzji.
 class CompanyOfferSection extends StatefulWidget {
@@ -25,7 +28,6 @@ class CompanyOfferSection extends StatefulWidget {
 }
 
 class _CompanyOfferSectionState extends State<CompanyOfferSection> {
-  final _message = TextEditingController();
   Map<String, dynamic>? _myOffer;
   bool _loading = true;
   bool _busy = false;
@@ -43,30 +45,24 @@ class _CompanyOfferSectionState extends State<CompanyOfferSection> {
     });
   }
 
-  @override
-  void dispose() {
-    _message.dispose();
-    super.dispose();
-  }
-
   Future<void> _send() async {
-    final text = _message.text.trim();
-    if (text.isEmpty) {
-      showToastError(text: 'Napisz treść oferty');
-      return;
-    }
+    final draft = await showOfferDialog(context, '');
+    if (draft == null || !mounted) return;
     setState(() => _busy = true);
     try {
       await context.read<FirebaseService>().sendOffer(
             requestId: widget.request.id,
             companyId: widget.myCompanyId,
             companyName: widget.myCompanyName,
-            message: text,
+            message: draft.message,
+            price: draft.price,
+            priceTo: draft.priceTo,
+            when: draft.when,
           );
       if (!mounted) return;
       setState(() => _myOffer = {
             'companyId': widget.myCompanyId,
-            'message': text,
+            'message': draft.message,
             'status': 'pending',
           });
       showToast(text: 'Oferta wysłana');
@@ -106,22 +102,10 @@ class _CompanyOfferSectionState extends State<CompanyOfferSection> {
     }
 
     if (_myOffer == null) {
-      // brak oferty — formularz
+      // brak oferty — dialog z treścią, ceną i terminem
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
-            controller: _message,
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText:
-                  'Twoja oferta — np. cena, termin, jak możesz pomóc…',
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              contentPadding: const EdgeInsets.all(12),
-            ),
-          ),
-          const SizedBox(height: 8),
           ElevatedButton.icon(
             icon: const Icon(Icons.local_offer_outlined, size: 18),
             label: const Text('Wyślij ofertę'),
@@ -208,11 +192,12 @@ class RequestOffersBar extends StatefulWidget {
 class _RequestOffersBarState extends State<RequestOffersBar> {
   List<Map<String, dynamic>> _offers = [];
   bool _busy = false;
+  StreamSubscription<List<Map<String, dynamic>>>? _sub;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _listen();
   }
 
   @override
@@ -220,16 +205,22 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.request.id != widget.request.id) {
       _offers = [];
-      _load();
+      _listen();
     }
   }
 
-  Future<void> _load() async {
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  void _listen() {
+    _sub?.cancel();
     final id = widget.request.id;
-    try {
-      final offers = await context.read<FirebaseService>().getOffers(id);
+    _sub = context.read<FirebaseService>().offersStream(id).listen((offers) {
       if (mounted && id == widget.request.id) setState(() => _offers = offers);
-    } catch (_) {}
+    }, onError: (_) {});
   }
 
   Future<void> _setStatus(Map<String, dynamic> offer, String status) async {
@@ -281,7 +272,6 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
       widget.request.takenBy = '';
       widget.request.takenByName = '';
       showToast(text: 'Odblokowano — zgłoszenie wróciło do puli');
-      await _load();
       widget.onChanged?.call();
     } catch (_) {
       showToastError(text: 'Nie udało się odblokować zgłoszenia');
@@ -346,6 +336,8 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
         .where((o) => o['status'] != 'rejected' && o['status'] != 'closed')
         .toList();
     if (visible.isEmpty) return const SizedBox.shrink();
+    final prices = visible.map((o) => o['price']).whereType<int>().toList();
+    final cheapest = prices.length > 1 ? prices.reduce((a, b) => a < b ? a : b) : null;
 
     return Container(
       margin: const EdgeInsets.only(top: 6),
@@ -400,6 +392,31 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
                                 ),
                               ],
                             ),
+                            if (offerPriceLabel(o) != null || kOfferWhen[o['when']] != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Wrap(
+                                  spacing: 6,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    if (offerPriceLabel(o) != null)
+                                      Text(offerPriceLabel(o)!,
+                                          style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w800)),
+                                    if (cheapest != null && o['price'] == cheapest)
+                                      const Text('najtańsza',
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.green,
+                                              fontWeight: FontWeight.w700)),
+                                    if (kOfferWhen[o['when']] != null)
+                                      Text('· ${kOfferWhen[o['when']]}',
+                                          style: const TextStyle(
+                                              fontSize: 12, color: Colors.grey)),
+                                  ],
+                                ),
+                              ),
                             if ((o['message'] ?? '').toString().isNotEmpty)
                               Text(o['message'],
                                   style: TextStyle(

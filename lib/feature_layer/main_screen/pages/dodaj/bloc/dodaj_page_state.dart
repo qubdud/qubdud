@@ -59,6 +59,9 @@ class RequestMetadata  {
   final String city;
   final String description;
   final bool is24;
+  final String timing;
+  final int? budget;
+  final Map<String, String> answers;
   RequestMetadata({
     required this.category,
     required this.sector,
@@ -66,6 +69,9 @@ class RequestMetadata  {
     required this.city,
     required this.description,
     required this.is24,
+    this.timing = '',
+    this.budget,
+    this.answers = const {},
   });
 }
 
