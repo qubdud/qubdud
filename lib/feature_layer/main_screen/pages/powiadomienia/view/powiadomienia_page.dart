@@ -26,6 +26,7 @@ class _PowiadomieniaPageState extends State<PowiadomieniaPage> {
 
   static ({IconData icon, Color color}) _look(String type) => switch (type) {
         'urgent_request' => (icon: Icons.priority_high, color: Colors.red),
+        'new_request' => (icon: Icons.fiber_new_outlined, color: Colors.blue),
         'offer' => (icon: Icons.local_offer_outlined, color: Colors.blue),
         'offer_decision' => (icon: Icons.how_to_reg_outlined, color: Colors.green),
         'booking' => (icon: Icons.event_available_outlined, color: Colors.indigo),

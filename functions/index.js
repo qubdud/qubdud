@@ -16,6 +16,7 @@ initializeApp();
 const db = getFirestore();
 
 const URGENT_RADIUS_KM = 30;
+const NEW_REQUEST_RADIUS_KM = 30;
 const REQUEST_TTL_DAYS = 10;        // po tylu dniach otwarte zgłoszenie zamyka się samo
 const REVIEW_AFTER_BOOKING_H = 2;   // po zakończonym terminie
 const REVIEW_AFTER_JOB_H = 2;       // po potwierdzonej realizacji
@@ -175,30 +176,40 @@ async function notifyBookingLost(client, companyId, when, status, company) {
   });
 }
 
-// ── 1) pilne zgłoszenie → firmy z tej samej branży w promieniu ──────────────
+// ── 1) nowe zgłoszenie → firmy z tej samej branży w promieniu ────────────────
+// Pilne (is24) z czerwonym tytułem; zablokowani w którąkolwiek stronę nie dostają pusha.
 exports.notifyUrgentRequest = onDocumentCreated('requests/{id}', async (event) => {
   const d = event.data && event.data.data();
-  if (!d || d.is24 !== true || !d.sector || !d.location || typeof d.location.lat !== 'number') return;
+  if (!d || !d.userId || !d.sector || !d.location || typeof d.location.lat !== 'number') return;
+  const urgent = d.is24 === true;
 
-  const firms = await db.collection('users')
-    .where('firma', '==', true)
-    .where('companyCategory', '==', d.category)
-    .where('companySector', '==', d.sector)
-    .get();
+  const [firms, clientBlocked] = await Promise.all([
+    db.collection('users')
+      .where('firma', '==', true)
+      .where('companyCategory', '==', d.category)
+      .where('companySector', '==', d.sector)
+      .get(),
+    db.collection('users').doc(d.userId).collection('blocked').get(),
+  ]);
+  const skip = new Set(clientBlocked.docs.map((b) => b.id));
 
-  const body = `${d.sector}${d.city ? ' · ' + d.city : ''}: ${short(d.description)}`;
-  console.log(`pilne ${event.params.id}: ${d.category}/${d.sector}, firm w branży: ${firms.size}`);
+  const text = `${d.city ? d.city + ': ' : ''}${short(d.description)}`;
+  console.log(`zgłoszenie ${event.params.id}${urgent ? ' (pilne)' : ''}: ${d.category}/${d.sector}, firm w branży: ${firms.size}`);
   const jobs = [];
   for (const f of firms.docs) {
-    if (f.id === d.userId) continue;
+    if (f.id === d.userId || skip.has(f.id)) continue;
     const loc = f.data().companyLocation;
     if (!loc || typeof loc.lat !== 'number') continue;
-    if (kmBetween(d.location, loc) > URGENT_RADIUS_KM) continue;
-    jobs.push(pushTo(f.id, {
-      title: '🔴 Pilne zgłoszenie w pobliżu',
-      body,
-      data: { type: 'urgent_request', requestId: event.params.id, audience: 'company' },
-    }));
+    const km = kmBetween(d.location, loc);
+    if (km > (urgent ? URGENT_RADIUS_KM : NEW_REQUEST_RADIUS_KM)) continue;
+    jobs.push((async () => {
+      if ((await f.ref.collection('blocked').doc(d.userId).get()).exists) return;
+      await pushTo(f.id, {
+        title: `${urgent ? '🔴 Pilne zgłoszenie' : '🆕 Nowe zgłoszenie'}: ${d.sector}`,
+        body: `${Math.max(1, Math.round(km))} km · ${text}`,
+        data: { type: urgent ? 'urgent_request' : 'new_request', requestId: event.params.id, audience: 'company' },
+      });
+    })());
   }
   await Promise.all(jobs);
 });
