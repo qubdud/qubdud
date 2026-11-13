@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:nominatim_flutter/model/request/reverse_request.dart';
 import 'package:nominatim_flutter/model/request/search_request.dart';
 import 'package:nominatim_flutter/nominatim_flutter.dart';
 import 'package:qb/shared/constants.dart';
@@ -59,6 +61,7 @@ class _ViewState extends State<View> {
   String? _descError;
   Timer? debounce;
   bool isSearching = false;
+  bool _locating = false;
   final MapController mapController = MapController();
 
   final Map<String, List<String>> categoryToBranza = categories;
@@ -90,6 +93,84 @@ class _ViewState extends State<View> {
     _sectorCtrl.dispose();
     _budget.dispose();
     super.dispose();
+  }
+
+  void _locationHint(String text, {String? action, VoidCallback? onAction}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(text),
+      action: action == null
+          ? null
+          : SnackBarAction(label: action, onPressed: onAction!),
+    ));
+  }
+
+  Future<void> _useMyLocation() async {
+    setState(() => _locating = true);
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        _locationHint('Lokalizacja w telefonie jest wyłączona',
+            action: 'Włącz', onAction: Geolocator.openLocationSettings);
+        return;
+      }
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.deniedForever) {
+        _locationHint('Brak zgody na lokalizację — włączysz ją w ustawieniach',
+            action: 'Ustawienia', onAction: Geolocator.openAppSettings);
+        return;
+      }
+      if (perm != LocationPermission.whileInUse &&
+          perm != LocationPermission.always) {
+        _locationHint('Bez zgody na lokalizację ustaw miejsce na mapie');
+        return;
+      }
+      Position? pos;
+      try {
+        pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+                accuracy: LocationAccuracy.high,
+                timeLimit: Duration(seconds: 15)));
+      } on TimeoutException {
+        pos = await Geolocator.getLastKnownPosition();
+      }
+      if (pos == null) {
+        _locationHint('Nie udało się ustalić lokalizacji — ustaw ją na mapie');
+        return;
+      }
+      if (!mounted) return;
+      final here = LatLng(pos.latitude, pos.longitude);
+      debounce?.cancel();
+      setState(() {
+        selectedLocation = here;
+        _locationError = null;
+      });
+      mapController.move(here, 14);
+      final city = await _cityAt(here);
+      if (city != null && mounted) businessCity.text = city;
+    } catch (_) {
+      _locationHint('Nie udało się ustalić lokalizacji — ustaw ją na mapie');
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  Future<String?> _cityAt(LatLng p) async {
+    try {
+      final r = await NominatimFlutter.instance.reverse(
+        reverseRequest: ReverseRequest(
+            lat: p.latitude, lon: p.longitude, extraTags: false, nameDetails: false),
+        language: 'pl',
+      );
+      final a = r.address ?? const {};
+      for (final k in ['city', 'town', 'village', 'municipality']) {
+        final v = a[k];
+        if (v is String && v.isNotEmpty) return v;
+      }
+    } catch (_) {}
+    return null;
   }
 
   void _onCityChanged(String value) {
@@ -261,7 +342,18 @@ class _ViewState extends State<View> {
                     onChanged: _onCityChanged,
                 ),
 
-                const SizedBox(height: 44),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _locating ? null : _useMyLocation,
+                  icon: _locating
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.my_location),
+                  label: const Text('Użyj mojej lokalizacji'),
+                ),
+                const SizedBox(height: 28),
                 Text('lub ustaw na mapie'),
                 const SizedBox(height: 24),
 
@@ -299,7 +391,7 @@ class _ViewState extends State<View> {
                                 ],
                               ),
                           ]),
-                      if (isSearching)
+                      if (isSearching || _locating)
                         Positioned.fill(
                           child: Container(
                             color: Colors.black.withOpacity(0.3), // półprzezroczyste tło
