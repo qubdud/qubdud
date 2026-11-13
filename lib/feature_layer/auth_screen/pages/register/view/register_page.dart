@@ -388,7 +388,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       onTap: (_, point) => setState(() => _selectedLocation = point),
                     ),
                     children: [
-                      openStreetMap,
+                      openStreetMap, osmAttribution,
                       if (_selectedLocation != null)
                         MarkerLayer(markers: [
                           Marker(

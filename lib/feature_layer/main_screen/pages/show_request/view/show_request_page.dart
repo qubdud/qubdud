@@ -24,6 +24,7 @@ import '../../../bloc/main_bloc.dart';
 import '../bloc/show_request_page_bloc.dart';
 import '../widgets/realization_section.dart';
 import '../../../../../shared/widgets/load_error.dart';
+import '../../dodaj/view/dodaj_page.dart' show osmAttribution;
 
 class ShowRequestPage extends StatelessWidget {
   const ShowRequestPage({super.key});
@@ -268,7 +269,7 @@ class _ViewState extends State<View> {
                       },
 
                     ),
-                    children: [openStreetMap,
+                    children: [openStreetMap, osmAttribution,
                         MarkerLayer(
                           markers: [
                             Marker(
@@ -535,6 +536,8 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
     _controller.initialize().then((_) {
       if (!mounted) return;
       setState(() {});
+      // podgląd bez dźwięku — inaczej gra równolegle z pełnym ekranem
+      if (!widget.controls) _controller.setVolume(0);
       _controller.play();
       _controller.setLooping(true);
     }).catchError((_) {
@@ -598,5 +601,5 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
 TileLayer get openStreetMap =>
     TileLayer(
       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      userAgentPackageName: 'dev.fleatflet.flutter.map.example',
+      userAgentPackageName: 'com.qb.zkv.pl.qb',
     );

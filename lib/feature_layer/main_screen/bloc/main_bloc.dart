@@ -10,6 +10,7 @@ import '../../../domain_layer/domain_models/app_user.dart';
 import '../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../domain_layer/firebase_service.dart';
 import '../../../shared/client_notes.dart';
+import '../../../shared/moderation.dart';
 import '../../../shared/push_service.dart';
 import '../../../shared/new_counts.dart';
 import '../../../shared/functions/effective_role.dart';
@@ -327,6 +328,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     });
 
     on<GoToShowRequestEvent>((event, emit) async {
+      if (event.request != null) Globals.instance.selectedRequest = event.request;
       _pushNav(event);
       appBarCubit.updateAppBar(
           showBack: true,
@@ -468,6 +470,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
       await setCompanyView(true);
       ClientNotes.clear();
       NewCounts.clear();
+      BlockedUsers.clear();
       emit(LogoutMainScreenState(toRegister: event.toRegister));
     });
 
@@ -521,6 +524,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
         } else {
           ClientNotes.clear();
         }
+        await BlockedUsers.load(appFirebaseService, userFB.id);
         state.user = userFB;
         appChatService.startPresence();
         listenBadges(userFB.id);

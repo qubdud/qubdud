@@ -357,7 +357,7 @@ class _TabDaneState extends State<_TabDane> {
                           setState(() => _selectedLocation = point),
                     ),
                     children: [
-                      openStreetMap,
+                      openStreetMap, osmAttribution,
                       if (_selectedLocation != null)
                         MarkerLayer(markers: [
                           Marker(

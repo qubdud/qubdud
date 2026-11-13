@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
 import '../domain_layer/chat_service.dart';
@@ -37,6 +38,9 @@ class App extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           builder: FToastBuilder(),
           navigatorKey: NavigationService.navigatorKey,
+          locale: const Locale('pl'),
+          supportedLocales: const [Locale('pl')],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
           themeMode: mode,
           theme: _lightTheme(),
           darkTheme: _darkTheme(),

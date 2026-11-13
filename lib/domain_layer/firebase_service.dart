@@ -12,6 +12,7 @@ import 'domain_models/app_user.dart';
 import 'domain_models/company_info.dart';
 import 'domain_models/promoVideo.dart';
 import 'domain_models/relation_link.dart';
+import '../shared/moderation.dart';
 
 /// Nieudana operacja na terminie — [message] nadaje się do pokazania.
 class SlotException implements Exception {
@@ -91,7 +92,10 @@ class FirebaseService {
           'acceptedAt': FieldValue.serverTimestamp(),
         },
         'createdAt': FieldValue.serverTimestamp(),
-      });
+      }).timeout(const Duration(seconds: 15));
+    } on TimeoutException {
+      // brak sieci po utworzeniu konta: zapis czeka w lokalnej kolejce i wyśle się po powrocie połączenia
+      return null;
     } catch (_) {
       // konto Auth bez profilu kończy się wiecznym spinnerem — wycofujemy je
       try {
@@ -107,7 +111,8 @@ class FirebaseService {
   /// Usuwa konto razem z danymi i plikami (Cloud Function z Admin SDK).
   Future<void> deleteAccount() async {
     await FirebaseFunctions.instanceFor(region: 'europe-central2')
-        .httpsCallable('deleteAccount')
+        .httpsCallable('deleteAccount',
+            options: HttpsCallableOptions(timeout: const Duration(minutes: 5)))
         .call<void>();
   }
 
@@ -177,6 +182,12 @@ class FirebaseService {
     required String mediaType,
     void Function(double progress)? onProgress,
   }) async {
+    // te same limity co storage.rules — bez wysyłania setek MB tylko po to, by dostać odmowę
+    final maxMb = mediaType == 'video' ? 200 : 25;
+    if (await file.length() > maxMb * 1024 * 1024) {
+      throw FirebaseException(
+          plugin: 'firebase_storage', code: 'unauthorized', message: 'Plik > $maxMb MB');
+    }
     final thumbRef = await _putOwnFile('thumbs', thumb, 'image');
     final fileRef = await _putOwnFile('files', file, mediaType,
         onProgress: onProgress);
@@ -358,7 +369,8 @@ class FirebaseService {
         .limit(50) // pobieramy np. 50 najnowszych, żeby nie ściągać wszystkiego
         .get();
 
-    final promos = querySnapshot.docs.map((doc) => Promo.fromDoc(doc)).toList();
+    final promos = querySnapshot.docs.map((doc) => Promo.fromDoc(doc)).toList()
+      ..removeWhere((p) => BlockedUsers.contains(p.userId));
 
     promos.shuffle(Random());
 
@@ -406,7 +418,8 @@ class FirebaseService {
 
     final candidates = snap.docs
         .map((doc) => Request.fromDoc(doc))
-        .where((r) => !skippedIds.contains(r.id) && r.isActiveFor(userId))
+        .where((r) => !skippedIds.contains(r.id) && r.isActiveFor(userId)
+            && !BlockedUsers.contains(r.userId))
         .toList();
 
     for (final r in candidates) {
@@ -459,7 +472,8 @@ class FirebaseService {
         .get();
 
     // 🔸 Konwersja dokumentów na obiekty Promo
-    final promos = querySnapshot.docs.map((doc) => Promo.fromDoc(doc)).toList();
+    final promos = querySnapshot.docs.map((doc) => Promo.fromDoc(doc)).toList()
+      ..removeWhere((p) => BlockedUsers.contains(p.userId));
 
     // 🔸 Obliczenie odległości i zapisanie w polu distance
     for (var promo in promos) {
@@ -742,6 +756,19 @@ class FirebaseService {
         .delete();
   }
 
+  /// Usunięcie z kosza: zgłoszenie dalej ukryte w feedzie, ale znika z listy kosza.
+  Future<void> purgeFromTrash({
+    required String userId,
+    required String requestId,
+  }) async {
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('skippedRequests')
+        .doc(requestId)
+        .set({'skippedAt': FieldValue.serverTimestamp(), 'trashed': false});
+  }
+
   Future<List<Request>> getTrashedRequests({required String userId}) async {
     final skippedSnap = await _firestore
         .collection('users')
@@ -823,7 +850,8 @@ class FirebaseService {
       final start = (data['start'] as Timestamp?)?.toDate();
       if (start == null) continue;
       if (start.isBefore(now) || start.isAfter(weekAhead)) continue;
-      final expired = _pendingExpired(data);
+      // 'rejected' z wersji ≤1.3.2 to w praktyce wolny termin
+      final expired = _pendingExpired(data) || data['status'] == 'rejected';
       slots.add({
         'id': d.id,
         'start': start,
@@ -1189,6 +1217,43 @@ class FirebaseService {
         .get();
     return doc.data();
   }
+
+  // ── MODERACJA: zgłoszenia nadużyć i blokowanie użytkowników ──────────────
+  // reports/{auto}: {reporterId, targetType, targetId, targetUserId, reason, details, createdAt, status}
+  // users/{uid}/blocked/{otherUid}: {createdAt}
+
+  Future<void> reportContent({
+    required String targetType,
+    required String targetId,
+    required String targetUserId,
+    required String reason,
+    String details = '',
+  }) async {
+    await _firestore.collection('reports').add({
+      'reporterId': _auth.currentUser!.uid,
+      'targetType': targetType,
+      'targetId': targetId,
+      'targetUserId': targetUserId,
+      'reason': reason,
+      'details': details,
+      'createdAt': FieldValue.serverTimestamp(),
+      'status': 'new',
+    });
+  }
+
+  CollectionReference<Map<String, dynamic>> _blocked(String uid) =>
+      _firestore.collection('users').doc(uid).collection('blocked');
+
+  Future<Set<String>> getBlockedUsers(String uid) async {
+    final snap = await _blocked(uid).get();
+    return snap.docs.map((d) => d.id).toSet();
+  }
+
+  Future<void> blockUser(String uid, String otherUid) =>
+      _blocked(uid).doc(otherUid).set({'createdAt': FieldValue.serverTimestamp()});
+
+  Future<void> unblockUser(String uid, String otherUid) =>
+      _blocked(uid).doc(otherUid).delete();
 
   // ── PRYWATNE NOTATKI FIRMY O KLIENCIE ────────────────────────────────────
   // users/{companyId}/clientNotes/{userId}: {note, updatedAt}

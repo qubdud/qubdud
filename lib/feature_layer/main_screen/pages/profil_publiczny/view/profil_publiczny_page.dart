@@ -20,6 +20,7 @@ import '../../profil_my/view/tab_kalendarz.dart' show dayLabel;
 import '../../../../../domain_layer/domain_models/company_info.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../domain_layer/firebase_service.dart';
+import '../../../../../shared/moderation.dart';
 import '../../../../../shared/widgets/loading.dart';
 import '../../../../../shared/widgets/review.dart';
 import '../../../../../shared/widgets/w_small_label.dart';
@@ -282,6 +283,28 @@ class _ProfilViewState extends State<_ProfilView> {
                       'Sprawdź firmę ${user.companyName ?? ''} w aplikacji QUBDUD:\nqubdud://firma/${user.id}');
                 },
               ),
+              if (!own && user != null)
+                ValueListenableBuilder<Set<String>>(
+                  valueListenable: BlockedUsers.ids,
+                  builder: (context, blocked, _) => PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, size: 22),
+                    onSelected: (v) {
+                      if (v == 'report') {
+                        showReportDialog(context,
+                            targetType: 'profile', targetId: user.id, targetUserId: user.id);
+                      } else {
+                        toggleBlockUser(context,
+                            otherUid: user.id, name: user.companyName ?? 'Firma');
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(value: 'report', child: Text('Zgłoś profil')),
+                      PopupMenuItem(
+                          value: 'block',
+                          child: Text(blocked.contains(user.id) ? 'Odblokuj' : 'Zablokuj')),
+                    ],
+                  ),
+                ),
             ],
           ),
           if (description.isNotEmpty) ...[
@@ -442,7 +465,14 @@ class _RealizationsSectionState extends State<_RealizationsSection> {
     );
     if (ok != true || !mounted) return;
     try {
-      await context.read<FirebaseService>().deleteRealization(photo['id'] as String);
+      final firebase = context.read<FirebaseService>();
+      final requestId = (photo['requestId'] as String?) ?? '';
+      // czekające zdjęcia firmy: wycofanie zdejmuje też realizationStatus ze zgłoszenia
+      if (photo['addedByRole'] != 'user' && photo['status'] == 'pending' && requestId.isNotEmpty) {
+        await firebase.withdrawRealization(photo['id'] as String, requestId);
+      } else {
+        await firebase.deleteRealization(photo['id'] as String);
+      }
       await _load();
     } catch (_) {}
   }

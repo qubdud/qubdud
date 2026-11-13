@@ -163,8 +163,8 @@ class MyProfilPageBloc extends Bloc<MyProfilPageEvent, MyProfilPageState> {
 
     on<TryDeleteFromTrashEvent>((event, emit) async {
       try {
-        // Trwale usuwa TYLKO z listy skipped usera (nie usuwa samego zgłoszenia)
-        await firebase.restoreRequest(userId: FirebaseAuth.instance.currentUser!.uid, requestId: event.requestId);
+        // znika z kosza, ale zostaje ukryte w feedzie (samo zgłoszenie nie jest usuwane)
+        await firebase.purgeFromTrash(userId: FirebaseAuth.instance.currentUser!.uid, requestId: event.requestId);
         state.trashedRequests = state.trashedRequests.where((r) => r.id != event.requestId).toList();
         showToast(text: 'Usunięto z kosza');
         emit(MyProfilPageMainState());

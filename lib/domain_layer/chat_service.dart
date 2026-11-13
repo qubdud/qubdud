@@ -6,6 +6,7 @@ import 'package:firebase_database/firebase_database.dart' hide Query;
 import 'package:flutter/widgets.dart';
 
 import '../shared/globals.dart';
+import '../shared/moderation.dart';
 
 /// Czat 1:1 na Firestore (kolekcja `chats`), status online na Realtime Database.
 ///
@@ -212,7 +213,7 @@ class ChatService {
       for (final d in snap.docs) {
         final data = d.data();
         final otherUid = _listedOther(data, me, hidden);
-        if (otherUid == null) continue;
+        if (otherUid == null || BlockedUsers.contains(otherUid)) continue;
         final names = Map<String, dynamic>.from(data['names'] ?? {});
         final isCompany = Map<String, dynamic>.from(data['isCompany'] ?? {});
         final unread = Map<String, dynamic>.from(data['unread'] ?? {});

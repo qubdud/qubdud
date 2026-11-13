@@ -87,11 +87,24 @@ class _LoginPageState extends State<LoginPage> {
     if (!_validate()) return;
     setState(() => _isLoading = true);
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _email.text.trim(),
-        // hasło bez trim() — spacje są jego częścią (np. ustawione linkiem resetu)
-        password: _password.text,
-      );
+      try {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _email.text.trim(),
+          // hasło bez trim() — spacje są jego częścią (np. ustawione linkiem resetu)
+          password: _password.text,
+        );
+      } on FirebaseAuthException catch (e) {
+        // konta z 1.3.x zakładane z przyciętym hasłem
+        final trimmed = _password.text.trim();
+        if (trimmed == _password.text || trimmed.isEmpty ||
+            !const ['wrong-password', 'invalid-credential'].contains(e.code)) {
+          rethrow;
+        }
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _email.text.trim(),
+          password: trimmed,
+        );
+      }
       await _saveEmailIfNeeded(_email.text.trim());
       Globals.instance.anonim = false;
       if (!mounted) return;

@@ -66,7 +66,7 @@ class _ViewState extends State<View> {
                         onTap: () async {
                           final picker = ImagePicker();
                           final pickedFile = await picker.pickVideo(
-                            source: ImageSource.camera,
+                            source: ImageSource.camera, maxDuration: const Duration(seconds: 90),
                           );
                           if (pickedFile == null) return;
                           final file = File(pickedFile.path);
@@ -190,7 +190,7 @@ class _ViewState extends State<View> {
                       onTap: () async {
                         final picker = ImagePicker();
                         final pickedFile = await picker.pickVideo(
-                          source: ImageSource.camera,
+                          source: ImageSource.camera, maxDuration: const Duration(seconds: 90),
                         );
                         if (pickedFile == null) return;
 

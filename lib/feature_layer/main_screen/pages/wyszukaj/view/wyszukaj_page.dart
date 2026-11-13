@@ -95,6 +95,13 @@ class _ViewState extends State<View> {
   bool _showMap = false;
   final MapController mapController = MapController();
 
+  @override
+  void dispose() {
+    debounce?.cancel();
+    mapController.dispose();
+    super.dispose();
+  }
+
 
   final Map<String, List<String>> categoryToBranza = categories;
 
@@ -238,6 +245,7 @@ class _ViewState extends State<View> {
                     }
 
                     debounce = Timer(const Duration(milliseconds: 1100), () async {
+                      if (!mounted) return;
                       if (value.trim().isEmpty) {
                         setState(() {
                           isSearching = false;
@@ -260,6 +268,7 @@ class _ViewState extends State<View> {
                           searchRequest: searchRequest,
                           language: 'pl',
                         );
+                        if (!mounted) return;
 
                         if (results.isNotEmpty) {
                           final result = results.first;
@@ -315,7 +324,7 @@ class _ViewState extends State<View> {
                           },
 
                         ),
-                        children: [openStreetMap,
+                        children: [openStreetMap, osmAttribution,
                           if (selectedLocation != null)
                             MarkerLayer(
                               markers: [
@@ -422,7 +431,7 @@ class _ViewState extends State<View> {
       key: const ValueKey('ResultsMap'),
       options: MapOptions(initialCenter: center, initialZoom: 9),
       children: [
-        openStreetMap,
+        openStreetMap, osmAttribution,
         MarkerLayer(
           markers: videos.asMap().entries.map((e) {
             return Marker(

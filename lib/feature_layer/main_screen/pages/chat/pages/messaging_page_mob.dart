@@ -10,6 +10,7 @@ import '../../../../../domain_layer/chat_service.dart';
 import '../bloc/chat_page_bloc.dart';
 import '../widgets/bubbles.dart';
 import '../../../../../shared/widgets/load_error.dart';
+import '../../../../../shared/moderation.dart';
 
 class MessagingPageMob extends StatefulWidget {
   final String otherUid;
@@ -78,7 +79,9 @@ class _MessagingPageMobState extends State<MessagingPageMob> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ChatPageBloc, ChatPageState>(
+    return ValueListenableBuilder<Set<String>>(
+      valueListenable: BlockedUsers.ids,
+      builder: (context, _, __) => BlocBuilder<ChatPageBloc, ChatPageState>(
       buildWhen: (_, current) => current is MessagingPageMainState,
       builder: (context, state) {
         if (state is! MessagingPageMainState) {
@@ -96,6 +99,28 @@ class _MessagingPageMobState extends State<MessagingPageMob> {
               40,
           child: Column(
             children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_horiz),
+                  onSelected: (v) => v == 'report'
+                      ? showReportDialog(context,
+                          targetType: 'chat',
+                          targetId: _chat.chatIdWith(widget.otherUid),
+                          targetUserId: widget.otherUid)
+                      : toggleBlockUser(context,
+                          otherUid: widget.otherUid,
+                          name: otherName.isEmpty ? 'Użytkownik' : otherName),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(value: 'report', child: Text('Zgłoś rozmowę')),
+                    PopupMenuItem(
+                        value: 'block',
+                        child: Text(BlockedUsers.contains(widget.otherUid)
+                            ? 'Odblokuj'
+                            : 'Zablokuj')),
+                  ],
+                ),
+              ),
               Expanded(child: _messages(state, otherName, avatarLetter)),
               StreamBuilder<bool>(
                 stream: _typing,
@@ -114,7 +139,14 @@ class _MessagingPageMobState extends State<MessagingPageMob> {
                   );
                 },
               ),
-              if (state.canWrite)
+              if (BlockedUsers.contains(widget.otherUid))
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text('Ten użytkownik jest zablokowany — odblokuj go w menu ⋯, aby pisać.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey.shade600)),
+                )
+              else if (state.canWrite)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: Row(
@@ -143,6 +175,7 @@ class _MessagingPageMobState extends State<MessagingPageMob> {
           ),
         );
       },
+    ),
     );
   }
 

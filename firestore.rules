@@ -97,7 +97,7 @@ service cloud.firestore {
           let d = request.resource.data;
           return signedIn()
               && onlyKeys(['status', 'bookedBy', 'bookedByName', 'bookedAt'])
-              && (resource.data.get('status', 'free') == 'free'
+              && (resource.data.get('status', 'free') in ['free', 'rejected']
                   || (resource.data.status == 'pending'
                       && resource.data.bookedAt < request.time - duration.value(60, 'm')))
               && resource.data.start > request.time
@@ -180,6 +180,13 @@ service cloud.firestore {
       // prywatne dane właściciela konta
       match /clientNotes/{noteId} {
         allow read, write: if isMe(userId);
+      }
+      // zablokowani użytkownicy (wymóg Google Play dla treści użytkowników)
+      match /blocked/{otherId} {
+        allow read, delete: if isMe(userId);
+        allow create: if isMe(userId) && otherId != userId
+            && request.resource.data.keys().hasOnly(['createdAt'])
+            && request.resource.data.createdAt == request.time;
       }
       match /favoritePromos/{promoId} {
         allow read, write: if isMe(userId);
@@ -396,7 +403,7 @@ service cloud.firestore {
 
       match /messages/{messageId} {
         allow read: if inChat(chatId);
-        allow create: if inChat(chatId)
+        allow create: if inChat(chatId) && !blockedByOther(chatId)
             && request.resource.data.keys().hasOnly(['from', 'content', 'timestamp', 'read'])
             && request.resource.data.from == request.auth.uid
             && request.resource.data.content is string
@@ -411,6 +418,27 @@ service cloud.firestore {
     }
     function inChat(chatId) {
       return signedIn() && request.auth.uid in chatId.split('_');
+    }
+    function blockedByOther(chatId) {
+      let ids = chatId.split('_');
+      let other = ids[0] == request.auth.uid ? ids[1] : ids[0];
+      return exists(/databases/$(database)/documents/users/$(other)/blocked/$(request.auth.uid));
+    }
+
+    // ── zgłoszenia nadużyć: zapis tylko przez zgłaszającego, przegląd w konsoli ──
+    match /reports/{reportId} {
+      allow create: if signedIn()
+          && request.resource.data.keys().hasOnly(['reporterId', 'targetType', 'targetId',
+                  'targetUserId', 'reason', 'details', 'createdAt', 'status'])
+          && request.resource.data.reporterId == request.auth.uid
+          && request.resource.data.targetType in ['promo', 'profile', 'review', 'chat', 'request']
+          && request.resource.data.targetId is string && request.resource.data.targetId.size() > 0
+          && request.resource.data.targetUserId is string
+          && request.resource.data.reason is string && request.resource.data.reason.size() <= 100
+          && request.resource.data.details is string && request.resource.data.details.size() <= 1000
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.status == 'new';
+      allow read, update, delete: if false;
     }
 
     // ── realizacje (zdjęcia Przed/Po) ──

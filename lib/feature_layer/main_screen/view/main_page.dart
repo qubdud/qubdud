@@ -276,7 +276,7 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
       builder: (ctx) => AlertDialog(
         title: const Text('Usunąć konto?'),
         content: const Text(
-            'Profil, zgłoszenia, rozmowy, rezerwacje i pliki zostaną trwale usunięte. Tego nie da się cofnąć.'),
+            'Profil, zgłoszenia, rezerwacje, opinie i pliki zostaną trwale usunięte. Wysłane wiadomości zostaną u rozmówców, podpisane jako „Konto usunięte”. Tego nie da się cofnąć.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),

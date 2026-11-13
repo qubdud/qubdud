@@ -218,5 +218,5 @@ class _ViewState extends State<View> {
 
 TileLayer get openStreetMap => TileLayer(
   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-  userAgentPackageName: 'dev.fleatflet.flutter.map.example',
+  userAgentPackageName: 'com.qb.zkv.pl.qb',
 );

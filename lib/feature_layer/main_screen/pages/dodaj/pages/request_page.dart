@@ -237,7 +237,7 @@ class _ViewState extends State<View> {
                             },
 
                           ),
-                          children: [openStreetMap,
+                          children: [openStreetMap, osmAttribution,
                             if (selectedLocation != null)
                               MarkerLayer(
                                 markers: [
@@ -288,7 +288,7 @@ class _ViewState extends State<View> {
                     ),
                     SizedBox(width: 16),
                     Flexible(
-                      child: Text('Wyślij jako zgloszenie 24'
+                      child: Text('Wyślij jako zgłoszenie 24'
                       ),
                     ),
                   ],

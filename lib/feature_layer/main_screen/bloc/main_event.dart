@@ -51,7 +51,10 @@ class GoToPromoFirmyEvent extends MainScreenEvent {
   GoToPromoFirmyEvent(this.promo, {this.playlist, this.initialIndex = 0});
 }
 
-class GoToShowRequestEvent extends MainScreenEvent {}
+class GoToShowRequestEvent extends MainScreenEvent {
+  /// zgłoszenie z chwili otwarcia — „wstecz” odtwarza ten sam ekran, nie ostatnio wybrane
+  final Request? request = Globals.instance.selectedRequest;
+}
 
 class GoToDodajReviewEvent extends MainScreenEvent {}
 

@@ -1,5 +1,6 @@
 
 import 'package:flutter_map/flutter_map.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:qb/shared/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -137,6 +138,11 @@ class _ViewState extends State<View> {
 
 TileLayer get openStreetMap => TileLayer(
   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-  userAgentPackageName: 'dev.fleatflet.flutter.map.example',
+  userAgentPackageName: 'com.qb.zkv.pl.qb',
+);
+
+Widget get osmAttribution => SimpleAttributionWidget(
+  source: const Text('OpenStreetMap'),
+  onTap: () => launchUrl(Uri.parse('https://www.openstreetmap.org/copyright')),
 );
 

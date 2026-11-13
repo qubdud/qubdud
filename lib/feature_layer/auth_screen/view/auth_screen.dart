@@ -38,7 +38,13 @@ class View extends StatelessWidget {
         // Obsługa zdarzeń, jeśli potrzeba (np. powiadomienia, komunikaty itp.)
       },
       builder: (context, state) {
-        return BackgroundImage(
+        return PopScope(
+          canPop: state is AuthLoginPageState,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop || state is AuthRegistrationCompletePageState) return;
+            context.read<AuthBloc>().add(AuthGoToLoginPageEvent());
+          },
+          child: BackgroundImage(
           //imageAsset: isWideScreen ? 'assets/images/bg_mapa.png' : 'assets/images/bg_logowanie_mob.png',
           child: Scaffold(
             backgroundColor: Colors.transparent,
@@ -63,6 +69,7 @@ class View extends StatelessWidget {
                     child: _buildWidgetBasedOnState(state),
                   ),
                 )),
+          ),
           ),
         );
       },

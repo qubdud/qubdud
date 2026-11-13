@@ -11,6 +11,7 @@ import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../shared/functions/show_toast.dart';
 import '../../../../../shared/functions/show_toast_error.dart';
 import '../../../../../shared/globals.dart';
+import '../../../../../shared/moderation.dart';
 import '../../../../../shared/widgets/mini_slots_bar.dart';
 import '../../../../shared/widgets/load_error.dart';
 
@@ -269,6 +270,15 @@ class _VideoItemState extends State<_VideoItem> {
                   Share.share(
                       'Zobacz prezentację firmy $name w aplikacji QUBDUD:\nqubdud://promo/${widget.promo.id}');
                 },
+              ),
+              const SizedBox(height: 16),
+              _ActionIcon(
+                icon: Icons.flag_outlined,
+                tooltip: 'Zgłoś',
+                onTap: () => showReportDialog(context,
+                    targetType: 'promo',
+                    targetId: widget.promo.id,
+                    targetUserId: widget.promo.userId),
               ),
               const SizedBox(height: 16),
               // licznik wyświetleń

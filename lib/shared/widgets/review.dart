@@ -5,6 +5,7 @@ import '../../domain_layer/domain_models/promoVideo.dart';
 import '../../domain_layer/firebase_service.dart';
 import '../../feature_layer/main_screen/bloc/main_bloc.dart';
 import '../functions/show_toast_error.dart';
+import '../moderation.dart';
 
 /// Widget recenzji z sekcją komentarzy.
 /// Zasada: każdy user/firma może dodać dokładnie 1 komentarz.
@@ -114,6 +115,7 @@ class _ReviewWithCommentsState extends State<ReviewWithComments> {
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (BlockedUsers.contains(widget.review.userId)) return const SizedBox.shrink();
 
     return GestureDetector(
       onTap:(){context.read<MainScreenBloc>().add(GoToProfilPublicznyFirmyEvent(widget.review.reviewedUserId));},
@@ -174,6 +176,17 @@ class _ReviewWithCommentsState extends State<ReviewWithComments> {
                 Text(
                   '${widget.review.timestamp!.day}.${widget.review.timestamp!.month}.${widget.review.timestamp!.year}',
                   style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              if (uid.isNotEmpty && uid != widget.review.userId)
+                InkWell(
+                  onTap: () => showReportDialog(context,
+                      targetType: 'review',
+                      targetId: widget.review.id,
+                      targetUserId: widget.review.userId),
+                  child: const Padding(
+                    padding: EdgeInsets.only(left: 8),
+                    child: Icon(Icons.flag_outlined, size: 16, color: Colors.grey),
+                  ),
                 ),
             ],
           ),
