@@ -28,6 +28,7 @@ class RealizationSection extends StatefulWidget {
 class _RealizationSectionState extends State<RealizationSection> {
   List<Map<String, dynamic>> _photos = [];
   bool _busy = false;
+  late String _jobStatus = widget.request.realizationStatus;
 
   @override
   void initState() {
@@ -40,6 +41,7 @@ class _RealizationSectionState extends State<RealizationSection> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.request.id != widget.request.id) {
       _photos = [];
+      _jobStatus = widget.request.realizationStatus;
       _load();
     }
   }
@@ -83,16 +85,52 @@ class _RealizationSectionState extends State<RealizationSection> {
       await context
           .read<FirebaseService>()
           .setRealizationStatus(widget.request.id, status);
+      final withPhotos = _photos.any((r) => r['addedByRole'] != 'user');
       showToast(
           text: status == 'approved'
-              ? 'Potwierdzono — zlecenie zamknięte, zdjęcia trafią na profil firmy'
-              : 'Odrzucono — firma może dodać inne zdjęcia');
+              ? (withPhotos
+                  ? 'Potwierdzono — zlecenie zamknięte, zdjęcia trafią na profil firmy'
+                  : 'Potwierdzono — zlecenie zamknięte')
+              : (withPhotos
+                  ? 'Odrzucono — firma może dodać inne zdjęcia'
+                  : 'Firma dostanie informację, że zlecenie nie jest skończone'));
+      if (mounted) setState(() => _jobStatus = status);
       await _load();
     } on StateError catch (e) {
       showToastError(text: e.message);
       await _load();
     } catch (_) {
       showToastError(text: 'Nie udało się zapisać decyzji');
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _markDone(bool done) async {
+    if (done) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Zlecenie wykonane?'),
+          content: const Text(
+              'Klient dostanie prośbę o potwierdzenie. Po potwierdzeniu zlecenie się zamknie i klient będzie mógł wystawić opinię.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Anuluj')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Wykonane')),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
+    setState(() => _busy = true);
+    try {
+      await context.read<FirebaseService>().markJobDone(widget.request.id, done: done);
+      if (mounted) setState(() => _jobStatus = done ? 'pending' : '');
+    } catch (_) {
+      showToastError(text: 'Nie udało się zapisać');
     }
     if (mounted) setState(() => _busy = false);
   }
@@ -171,7 +209,11 @@ class _RealizationSectionState extends State<RealizationSection> {
       return const SizedBox.shrink();
     }
 
-    final canAdd = isRealizingCompany && (existing == null || status == 'rejected');
+    // zlecenie zakończone bez zdjęć, czeka na klienta
+    final noPhotoPending = existing == null && _jobStatus == 'pending';
+    final canAdd = isRealizingCompany &&
+        !noPhotoPending &&
+        (existing == null || status == 'rejected');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -179,10 +221,16 @@ class _RealizationSectionState extends State<RealizationSection> {
         const SizedBox(height: 8),
         WSmallLabel(text: 'Zdjęcia realizacji'),
         const SizedBox(height: 8),
-        if (existing == null)
+        if (existing == null && _jobStatus == 'approved')
+          Center(child: _statusChip('approved'))
+        else if (noPhotoPending)
+          Center(child: _statusChip('pending'))
+        else if (existing == null)
           Text(
             isRealizingCompany
-                ? 'Pochwal się wykonaną pracą — dodaj zdjęcie lub parę Przed/Po. Po potwierdzeniu przez klienta trafi do galerii „Realizacje" na Twoim profilu.'
+                ? (_jobStatus == 'rejected'
+                    ? 'Klient nie potwierdził wykonania — ustalcie szczegóły na czacie.'
+                    : 'Pochwal się wykonaną pracą — dodaj zdjęcie lub parę Przed/Po. Po potwierdzeniu przez klienta trafi do galerii „Realizacje" na Twoim profilu.')
                 : 'Firma nie dodała jeszcze zdjęć realizacji.',
             style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
             textAlign: TextAlign.center,
@@ -210,14 +258,58 @@ class _RealizationSectionState extends State<RealizationSection> {
               label: const Text('Dodaj parę Przed / Po'),
               onPressed: () => _addPhoto(withBefore: true),
             ),
-          ] else if (status == 'pending')
+            if (existing == null && _jobStatus != 'approved') ...[
+              const SizedBox(height: 8),
+              TextButton.icon(
+                icon: const Icon(Icons.task_alt, size: 18),
+                label: const Text('Zlecenie wykonane (bez zdjęć)'),
+                onPressed: () => _markDone(true),
+              ),
+            ],
+          ] else if (noPhotoPending)
+            TextButton.icon(
+              icon: const Icon(Icons.undo, size: 18),
+              label: const Text('Cofnij — jeszcze nie skończone'),
+              onPressed: () => _markDone(false),
+            )
+          else if (status == 'pending')
             TextButton.icon(
               icon: Icon(Icons.delete_outline, size: 18, color: Colors.red.shade400),
               label: Text('Usuń zdjęcia', style: TextStyle(color: Colors.red.shade400)),
               onPressed: () => _withdraw(existing!['id'] as String),
             ),
         ] else if (isOwner) ...[
-          if (existing == null)
+          if (noPhotoPending) ...[
+            Text(
+              'Firma oznaczyła zlecenie jako wykonane. Potwierdź, jeśli praca jest zrobiona — zlecenie się zamknie.',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    icon: const Icon(Icons.check, size: 18),
+                    label: const Text('Potwierdzam'),
+                    style: FilledButton.styleFrom(backgroundColor: Colors.green.shade600),
+                    onPressed: () => _decide('approved'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.close, size: 18),
+                    label: const Text('Jeszcze nie'),
+                    style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red.shade700,
+                        side: BorderSide(color: Colors.red.shade300)),
+                    onPressed: () => _decide('rejected'),
+                  ),
+                ),
+              ],
+            ),
+          ] else if (existing == null && _jobStatus != 'approved')
             OutlinedButton.icon(
               icon: const Icon(Icons.photo_camera_back_outlined, size: 18),
               label: const Text('Poproś o zdjęcia realizacji'),

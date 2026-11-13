@@ -1820,6 +1820,11 @@ class FirebaseService {
     await batch.commit();
   }
 
+  /// Firma kończy zlecenie bez zdjęć — klient potwierdza wykonanie.
+  Future<void> markJobDone(String requestId, {bool done = true}) =>
+      _firestore.collection('requests').doc(requestId).update(
+          {'realizationStatus': done ? 'pending' : FieldValue.delete()});
+
   /// Firma wycofuje swoje zdjęcia realizacji — zgłoszenie wraca do realizacji.
   Future<void> withdrawRealization(String id, String requestId) async {
     final batch = _firestore.batch();
@@ -1936,8 +1941,12 @@ class FirebaseService {
         .get();
     final companyPhotos =
         pending.docs.where((d) => d.data()['addedByRole'] != 'user');
-    if (companyPhotos.isEmpty) {
-      throw StateError('Firma wycofała te zdjęcia');
+    // bez zdjęć: firma oznaczyła zlecenie jako wykonane (markJobDone)
+    if (companyPhotos.isEmpty &&
+        (await _firestore.collection('requests').doc(requestId).get())
+                .data()?['realizationStatus'] !=
+            'pending') {
+      throw StateError('Firma cofnęła prośbę o potwierdzenie');
     }
     final batch = _firestore.batch();
     for (final d in companyPhotos) {

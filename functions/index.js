@@ -360,14 +360,15 @@ exports.remindVisits = onSchedule({ schedule: 'every 15 minutes', timeZone: 'Eur
   const slots = await db.collectionGroup('slots')
     .where('status', '==', 'accepted')
     .where('start', '>', Timestamp.fromMillis(now))
-    .where('start', '<=', Timestamp.fromMillis(now + 24 * 3600e3))
+    .where('start', '<=', Timestamp.fromMillis(now + 24 * 3600e3 + 8 * 60e3))
     .get();
   let sent = 0;
   for (const s of slots.docs) {
     const d = s.data();
     if (!d.bookedBy || !d.start || !d.start.toMillis) continue;
     const startMs = d.start.toMillis();
-    const r = VISIT_REMINDERS.find((x) => startMs - now <= x.beforeMs);
+    // harmonogram co 15 min: przypomnienie z przebiegu najbliższego pełnej godzinie / dobie
+    const r = VISIT_REMINDERS.find((x) => startMs - now <= x.beforeMs + 8 * 60e3);
     if (!r) continue;
     const bookedMs = d.bookedAt && d.bookedAt.toMillis ? d.bookedAt.toMillis() : 0;
     if (bookedMs > startMs - r.beforeMs) continue;
@@ -442,6 +443,20 @@ exports.notifyRealizationAdded = onDocumentCreated('realizations/{id}', async (e
   });
 });
 
+// dopiero potwierdzona realizacja pozwala klientowi wystawić recenzję
+async function scheduleJobReview(requestId, userId, companyId) {
+  const reminder = db.collection('reviewReminders').doc(`req_${requestId}`);
+  if ((await reminder.get()).exists) return;
+  await reminder.set({
+    userId,
+    companyId,
+    companyName: await userName(companyId),
+    dueAt: Timestamp.fromMillis(Date.now() + REVIEW_AFTER_JOB_H * 3600e3),
+    source: 'request',
+    sent: false,
+  });
+}
+
 exports.notifyRealizationDecision = onDocumentUpdated('realizations/{id}', async (event) => {
   const before = event.data.before.data() || {};
   const after = event.data.after.data() || {};
@@ -453,23 +468,49 @@ exports.notifyRealizationDecision = onDocumentUpdated('realizations/{id}', async
       body: `${client} potwierdził wykonanie — zdjęcia są już na Twoim profilu.`,
       data: { type: 'realization_decision', requestId: after.requestId || '', status: 'approved', audience: 'company' },
     });
-    // dopiero potwierdzona realizacja pozwala klientowi wystawić recenzję
-    const reminder = db.collection('reviewReminders').doc(`req_${after.requestId}`);
-    if (after.requestId && !(await reminder.get()).exists) {
-      await reminder.set({
-        userId: after.userId,
-        companyId: after.companyId,
-        companyName: await userName(after.companyId),
-        dueAt: Timestamp.fromMillis(Date.now() + REVIEW_AFTER_JOB_H * 3600e3),
-        source: 'request',
-        sent: false,
-      });
-    }
+    if (after.requestId) await scheduleJobReview(after.requestId, after.userId, after.companyId);
   } else if (after.status === 'rejected') {
     await pushTo(after.companyId, {
       title: 'Zdjęcia realizacji odrzucone',
       body: `${client} nie potwierdził zdjęć. Zlecenie jest nadal aktywne — dodaj właściwe zdjęcia.`,
       data: { type: 'realization_decision', requestId: after.requestId || '', status: 'rejected', audience: 'company' },
+    });
+  }
+});
+
+// ── 9b) zlecenie wykonane bez zdjęć: firma → prośba do klienta → decyzja do firmy ──
+// Ze zdjęciami powiadamiają notifyRealizationAdded i notifyRealizationDecision.
+exports.notifyJobDone = onDocumentUpdated('requests/{id}', async (event) => {
+  const before = event.data.before.data() || {};
+  const after = event.data.after.data() || {};
+  const status = after.realizationStatus || '';
+  if ((before.realizationStatus || '') === status || !status || !after.takenBy) return;
+  const id = event.params.id;
+  const photos = await db.collection('realizations')
+    .where('requestId', '==', id).where('companyId', '==', after.takenBy).limit(1).get();
+  if (!photos.empty) return;
+  const what = after.sector || after.category || 'zlecenie';
+  if (status === 'pending') {
+    const company = after.takenByName || await userName(after.takenBy);
+    await pushTo(after.userId, {
+      title: `✅ ${company} zakończył zlecenie`,
+      body: `${what}: potwierdź wykonanie — zgłoszenie zostanie zamknięte.`,
+      data: { type: 'realization', requestId: id, audience: 'user' },
+    });
+  } else if (status === 'approved') {
+    const client = await userName(after.userId);
+    await pushTo(after.takenBy, {
+      title: '✅ Klient potwierdził wykonanie',
+      body: `${client} · ${what}`,
+      data: { type: 'realization_decision', requestId: id, status: 'approved', audience: 'company' },
+    });
+    await scheduleJobReview(id, after.userId, after.takenBy);
+  } else if (status === 'rejected') {
+    const client = await userName(after.userId);
+    await pushTo(after.takenBy, {
+      title: 'Klient nie potwierdził wykonania',
+      body: `${client} · ${what}. Zlecenie jest nadal aktywne — ustalcie szczegóły na czacie.`,
+      data: { type: 'realization_decision', requestId: id, status: 'rejected', audience: 'company' },
     });
   }
 });
