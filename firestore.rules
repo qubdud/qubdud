@@ -274,7 +274,9 @@ service cloud.firestore {
     // 'approved' (prawo do recenzji, licznik zleceń) tylko z 'pending' decyzją właściciela.
     match /requests/{requestId} {
       allow read: if signedIn();
-      allow create: if signedIn() && validNewRequest(request.resource.data);
+      // id usuniętego zgłoszenia nie wraca, dopóki cleanupDeletedRequest nie zabierze jego private/location
+      allow create: if signedIn() && validNewRequest(request.resource.data)
+          && !exists(/databases/$(database)/documents/requests/$(requestId)/private/location);
       allow update: if isMe(resource.data.userId) && ownerUpdate();
       allow update: if isMe(resource.data.takenBy) && takerUpdate();
       allow delete: if isMe(resource.data.userId);
@@ -336,6 +338,19 @@ service cloud.firestore {
             && onlyKeys(['realizationStatus'])
             && ((photos in ['', 'rejected'] && request.resource.data.realizationStatus == 'pending')
                 || (photos in ['', 'pending'] && !('realizationStatus' in request.resource.data)));
+      }
+
+      // dokładne miejsce: klient i firma z przyjętą ofertą (takenBy); zgłoszenie ma tylko okolicę.
+      // Zapis wyłącznie w batchu tworzącym zgłoszenie; starsze APK piszą dokładne location,
+      // wtedy przenosi je funkcja hideRequestLocation.
+      match /private/{docId} {
+        allow get: if docId == 'location' && signedIn()
+            && request.auth.uid in [get(/databases/$(database)/documents/requests/$(requestId)).data.userId,
+                                    get(/databases/$(database)/documents/requests/$(requestId)).data.get('takenBy', '')];
+        allow create: if docId == 'location' && signedIn()
+            && !exists(/databases/$(database)/documents/requests/$(requestId))
+            && getAfter(/databases/$(database)/documents/requests/$(requestId)).data.userId == request.auth.uid
+            && validLocation(request.resource.data);
       }
 
       // oferta firmy (id = companyId): treść widzi tylko ta firma i właściciel zgłoszenia,

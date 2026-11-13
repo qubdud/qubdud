@@ -299,7 +299,7 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
       builder: (ctx) => AlertDialog(
         title: Text(accept ? 'Przyjąć ofertę firmy $name?' : 'Odrzucić ofertę firmy $name?'),
         content: Text(accept
-            ? 'Firma dostanie powiadomienie i zobaczy Twój telefon i e-mail, żeby się z Tobą skontaktować. '
+            ? 'Firma dostanie powiadomienie i zobaczy Twój telefon, e-mail i dokładne miejsce, żeby się z Tobą skontaktować. '
                 'Zgłoszenie zniknie z listy innych firm, a ich oferty zostaną zamknięte. '
                 'Zgłoszenie możesz później odblokować.'
             : 'Firma dostanie powiadomienie, że jej oferta została odrzucona.'),

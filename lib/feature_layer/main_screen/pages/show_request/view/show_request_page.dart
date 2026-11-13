@@ -167,6 +167,10 @@ class _ViewState extends State<View> {
 
       final meId = FirebaseAuth.instance.currentUser?.uid;
       final author = state.appUser;
+      final req = Globals.instance.selectedRequest!;
+      final insider = meId != null && (meId == req.userId || meId == req.takenBy);
+      // bez private/location (zgłoszenie sprzed migracji, offline) klient i realizujący widzą location
+      final exact = state.exactLocation ?? (insider ? req.location : null);
       final authorName = author == null
           ? 'Konto usunięte'
           : '${author.firstName ?? ''} ${author.lastName ?? ''}'.trim();
@@ -275,8 +279,8 @@ class _ViewState extends State<View> {
                 height: 200,
                 child: FlutterMap(
                     options: MapOptions(
-                      initialCenter: (Globals.instance.selectedRequest!.location),
-                      initialZoom: 14,
+                      initialCenter: exact ?? Globals.instance.selectedRequest!.location,
+                      initialZoom: exact != null ? 14 : 13,
                       onTap: (tapPos, point) {
                         setState(() {
                           selectedLocation = point;
@@ -285,10 +289,11 @@ class _ViewState extends State<View> {
 
                     ),
                     children: [openStreetMap, osmAttribution,
+                      if (exact != null)
                         MarkerLayer(
                           markers: [
                             Marker(
-                              point: (Globals.instance.selectedRequest!.location),
+                              point: exact,
                               width: 40,
                               height: 40,
                               child: Icon(
@@ -297,12 +302,31 @@ class _ViewState extends State<View> {
                                 size: 40,
                               ),
                             ),
-
-
                           ],
-
+                        )
+                      else
+                        CircleLayer(
+                          circles: [
+                            CircleMarker(
+                              point: Globals.instance.selectedRequest!.location,
+                              radius: 800,
+                              useRadiusInMeter: true,
+                              color: Colors.red.withValues(alpha: 0.15),
+                              borderColor: Colors.red,
+                              borderStrokeWidth: 2,
+                            ),
+                          ],
                         ),
                     ]),),
+              if (exact == null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Przybliżona okolica (ok. 1 km). Dokładne miejsce zobaczysz po przyjęciu Twojej oferty.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ),
 
 
               SizedBox(height: 24,),

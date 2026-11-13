@@ -203,6 +203,24 @@ exports.notifyUrgentRequest = onDocumentCreated('requests/{id}', async (event) =
   await Promise.all(jobs);
 });
 
+// ── 1b) dokładne miejsce zgłoszenia → requests/{id}/private/location ────────
+// Nowa apka sama zapisuje okolicę i private; starsze APK piszą dokładne location.
+// Siatka 0,01° — to samo zaokrąglenie co approxLocation w apce.
+const approx = (v) => Math.round(v * 100) / 100;
+exports.hideRequestLocation = onDocumentCreated({ document: 'requests/{id}', retry: true }, async (event) => {
+  const ref = event.data && event.data.ref;
+  if (!ref) return;
+  const priv = ref.collection('private').doc('location');
+  await db.runTransaction(async (tx) => {
+    const [cur, p] = await Promise.all([tx.get(ref), tx.get(priv)]);
+    const l = cur.exists && cur.get('location');
+    if (!l || typeof l.lat !== 'number' || typeof l.lng !== 'number') return;
+    if (!p.exists) tx.set(priv, { lat: l.lat, lng: l.lng });
+    const near = { lat: approx(l.lat), lng: approx(l.lng) };
+    if (near.lat !== l.lat || near.lng !== l.lng) tx.update(ref, { location: near });
+  });
+});
+
 // ── 2) nowa oferta → właściciel zgłoszenia ──────────────────────────────────
 exports.notifyNewOffer = onDocumentCreated('requests/{id}/offers/{companyId}', async (event) => {
   const offer = event.data && event.data.data();
@@ -519,6 +537,7 @@ exports.cleanupDeletedRequest = onDocumentDeleted('requests/{id}', async (event)
   await commitAll([
     ...[...offers.docs, ...photos.docs, ...notifs.docs].map((s) => (b) => b.delete(s.ref)),
     (b) => b.delete(db.collection('reviewReminders').doc(`req_${id}`)),
+    (b) => b.delete(db.collection('requests').doc(id).collection('private').doc('location')),
   ]);
   await deleteOwnFiles(d.userId, [d.fileUrl, d.thumbUrl]);
   if (d.takenBy) await unlinkRequest(d.takenBy, d.userId, id);

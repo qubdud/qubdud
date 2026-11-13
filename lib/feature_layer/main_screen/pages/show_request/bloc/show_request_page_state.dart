@@ -8,6 +8,12 @@ abstract class ShowRequestPageState {
     appUserStatic = value;
   }
 
+  static LatLng? exactLocationStatic;
+  LatLng? get exactLocation => exactLocationStatic;
+  set exactLocation(LatLng? value) {
+    exactLocationStatic = value;
+  }
+
 
 
 

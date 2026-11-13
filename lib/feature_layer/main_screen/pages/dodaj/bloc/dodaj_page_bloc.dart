@@ -43,9 +43,10 @@ Future<String?> makeThumbnail(File file, String fileType) async {
 
 Uint8List? _resizeToJpg(Uint8List bytes) {
   final image = img.decodeImage(bytes);
-  return image == null
-      ? null
-      : img.encodeJpg(img.copyResize(image, height: 720), quality: 75);
+  if (image == null) return null;
+  // copyResize obraca wg EXIF, więc miniatura może iść bez metadanych (GPS)
+  final small = img.copyResize(image, height: 720)..exif = img.ExifData();
+  return img.encodeJpg(small, quality: 75);
 }
 
 /// Komunikat dla użytkownika po nieudanym uploadzie.

@@ -9,7 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../constants.dart';
 
-/// Zasłania aplikację, gdy build jest niższy niż config/app.minBuild.
+/// Zasłania aplikację, gdy build jest niższy niż config/app.minBuild (iOS: minBuildIos).
 /// Brak dokumentu, sieci albo uprawnień = aplikacja działa normalnie.
 /// Nawigator zostaje pod spodem, bo toasty i pushe sięgają po navigatorKey.
 class UpdateGate extends StatefulWidget {
@@ -45,7 +45,7 @@ class _UpdateGateState extends State<UpdateGate> {
   }
 
   bool get _blocked {
-    final min = _config?['minBuild'];
+    final min = _config?[Platform.isIOS ? 'minBuildIos' : 'minBuild'];
     return _build != null && min is num && _build! < min;
   }
 

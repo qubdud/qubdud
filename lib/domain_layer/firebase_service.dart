@@ -8,6 +8,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter/foundation.dart' show Uint8List, compute;
+import 'package:image/image.dart' as img;
 import 'domain_models/app_user.dart';
 import 'domain_models/company_info.dart';
 import 'domain_models/promoVideo.dart';
@@ -30,6 +32,26 @@ String slotErrorText(Object e) => switch (e) {
         'Brak połączenia — spróbuj ponownie',
       _ => 'Nie udało się — spróbuj ponownie',
     };
+
+/// Siatka 0,01° (~1,1 × 0,7 km w Polsce) — to samo zaokrąglenie robi funkcja hideRequestLocation.
+Map<String, double> approxLocation(LatLng l) => {
+      'lat': (l.latitude * 100).round() / 100,
+      'lng': (l.longitude * 100).round() / 100,
+    };
+
+/// Pliki w Storage są publiczne, a zdjęcia z aparatu niosą GPS w EXIF.
+/// Wycina tylko blok GPS — bez ponownej kompresji, orientacja zostaje.
+Uint8List? _jpgWithoutGps(Uint8List jpg) {
+  if (jpg.length < 4 || jpg[0] != 0xFF || jpg[1] != 0xD8) return null;
+  try {
+    final exif = img.decodeJpgExif(jpg);
+    if (exif == null || !exif.imageIfd.sub.containsKey('gps')) return null;
+    exif.imageIfd.sub.directories.remove('gps');
+    return img.injectJpgExif(jpg, exif);
+  } catch (_) {
+    return null;
+  }
+}
 
 class FirebaseService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -211,6 +233,12 @@ class FirebaseService {
       throw FirebaseException(
           plugin: 'firebase_storage', code: 'unauthorized', message: 'Plik > $maxMb MB');
     }
+    if (mediaType == 'image') {
+      final clean = await compute(_jpgWithoutGps, await file.readAsBytes());
+      if (clean != null) {
+        file = await File('${file.path}-nogps.jpg').writeAsBytes(clean);
+      }
+    }
     final thumbRef = await _putOwnFile('thumbs', thumb, 'image');
     final fileRef = await _putOwnFile('files', file, mediaType,
         onProgress: onProgress);
@@ -231,8 +259,34 @@ class FirebaseService {
     await _firestore.collection('promos').add(promo.toMap());
   }
 
+  /// Zgłoszenie czyta każda firma z branży, więc ma tylko okolicę (~1 km);
+  /// dokładne miejsce widzi klient i firma z przyjętą ofertą.
   Future<void> saveRequestMetadata(Request req) async {
-    await _firestore.collection('requests').add(req.toMap());
+    final ref = _firestore.collection('requests').doc();
+    final exact = req.location;
+    await (_firestore.batch()
+          ..set(ref, {...req.toMap(), 'location': approxLocation(exact)})
+          ..set(ref.collection('private').doc('location'),
+              {'lat': exact.latitude, 'lng': exact.longitude}))
+        .commit();
+  }
+
+  Future<LatLng?> exactRequestLocation(Request req) async {
+    final me = FirebaseAuth.instance.currentUser?.uid;
+    if (me == null || (me != req.userId && me != req.takenBy)) return null;
+    try {
+      final d = (await _firestore
+              .collection('requests')
+              .doc(req.id)
+              .collection('private')
+              .doc('location')
+              .get())
+          .data();
+      if (d == null || d['lat'] is! num || d['lng'] is! num) return null;
+      return LatLng((d['lat'] as num).toDouble(), (d['lng'] as num).toDouble());
+    } on FirebaseException {
+      return null;
+    }
   }
 
   /// Jedna recenzja klienta na firmę: id = {autor}_{firma} (reguły odrzucą drugą).

@@ -1,4 +1,5 @@
 import 'package:bloc/bloc.dart';
+import 'package:latlong2/latlong.dart';
 import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/firebase_service.dart';
 import '../../../../../shared/globals.dart';
@@ -17,9 +18,14 @@ class ShowRequestPageBloc extends Bloc<ShowRequestPageEvent, ShowRequestPageStat
     on<TryShowRequestPageEvent>((event, emit) async {
       emit(ShowRequestPageLoadingState());
       try {
-        // null = autor usunął konto
-        state.appUser = await firebase
-            .fetchUser(Globals.instance.selectedRequest!.userId, withContact: true);
+        final req = Globals.instance.selectedRequest!;
+        // user null = autor usunął konto; exact null = firma bez przyjętej oferty
+        final (user, exact) = await (
+          firebase.fetchUser(req.userId, withContact: true),
+          firebase.exactRequestLocation(req),
+        ).wait;
+        state.appUser = user;
+        state.exactLocation = exact;
         emit(ShowRequestPageMainState());
       } catch (_) {
         emit(ShowRequestPageErrorState());
