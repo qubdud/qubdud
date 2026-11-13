@@ -28,6 +28,11 @@ service cloud.firestore {
       return l is map && l.keys().hasOnly(['lat', 'lng']) && l.lat is number && l.lng is number;
     }
 
+    // ── config/app.minBuild: blokada starych wersji, czytana przed logowaniem; zapis tylko z konsoli ──
+    match /config/{docId} {
+      allow get: if true;
+    }
+
     // ── prezentacje firm: anonim może oglądać ──
     match /promos/{promoId} {
       allow read: if anyAuth();

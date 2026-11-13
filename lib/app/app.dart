@@ -10,6 +10,7 @@ import '../domain_layer/firebase_service.dart';
 import '../feature_layer/core_screen/view/core_screen.dart';
 import '../shared/constants.dart';
 import '../shared/theme_controller.dart';
+import '../shared/widgets/update_gate.dart';
 
 class NavigationService {
   static GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -36,7 +37,8 @@ class App extends StatelessWidget {
         valueListenable: themeNotifier,
         builder: (context, mode, _) => MaterialApp(
           debugShowCheckedModeBanner: false,
-          builder: FToastBuilder(),
+          builder: (context, child) =>
+              UpdateGate(child: FToastBuilder()(context, child)),
           navigatorKey: NavigationService.navigatorKey,
           locale: const Locale('pl'),
           supportedLocales: const [Locale('pl')],
