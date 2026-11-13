@@ -95,6 +95,14 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "bookedAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "slots",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "start", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

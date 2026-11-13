@@ -30,6 +30,7 @@ class _PowiadomieniaPageState extends State<PowiadomieniaPage> {
         'offer_decision' => (icon: Icons.how_to_reg_outlined, color: Colors.green),
         'booking' => (icon: Icons.event_available_outlined, color: Colors.indigo),
         'booking_decision' => (icon: Icons.event_note_outlined, color: Colors.teal),
+        'booking_reminder' => (icon: Icons.alarm, color: Colors.indigo),
         _ when type.startsWith('booking') =>
           (icon: Icons.event_busy_outlined, color: Colors.teal),
         'chat' => (icon: Icons.chat_bubble_outline, color: Colors.blueGrey),

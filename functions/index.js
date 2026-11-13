@@ -346,6 +346,64 @@ exports.expirePendingSlots = onSchedule({ schedule: 'every 15 minutes', timeZone
   if (stale.size) console.log(`expirePendingSlots: zwolniono ${freed}/${stale.size}`);
 });
 
+// ── 3c) przypomnienie o potwierdzonej wizycie: 24 h i 1 h przed ─────────────
+// Znacznik visitReminders/{slot}_{klient}_{rodzaj} tworzony przed pushem: ponowne
+// uruchomienie nie wyśle drugi raz. Termin zarezerwowany już w oknie przypomnienia
+// (np. na dziś po południu) nie dostaje przypomnienia „jutro”.
+const VISIT_REMINDERS = [
+  { key: '1h', beforeMs: 3600e3 },
+  { key: '24h', beforeMs: 24 * 3600e3 },
+];
+const plDay = (ms) => new Date(ms).toLocaleDateString('pl-PL', { timeZone: 'Europe/Warsaw' });
+exports.remindVisits = onSchedule({ schedule: 'every 15 minutes', timeZone: 'Europe/Warsaw' }, async () => {
+  const now = Date.now();
+  const slots = await db.collectionGroup('slots')
+    .where('status', '==', 'accepted')
+    .where('start', '>', Timestamp.fromMillis(now))
+    .where('start', '<=', Timestamp.fromMillis(now + 24 * 3600e3))
+    .get();
+  let sent = 0;
+  for (const s of slots.docs) {
+    const d = s.data();
+    if (!d.bookedBy || !d.start || !d.start.toMillis) continue;
+    const startMs = d.start.toMillis();
+    const r = VISIT_REMINDERS.find((x) => startMs - now <= x.beforeMs);
+    if (!r) continue;
+    const bookedMs = d.bookedAt && d.bookedAt.toMillis ? d.bookedAt.toMillis() : 0;
+    if (bookedMs > startMs - r.beforeMs) continue;
+    const id = `${s.id}_${d.bookedBy}_${r.key}`;
+    try {
+      await db.collection('visitReminders').doc(id).create({
+        startAt: d.start, slotId: s.id, userId: d.bookedBy, at: FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      if (e.code === 6) continue; // ALREADY_EXISTS — już wysłane
+      throw e;
+    }
+    const companyId = s.ref.parent.parent.id;
+    const when = fmtWhen(d.start);
+    const title = r.key === '1h' ? '⏰ Za godzinę wizyta'
+      : plDay(startMs) === plDay(now) ? '⏰ Dziś wizyta' : '⏰ Jutro wizyta';
+    await Promise.all([
+      pushTo(d.bookedBy, {
+        title,
+        body: `${await userName(companyId)} · ${when}`,
+        data: { type: 'booking_reminder', companyId, slotId: s.id, audience: 'user' },
+      }, `remind_${id}`),
+      pushTo(companyId, {
+        title,
+        body: `${d.bookedByName || 'Klient'} · ${when}`,
+        data: { type: 'booking_reminder', slotId: s.id, audience: 'company' },
+      }, `remind_${id}_c`),
+    ]);
+    sent++;
+  }
+  const old = await db.collection('visitReminders')
+    .where('startAt', '<', Timestamp.fromMillis(now - 2 * 24 * 3600e3)).limit(BATCH_MAX).get();
+  await commitAll(old.docs.map((x) => (b) => b.delete(x.ref)));
+  if (sent || old.size) console.log(`remindVisits: wysłano ${sent}, usunięto znaczników ${old.size}`);
+});
+
 exports.notifySlotDeleted = onDocumentDeleted('users/{companyId}/slots/{slotId}', async (event) => {
   const s = event.data && event.data.data();
   const { companyId, slotId } = event.params;
