@@ -143,7 +143,10 @@ class Parser {
     this.eat('[');
     const items = [];
     while (!this.isP(']')) {
-      items.push(this.value());
+      if (this.isP('.') && this.isP('.', 1) && this.isP('.', 2)) {
+        this.i += 3;
+        items.push({ $spread: this.value() });
+      } else items.push(this.value());
       if (this.isP(',')) this.i++;
     }
     this.eat(']');
@@ -210,6 +213,18 @@ function declarations(src) {
   return found;
 }
 
+/** Podstawia odwołania do innych stałych pliku (np. _materialy) i rozwija `...lista`. */
+function resolveRefs(v, decl, depth = 0) {
+  if (depth > 20) throw new Error('Zbyt głębokie odwołania');
+  if (Array.isArray(v)) return v.flatMap((x) => (x && x.$spread !== undefined ? resolveRefs(x.$spread, decl, depth + 1) : [resolveRefs(x, decl, depth + 1)]));
+  if (v && typeof v === 'object') {
+    if (v.$ref !== undefined) return decl.has(v.$ref) ? resolveRefs(decl.get(v.$ref), decl, depth + 1) : v;
+    if (v.$map) return { $map: v.$map.map(([k, x]) => [resolveRefs(k, decl, depth + 1), resolveRefs(x, decl, depth + 1)]) };
+    if (v.$call !== undefined) return { ...v, args: v.args.map((x) => resolveRefs(x, decl, depth + 1)), named: Object.fromEntries(Object.entries(v.named).map(([k, x]) => [k, resolveRefs(x, decl, depth + 1)])) };
+  }
+  return v;
+}
+
 const isStr = (v) => typeof v === 'string';
 const isMap = (v) => v && typeof v === 'object' && Array.isArray(v.$map);
 const toObj = (m) => Object.fromEntries(m.$map);
@@ -252,6 +267,7 @@ const allCategories = new Set(Object.keys(CATEGORIES));
 // ── pytania kreatora ────────────────────────────────────────────────────────
 const qSrc = read(FILES.questions);
 const qDecl = declarations(qSrc);
+for (const [k, v] of qDecl) qDecl.set(k, resolveRefs(v, qDecl));
 const timingRaw = qDecl.get('kRequestTiming');
 if (!isMap(timingRaw)) throw new Error('Nie znaleziono kRequestTiming w ' + FILES.questions);
 const REQUEST_TIMING = toObj(timingRaw);
