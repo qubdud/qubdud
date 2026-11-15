@@ -1,25 +1,25 @@
 # QUBDUD — do zrobienia
 
-Stan: 15.11.2026, wersja 1.4.1+23 (APK testowy pod prywatnym linkiem, pakiety A+B wdrożone).
+Stan: 15.11.2026, wersja 1.4.3+25 (APK testowy pod prywatnym linkiem; strona dla gości na https://qubdud-8f2b8.web.app, na razie bez maili).
 Kolejność ≈ priorytet. Przy każdym punkcie: co dokładnie zrobić.
 
 ## Produkt / UX
 
-1. **„Zgłoszenie 24” tylko w branżach awaryjnych**
+1. ✅ **„Zgłoszenie 24” tylko w branżach awaryjnych**
    - Dziś checkbox „Wyślij jako zgłoszenie 24” jest przy każdej kategorii (np. sprzątanie, księgowość), a pilne zgłoszenie idzie czerwonym pushem do firm.
    - Pokazywać tylko dla branż awaryjnych: hydraulik, elektryk, ślusarz/zamki, szklarz, ogrzewanie/gaz, pomoc drogowa, dezynsekcja (lista do potwierdzenia).
    - Nazwa: „🔴 Awaria — potrzebuję pomocy w ciągu 24 h”.
    - Najlepiej jako pole `urgentAllowed` w konfiguracji branży (pkt 2).
 
-2. **Pytania kreatora zgłoszenia w bazie, per branża**
+2. **Pytania kreatora w bazie** (✅ per branża zrobione w 1.4.3 — zostało przeniesienie do Firestore)
    - Dziś na sztywno w `lib/shared/request_questions.dart` (17 kategorii, 41 pytań) — zmiana = nowa wersja apki.
    - Przenieść do Firestore `config/requestQuestions` (edycja w konsoli), apka czyta przy starcie z fallbackiem na wersję w kodzie.
    - Pytania per **branża**, nie per kategoria: dziś „Pralnia chemiczna” i „Pranie dywanów” dostają pytania o metraż i rodzaj sprzątania.
    - Uwaga: reguły pozwalają na max 10 odpowiedzi (`answers.size() <= 10`).
 
-3. **„wystawione wczoraj” przy zgłoszeniu sprzed 2 dni** — liczyć dni kalendarzowe (data lokalna), nie pełne doby.
+3. ✅ **„wystawione wczoraj” przy zgłoszeniu sprzed 2 dni** — liczyć dni kalendarzowe (data lokalna), nie pełne doby.
 
-4. **Tablet: zdjęcie w widoku zgłoszenia zajmuje cały ekran** — ograniczyć wysokość obrazka (np. max 50% ekranu) na szerokich ekranach.
+4. ✅ **Tablet: zdjęcie w widoku zgłoszenia zajmuje cały ekran** — ograniczyć wysokość obrazka (np. max 50% ekranu) na szerokich ekranach.
 
 5. **Powiadomienia zgrupowane przez Androida** — tap w zwiniętą grupę otwiera apkę bez przejścia do celu (Android nie przekazuje danych).
    - Częściowo załatwione tagiem per wątek.
@@ -29,7 +29,7 @@ Kolejność ≈ priorytet. Przy każdym punkcie: co dokładnie zrobić.
 
 7. **Opinia bez zdjęcia — dokończyć test** zapisu i wyświetlania przy pierwszej nowej realizacji (15.11 nie było firmy, której klient testowy jeszcze nie ocenił). Opcja „Bez zdjęcia — tylko ocena i opis” jest w apce, reguły ją przepuszczają.
 
-8. **„Moje zgłoszenia” klienta nie odświeżają się na żywo** po „Zlecenie wykonane (bez zdjęć)” — „Potwierdź / Jeszcze nie” widać dopiero po przełączeniu zakładki (push przychodzi od razu). Nasłuchiwać zmian `realizationStatus` na liście.
+8. ✅ **„Moje zgłoszenia” klienta nie odświeżają się na żywo** po „Zlecenie wykonane (bez zdjęć)” — „Potwierdź / Jeszcze nie” widać dopiero po przełączeniu zakładki (push przychodzi od razu). Nasłuchiwać zmian `realizationStatus` na liście.
 
 9. **Aktualizacje dla testerów z apki** — w `config/app` ustawić `androidUrl` na prywatny link z APK i przy nowej wersji podnosić `minBuild`: testerzy ze starą wersją zobaczą ekran „Zaktualizuj” z przyciskiem do pobrania. Link (Firebase Hosting, kanał podglądu) jest ważny 30 dni od ostatniego wgrania — każde wgranie przedłuża.
 
@@ -37,7 +37,7 @@ Kolejność ≈ priorytet. Przy każdym punkcie: co dokładnie zrobić.
 
 ## Strona WWW dla gości (zgłoszenie bez apki)
 
-11. **Strona (np. qubdud.pl/zglos)**: gość zgłasza bez instalacji, loguje się linkiem z maila, widzi oferty, przyjmuje, pisze z firmą.
+11. ✅ **Strona (np. qubdud.pl/zglos)**: gość zgłasza bez instalacji, loguje się linkiem z maila, widzi oferty, przyjmuje, pisze z firmą.
    - Osobny projekt `/web` (Vite + TypeScript + Firebase JS SDK), Firebase Hosting.
    - Gość = zwykły użytkownik Firebase (email link) → reguły, funkcje i apka firmy bez zmian.
    - Etapy: logowanie i profil → formularz (te same pola co apka, zdjęcia bez GPS) → „Moje zgłoszenie” z ofertami → czat → maile → testy i wdrożenie.
