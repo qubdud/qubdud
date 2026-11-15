@@ -1374,7 +1374,9 @@ class FirebaseService {
       await ref.delete();
       return;
     }
+    // userId: przy usuwaniu konta klienta funkcja znajduje notatki wszystkich firm
     await ref.set({
+      'userId': userId,
       'note': note.trim(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -1480,6 +1482,7 @@ class FirebaseService {
         'confirmedByUser': false,
         'status': 'open',
         'realizationStatus': FieldValue.delete(),
+        'reopenedAt': FieldValue.serverTimestamp(),
       });
       for (final d in offers.docs) {
         tx.update(d.reference, {'status': 'pending'});
@@ -1811,6 +1814,7 @@ class FirebaseService {
       // od razu „jego", ale na profil firmy trafiają dopiero po publikacji
       'status': addedByRole == 'company' ? 'pending' : 'approved',
       'publishedByCompany': false,
+      'visible': false,
       'timestamp': FieldValue.serverTimestamp(),
     });
     if (addedByRole == 'company') {
@@ -1839,7 +1843,7 @@ class FirebaseService {
     await _firestore
         .collection('realizations')
         .doc(id)
-        .update({'publishedByCompany': published});
+        .update({'publishedByCompany': published, 'visible': published});
   }
 
   // ── POWIADOMIENIA (dzwonek) ───────────────────────────────────────────────
@@ -1950,8 +1954,11 @@ class FirebaseService {
     }
     final batch = _firestore.batch();
     for (final d in companyPhotos) {
-      batch.update(d.reference,
-          {'status': status, 'decidedAt': FieldValue.serverTimestamp()});
+      batch.update(d.reference, {
+        'status': status,
+        'decidedAt': FieldValue.serverTimestamp(),
+        'visible': status == 'approved',
+      });
     }
     batch.update(_firestore.collection('requests').doc(requestId), {
       'realizationStatus': status,
@@ -1968,10 +1975,12 @@ class FirebaseService {
   /// (stare wpisy bez pola `status` traktujemy jako potwierdzone).
   Future<List<Map<String, dynamic>>> getRealizations(String companyId,
       {bool includeUnapproved = false}) async {
-    final snap = await _firestore
+    var query = _firestore
         .collection('realizations')
-        .where('companyId', isEqualTo: companyId)
-        .get();
+        .where('companyId', isEqualTo: companyId);
+    // niepotwierdzone i nieopublikowane zdjęcia reguły pokazują tylko firmie i klientowi
+    if (!includeUnapproved) query = query.where('visible', isEqualTo: true);
+    final snap = await query.get();
     final list = snap.docs
         .map((d) => {'id': d.id, ...d.data()})
         .where((r) {
@@ -1990,12 +1999,19 @@ class FirebaseService {
     return list.take(30).toList();
   }
 
-  /// Zdjęcia zgłoszenia, najnowsze pierwsze.
+  /// Zdjęcia zgłoszenia, najnowsze pierwsze. Klient widzi wszystkie, firma
+  /// realizująca swoje, pozostali tylko potwierdzone i opublikowane (reguły).
   Future<List<Map<String, dynamic>>> getRealizationsForRequest(
-      String requestId) async {
-    final snap = await _firestore
+      Request request) async {
+    final me = _auth.currentUser?.uid ?? '';
+    final query = _firestore
         .collection('realizations')
-        .where('requestId', isEqualTo: requestId)
+        .where('requestId', isEqualTo: request.id);
+    final snap = await (me.isNotEmpty && me == request.userId
+            ? query.where('userId', isEqualTo: me)
+            : me.isNotEmpty && me == request.takenBy
+                ? query.where('companyId', isEqualTo: me)
+                : query.where('visible', isEqualTo: true))
         .get();
     final list = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
     list.sort((a, b) {

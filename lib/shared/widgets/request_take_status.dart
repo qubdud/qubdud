@@ -10,6 +10,7 @@ import '../../domain_layer/firebase_service.dart';
 import '../../feature_layer/main_screen/bloc/main_bloc.dart';
 import '../functions/show_toast.dart';
 import '../functions/show_toast_error.dart';
+import '../moderation.dart';
 import 'offer_dialog.dart';
 
 /// Sekcja dla FIRMY na widoku zgłoszenia: napisz ofertę / status decyzji.
@@ -432,8 +433,12 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
       );
     }
 
+    // oferty od zablokowanych firm znikają (nie da się ich przyjąć)
     final visible = _offers
-        .where((o) => o['status'] != 'rejected' && o['status'] != 'closed')
+        .where((o) =>
+            o['status'] != 'rejected' &&
+            o['status'] != 'closed' &&
+            !BlockedUsers.contains(o['companyId'] as String?))
         .toList();
     if (visible.isEmpty) return _noOffersHint(req);
     final prices = visible.map((o) => o['price']).whereType<int>().toList();

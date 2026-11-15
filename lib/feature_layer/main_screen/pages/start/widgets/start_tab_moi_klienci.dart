@@ -717,7 +717,7 @@ class _RealizationStatusState extends State<_RealizationStatus> {
     try {
       final list = await context
           .read<FirebaseService>()
-          .getRealizationsForRequest(widget.request.id);
+          .getRealizationsForRequest(widget.request);
       final mine = list.where((r) => r['addedByRole'] != 'user').toList();
       if (mounted) {
         setState(() {

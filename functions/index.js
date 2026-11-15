@@ -144,6 +144,13 @@ async function userName(uid) {
   return d.companyName || `${d.firstName || ''} ${d.lastName || ''}`.trim() || 'Użytkownik';
 }
 
+/** Blokada w którąkolwiek stronę: strony nie dostają od siebie powiadomień. */
+async function blockedBetween(a, b) {
+  if (!a || !b) return false;
+  const [x, y] = await db.getAll(db.doc(`users/${a}/blocked/${b}`), db.doc(`users/${b}/blocked/${a}`));
+  return x.exists || y.exists;
+}
+
 async function hasReview(userId, companyId) {
   const q = await db.collection('reviews')
     .where('userId', '==', userId)
@@ -237,7 +244,7 @@ exports.notifyNewOffer = onDocumentCreated('requests/{id}/offers/{companyId}', a
   const offer = event.data && event.data.data();
   if (!offer) return;
   const req = (await db.collection('requests').doc(event.params.id).get()).data();
-  if (!req) return;
+  if (!req || await blockedBetween(req.userId, event.params.companyId)) return;
   const price = Number.isInteger(offer.price)
     ? (Number.isInteger(offer.priceTo) ? `${offer.price}–${offer.priceTo} zł` : `${offer.price} zł`)
     : '';
@@ -256,6 +263,7 @@ exports.notifyOfferDecision = onDocumentUpdated('requests/{id}/offers/{companyId
   if (before.status === after.status) return;
 
   const req = (await db.collection('requests').doc(event.params.id).get()).data() || {};
+  if (await blockedBetween(req.userId, event.params.companyId)) return;
   const client = await userName(req.userId);
   const texts = {
     accepted: ['✅ Oferta przyjęta', `${client} wybrał Twoją ofertę. Skontaktuj się i ustal szczegóły.`],
@@ -432,7 +440,7 @@ exports.notifySlotDeleted = onDocumentDeleted('users/{companyId}/slots/{slotId}'
 // ── 5) realizacje: firma dodała zdjęcia → klient; decyzja klienta → firma ──
 exports.notifyRealizationAdded = onDocumentCreated('realizations/{id}', async (event) => {
   const d = event.data && event.data.data();
-  if (!d || !d.userId || !d.companyId) return;
+  if (!d || !d.userId || !d.companyId || await blockedBetween(d.userId, d.companyId)) return;
 
   // zdjęcia od klienta → firma decyduje, czy pokazać je na swoim profilu
   if (d.addedByRole === 'user') {
@@ -472,6 +480,7 @@ exports.notifyRealizationDecision = onDocumentUpdated('realizations/{id}', async
   const before = event.data.before.data() || {};
   const after = event.data.after.data() || {};
   if (before.status === after.status || !after.companyId) return;
+  if (await blockedBetween(after.userId, after.companyId)) return;
   const client = await userName(after.userId);
   if (after.status === 'approved') {
     await pushTo(after.companyId, {
@@ -497,9 +506,11 @@ exports.notifyJobDone = onDocumentUpdated('requests/{id}', async (event) => {
   const status = after.realizationStatus || '';
   if ((before.realizationStatus || '') === status || !status || !after.takenBy) return;
   const id = event.params.id;
+  // zdjęcia klienta („od siebie”) mają ten sam companyId — liczą się tylko zdjęcia firmy
   const photos = await db.collection('realizations')
-    .where('requestId', '==', id).where('companyId', '==', after.takenBy).limit(1).get();
-  if (!photos.empty) return;
+    .where('requestId', '==', id).where('companyId', '==', after.takenBy).get();
+  if (photos.docs.some((p) => p.get('addedByRole') !== 'user')) return;
+  if (await blockedBetween(after.userId, after.takenBy)) return;
   const what = after.sector || after.category || 'zlecenie';
   if (status === 'pending') {
     const company = after.takenByName || await userName(after.takenBy);
@@ -560,27 +571,35 @@ exports.notifyNewMessage = onDocumentCreated('chats/{chatId}/messages/{msgId}', 
 });
 
 // ── 7) cron: otwarte zgłoszenia starsze niż 10 dni zamykają się same ────────
-// Przyjęte (taken) nie wygasają — zlecenie trwa.
+// Przyjęte (taken) nie wygasają — zlecenie trwa. Odblokowane (reopenedAt) liczą 10 dni od powrotu do puli.
 exports.autoCloseRequests = onSchedule(
   { schedule: 'every 24 hours', timeZone: 'Europe/Warsaw', timeoutSeconds: 540 },
   async () => {
     const cutoff = Timestamp.fromMillis(Date.now() - REQUEST_TTL_DAYS * 86400e3);
-    // zamknięte wypadają z zapytania, więc każda kolejna strona to następne otwarte
-    const nextPage = () => db.collection('requests')
-      .where('status', '==', 'open')
-      .where('timestamp', '<=', cutoff)
-      .orderBy('timestamp')
-      .limit(BATCH_MAX).get();
+    // kursor, bo świeżo odblokowane zostają w zapytaniu
+    const nextPage = (last) => {
+      const q = db.collection('requests')
+        .where('status', '==', 'open')
+        .where('timestamp', '<=', cutoff)
+        .orderBy('timestamp')
+        .limit(BATCH_MAX);
+      return (last ? q.startAfter(last) : q).get();
+    };
+    const expired = (doc) => {
+      const r = doc.get('reopenedAt');
+      return !r || r.toMillis() <= cutoff.toMillis();
+    };
 
     let closed = 0;
-    for (let page = await nextPage(); !page.empty; page = await nextPage()) {
-      await commitAll(page.docs.map((doc) => (b) => b.update(doc.ref, {
+    for (let page = await nextPage(); !page.empty; page = await nextPage(page.docs[page.size - 1])) {
+      const due = page.docs.filter(expired);
+      await commitAll(due.map((doc) => (b) => b.update(doc.ref, {
         status: 'closed',
         closedAt: FieldValue.serverTimestamp(),
         closedReason: 'expired',
       })));
-      closed += page.size;
-      await Promise.all(page.docs.map((doc) => {
+      closed += due.length;
+      await Promise.all(due.map((doc) => {
         const d = doc.data();
         return pushTo(d.userId, {
           title: 'Zgłoszenie zamknięte',
@@ -600,6 +619,7 @@ exports.notifyContactRequest = onDocumentWritten('contactRequests/{id}', async (
   // ponowna prośba ma nowy createdAt; sama zmiana statusu nic nie wysyła
   if (before && before.status === 'pending' && before.createdAt && after.createdAt
       && before.createdAt.isEqual(after.createdAt)) return;
+  if (await blockedBetween(after.companyId, after.userId)) return;
   const who = after.userName || await userName(after.userId);
   const note = after.note ? ' · ' + short(after.note, 60) : '';
   await pushTo(after.companyId, {
@@ -723,6 +743,45 @@ exports.cleanupDeletedRealization = onDocumentDeleted('realizations/{id}', async
   await deleteOwnFiles(d.addedByRole === 'user' ? d.userId : d.companyId, [d.imageUrl, d.beforeUrl]);
 });
 
+// usunięta prezentacja / opinia: pliki autora, a opinia także komentarze
+// (nowa opinia tej samej osoby dostaje to samo id i pokazałaby stare odpowiedzi)
+exports.cleanupDeletedPromo = onDocumentDeleted('promos/{id}', async (event) => {
+  const d = event.data && event.data.data();
+  if (!d) return;
+  await deleteOwnFiles(d.userId, [d.fileUrl, d.thumbUrl]);
+});
+
+exports.cleanupDeletedReview = onDocumentDeleted('reviews/{id}', async (event) => {
+  const d = event.data && event.data.data();
+  if (!d) return;
+  await db.recursiveDelete(db.collection('reviews').doc(event.params.id).collection('comments'));
+  await deleteOwnFiles(d.userId, [d.fileUrl, d.thumbUrl]);
+});
+
+// ── 9c) autor opinii i komentarza podpisany nazwą z profilu (bez podszywania się) ──
+// Te same nazwy co w apce: opinia — imię i nazwisko, komentarz — nazwa firmy albo imię.
+async function setAuthorName(ref, name) {
+  await ref.update({ authorName: name }).catch((e) => {
+    if (e.code !== 5) throw e; // NOT_FOUND — zdążyło zniknąć
+  });
+}
+
+exports.setReviewAuthorName = onDocumentCreated('reviews/{id}', async (event) => {
+  const d = event.data && event.data.data();
+  if (!d || !d.userId) return;
+  const u = (await db.collection('users').doc(d.userId).get()).data() || {};
+  const name = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+  if (d.authorName !== name) await setAuthorName(event.data.ref, name);
+});
+
+exports.setCommentAuthorName = onDocumentCreated('reviews/{reviewId}/comments/{id}', async (event) => {
+  const d = event.data && event.data.data();
+  if (!d || !d.authorId) return;
+  const u = (await db.collection('users').doc(d.authorId).get()).data() || {};
+  const name = ((u.firma ?? u.isCompany) === true ? u.companyName : u.firstName) || '';
+  if (d.authorName !== name) await setAuthorName(event.data.ref, name);
+});
+
 // ── 10) usunięcie konta (RODO) — wywoływane z apki ──────────────────────────
 exports.deleteAccount = onCall({ timeoutSeconds: 300 }, async (request) => {
   const uid = request.auth && request.auth.uid;
@@ -742,11 +801,13 @@ async function deleteUserData(uid) {
   const where = (coll, field, op = '==') => docs(db.collection(coll).where(field, op, uid));
 
   // najpierw wszystkie odczyty — brak indeksu przerwie operację, zanim cokolwiek zniknie
-  const [offers, comments, requests, taken, promos, reviewsBy, reviewsOf, photos, photosOf,
+  const [offers, comments, notesOf, requests, taken, promos, reviewsBy, reviewsOf, photos, photosOf,
     contacts, contactsOf, notifs, notifsFrom, reminders, remindersOf, chats,
     slots, bookings, myCompanies, clients, meSnap] = await Promise.all([
     docs(db.collectionGroup('offers').where('companyId', '==', uid)),
     docs(db.collectionGroup('comments').where('authorId', '==', uid)),
+    // notatki firm o mnie, także bez relacji (notatka do autora zgłoszenia z listy)
+    docs(db.collectionGroup('clientNotes').where('userId', '==', uid)),
     where('requests', 'userId'),
     where('requests', 'takenBy'),
     where('promos', 'userId'),
@@ -802,7 +863,7 @@ async function deleteUserData(uid) {
     }, { merge: true })),
     ...reopen.map((r) => (b) => b.update(r.ref, {
       status: 'open', takenBy: '', takenByName: '', confirmedByCompany: false, confirmedByUser: false,
-      realizationStatus: FieldValue.delete(),
+      realizationStatus: FieldValue.delete(), reopenedAt: FieldValue.serverTimestamp(),
     })),
     ...closedOffers.map((o) => (b) => b.update(o.ref, { status: 'pending' })),
     ...chats.map((c) => (b) => b.update(c.ref, { [`names.${uid}`]: DELETED_NAME })),
@@ -816,7 +877,7 @@ async function deleteUserData(uid) {
 
   // zgłoszenia bez podkolekcji — oferty, zdjęcia i przypomnienia sprząta cleanupDeletedRequest
   const refs = [
-    ...[offers, comments, requests, promos, photos, photosOf, contacts, contactsOf,
+    ...[offers, comments, notesOf, requests, promos, photos, photosOf, contacts, contactsOf,
       notifs, notifsFrom, reminders, remindersOf].flat().map((s) => s.ref),
     ...myCompanies.flatMap((c) => [
       db.doc(`users/${c.id}/clients/${uid}`),

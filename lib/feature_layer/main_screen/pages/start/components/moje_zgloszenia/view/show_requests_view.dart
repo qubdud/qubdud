@@ -463,7 +463,7 @@ String _wystawione(Request req) {
   if (diff.inDays == 1) return 'wystawione wczoraj';
   final data = 'wystawione ${d.day}.${d.month.toString().padLeft(2, '0')}.${d.year}';
   if (req.status != 'open') return data;
-  final left = 10 - diff.inDays;
+  final left = 10 - DateTime.now().difference(req.reopenedAt ?? d).inDays;
   if (left <= 0) return '$data · wygasa';
   return '$data · wygasa za $left dni';
 }
@@ -530,8 +530,9 @@ class _RealizationRequestState extends State<_RealizationRequest> {
   Future<void> _load() async {
     final id = widget.request.id;
     try {
-      final list =
-          await context.read<FirebaseService>().getRealizationsForRequest(id);
+      final list = await context
+          .read<FirebaseService>()
+          .getRealizationsForRequest(widget.request);
       if (mounted && id == widget.request.id) setState(() => _all = list);
     } catch (_) {}
   }

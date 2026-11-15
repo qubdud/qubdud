@@ -49,8 +49,9 @@ class _RealizationSectionState extends State<RealizationSection> {
   Future<void> _load() async {
     final id = widget.request.id;
     try {
-      final photos =
-          await context.read<FirebaseService>().getRealizationsForRequest(id);
+      final photos = await context
+          .read<FirebaseService>()
+          .getRealizationsForRequest(widget.request);
       if (mounted && id == widget.request.id) setState(() => _photos = photos);
     } catch (_) {}
   }

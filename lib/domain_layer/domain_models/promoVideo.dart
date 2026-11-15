@@ -117,6 +117,7 @@ class Request {
   final String fileName;
   final String mediaType; // image | video
   final DateTime? timestamp;
+  final DateTime? reopenedAt; // odblokowanie: od niego liczy się 10 dni do wygaśnięcia
   final String closedReason; // '' | expired | byUser | realized
   final String realizationStatus; // '' | pending | approved | rejected
   final bool is24;
@@ -148,6 +149,7 @@ class Request {
     required this.fileName,
     required this.mediaType,
     required this.timestamp,
+    this.reopenedAt,
     this.closedReason = '',
     this.realizationStatus = '',
     required this.is24,
@@ -190,6 +192,9 @@ class Request {
       mediaType: data['mediaType'] ?? _mediaTypeFromName(data['fileName'] ?? ''),
       timestamp: data['timestamp'] is Timestamp
           ? (data['timestamp'] as Timestamp).toDate()
+          : null,
+      reopenedAt: data['reopenedAt'] is Timestamp
+          ? (data['reopenedAt'] as Timestamp).toDate()
           : null,
       description: data['description'] ?? '',
       status: data['status'] ?? 'open',
