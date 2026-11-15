@@ -11,6 +11,7 @@ import 'package:qb/shared/widgets/w_dropdown.dart';
 import 'package:qb/shared/widgets/w_input_field.dart';
 import 'package:qb/shared/widgets/w_small_label.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:latlong2/latlong.dart';
@@ -426,6 +427,11 @@ class _ViewState extends State<View> {
                   isPassword: false,
                   hintText: 'np. 500',
                   keyboardType: TextInputType.number,
+                  // reguły przyjmują 0..9 999 999 — inaczej zapis odpada dopiero po wysłaniu pliku
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(7),
+                  ],
                 ),
 
                 SizedBox(height: 24),

@@ -103,11 +103,19 @@ class _MoiKlienciTabState extends State<MoiKlienciTab> {
           ),
         ),
         Expanded(
-          child: _RequestList(
-            requests: filtered,
-            isTrash: false,
-            offerStatuses: statuses,
-            clientNotes: widget.state.clientNotes,
+          child: RefreshIndicator(
+            onRefresh: () {
+              final bloc = context.read<StartPageBloc>();
+              bloc.add(GetDataStartPageEvent(silent: true));
+              return bloc.stream.firstWhere((s) => s is StartPageMainState,
+                  orElse: () => bloc.state);
+            },
+            child: _RequestList(
+              requests: filtered,
+              isTrash: false,
+              offerStatuses: statuses,
+              clientNotes: widget.state.clientNotes,
+            ),
           ),
         ),
       ],
@@ -131,16 +139,26 @@ class _RequestList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (requests.isEmpty) {
-      return EmptyState(
-        icon: isTrash ? Icons.delete_outline : Icons.inbox_outlined,
-        title: isTrash ? 'Kosz jest pusty' : 'Brak zgłoszeń',
-        subtitle: isTrash
-            ? null
-            : 'Tu pojawią się zgłoszenia z Twojej kategorii i okolicy.',
+      // przewijalne, żeby przeciągnięcie w dół odświeżało też pustą listę
+      return LayoutBuilder(
+        builder: (context, c) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SizedBox(
+            height: c.maxHeight,
+            child: EmptyState(
+              icon: isTrash ? Icons.delete_outline : Icons.inbox_outlined,
+              title: isTrash ? 'Kosz jest pusty' : 'Brak zgłoszeń',
+              subtitle: isTrash
+                  ? null
+                  : 'Tu pojawią się zgłoszenia z Twojej kategorii i okolicy.',
+            ),
+          ),
+        ),
       );
     }
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(12),
       itemCount: requests.length,
       itemBuilder: (context, index) => _RequestCard(

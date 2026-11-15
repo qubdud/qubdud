@@ -2,7 +2,11 @@ part of 'start_page_bloc.dart';
 
 abstract class StartPageEvent {}
 
-class GetDataStartPageEvent extends StartPageEvent {}
+class GetDataStartPageEvent extends StartPageEvent {
+  /// bez ekranu ładowania (przeciągnięcie listy, powrót apki, push o zgłoszeniu)
+  final bool silent;
+  GetDataStartPageEvent({this.silent = false});
+}
 
 class GoToMainStartPageEvent extends StartPageEvent {}
 

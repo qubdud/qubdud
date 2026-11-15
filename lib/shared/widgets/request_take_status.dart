@@ -34,18 +34,26 @@ class _CompanyOfferSectionState extends State<CompanyOfferSection> {
   Map<String, dynamic>? _myOffer;
   bool _loading = true;
   bool _busy = false;
+  StreamSubscription<Map<String, dynamic>?>? _sub;
 
   @override
   void initState() {
     super.initState();
-    context
+    // decyzja klienta (przyjęcie, odrzucenie) widoczna od razu na otwartym ekranie
+    _sub = context
         .read<FirebaseService>()
-        .getMyOffer(widget.request.id, widget.myCompanyId)
-        .then((o) {
+        .myOfferStream(widget.request.id, widget.myCompanyId)
+        .listen((o) {
       if (mounted) setState(() { _myOffer = o; _loading = false; });
-    }).catchError((_) {
+    }, onError: (_) {
       if (mounted) setState(() => _loading = false);
     });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 
   Future<void> _send() async {
@@ -130,7 +138,9 @@ class _CompanyOfferSectionState extends State<CompanyOfferSection> {
         return _badge(
           color: Colors.green,
           icon: Icons.check_circle_outline,
-          text: 'Klient zaakceptował Twoją ofertę — realizujesz to zadanie',
+          text: req.realizationStatus == 'approved'
+              ? 'Klient potwierdził wykonanie — zlecenie zakończone'
+              : 'Klient zaakceptował Twoją ofertę — realizujesz to zadanie',
         );
       case 'maybe':
         return _badge(

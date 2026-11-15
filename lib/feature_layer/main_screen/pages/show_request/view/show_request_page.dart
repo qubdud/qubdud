@@ -278,6 +278,8 @@ class _ViewState extends State<View> {
               SizedBox(
                 height: 200,
                 child: FlutterMap(
+                    // dokładne miejsce dochodzi na żywo po przyjęciu oferty — mapa centruje się od nowa
+                    key: ValueKey(exact),
                     options: MapOptions(
                       initialCenter: exact ?? Globals.instance.selectedRequest!.location,
                       initialZoom: exact != null ? 14 : 13,

@@ -1625,6 +1625,23 @@ class FirebaseService {
     return Request.fromDoc(doc);
   }
 
+  /// Zgłoszenie na żywo (widok zgłoszenia); null, gdy zostało usunięte.
+  Stream<Request?> requestStream(String id) => _firestore
+      .collection('requests')
+      .doc(id)
+      .snapshots()
+      .map((d) => d.exists ? Request.fromDoc(d) : null);
+
+  /// Moja oferta na żywo — decyzja klienta bez ponownego wejścia w zgłoszenie.
+  Stream<Map<String, dynamic>?> myOfferStream(String requestId, String companyId) =>
+      _firestore
+          .collection('requests')
+          .doc(requestId)
+          .collection('offers')
+          .doc(companyId)
+          .snapshots()
+          .map((d) => d.data());
+
   /// Aktualna rezerwacja klienta [clientId] w slocie firmy — do odnośnika
   /// „Rezerwacja". Null, gdy termin zniknął, jest wolny, wygasł albo zajął
   /// go ktoś inny (wspólny slot nie mówi nic o dawnych rezerwujących).
@@ -1849,10 +1866,17 @@ class FirebaseService {
       }
     }
 
-    final ref = await _putOwnFile('realizations', image, 'image');
+    // portfolio jest publiczne, a zdjęcie z miejsca zlecenia niesie w GPS adres klienta
+    Future<File> noGps(File f) async {
+      final clean = await compute(_jpgWithoutGps, await f.readAsBytes());
+      return clean == null ? f : File('${f.path}-nogps.jpg').writeAsBytes(clean);
+    }
+
+    final ref = await _putOwnFile('realizations', await noGps(image), 'image');
     String? beforeUrl;
     if (beforeImage != null) {
-      final beforeRef = await _putOwnFile('realizations', beforeImage, 'image',
+      final beforeRef = await _putOwnFile(
+          'realizations', await noGps(beforeImage), 'image',
           suffix: '_before');
       beforeUrl = await beforeRef.getDownloadURL();
     }
