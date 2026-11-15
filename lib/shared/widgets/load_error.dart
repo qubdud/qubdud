@@ -47,7 +47,7 @@ class LoadError extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(message,
-                  style: TextStyle(fontSize: 12.5, color: Colors.red.shade700)),
+                  style: TextStyle(fontSize: 12, color: Colors.red.shade700)),
             ),
             TextButton(onPressed: onRetry, child: const Text('Odśwież')),
           ],

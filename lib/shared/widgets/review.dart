@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain_layer/domain_models/promoVideo.dart';
 import '../../domain_layer/firebase_service.dart';
 import '../../feature_layer/main_screen/bloc/main_bloc.dart';
+import '../constants.dart';
 import '../functions/show_toast_error.dart';
 import '../moderation.dart';
 
@@ -145,7 +146,7 @@ class _ReviewWithCommentsState extends State<ReviewWithComments> {
                 i < widget.review.score ? Icons.star : Icons.star_border,
                 color: Colors.amber, size: 16,
               )),
-              const SizedBox(width: 6),
+              const SizedBox(width: kGapS),
               Expanded(
                 child:
 
@@ -203,7 +204,7 @@ class _ReviewWithCommentsState extends State<ReviewWithComments> {
             ],
           ),
           if (widget.review.description.isNotEmpty) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: kGapS),
             Text(widget.review.description, style: const TextStyle(fontSize: 13)),
           ],
 
@@ -238,7 +239,7 @@ class _ReviewWithCommentsState extends State<ReviewWithComments> {
             if (!_alreadyCommented &&
                 (uid == widget.review.userId ||
                     uid == widget.review.reviewedUserId)) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: kGapS),
               GestureDetector(
                 onTap: () => setState(() => _showInput = !_showInput),
                 child: Text(
@@ -251,7 +252,7 @@ class _ReviewWithCommentsState extends State<ReviewWithComments> {
                 ),
               ),
               if (_showInput) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: kGapS),
                 Row(
                   children: [
                     Expanded(
@@ -261,8 +262,8 @@ class _ReviewWithCommentsState extends State<ReviewWithComments> {
                         maxLines: 2,
                         decoration: InputDecoration(
                           hintText: 'Twój komentarz...',
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: kGapM, vertical: kGapS),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(kRadius)),
                           isDense: true,
                         ),
                       ),
@@ -298,13 +299,13 @@ class _CommentBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      margin: const EdgeInsets.only(top: 6, left: 16),
+      margin: const EdgeInsets.only(top: kGapS, left: kGapL),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: comment.isOwner
             ? (isDark ? const Color(0xFF17263A) : Colors.blue.shade50)
             : (isDark ? const Color(0xFF2A2930) : Colors.grey.shade100),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(kRadius),
         border: Border.all(
           color: comment.isOwner
               ? (isDark ? Colors.blue.shade800 : Colors.blue.shade200)
@@ -339,17 +340,17 @@ class _CommentBubble extends StatelessWidget {
                     if (comment.isOwner) ...[
                       const SizedBox(width: 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        padding: const EdgeInsets.symmetric(horizontal: kGapXs),
                         decoration: BoxDecoration(
                           color: Colors.blue.shade100,
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Text('firma', style: TextStyle(fontSize: 9, color: Colors.blue)),
+                        child: const Text('firma', style: TextStyle(fontSize: 11, color: Colors.blue)),
                       ),
                     ],
                   ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: kGapXs),
                 Text(comment.text, style: const TextStyle(fontSize: 12)),
               ],
             ),

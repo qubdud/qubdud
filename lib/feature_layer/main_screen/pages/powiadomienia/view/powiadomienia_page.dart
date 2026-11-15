@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../domain_layer/firebase_service.dart';
+import '../../../../../shared/constants.dart';
 import '../../../../../shared/functions/days_ago.dart';
 import '../../../../../shared/functions/effective_role.dart';
 import '../../../../../shared/functions/show_toast.dart';
@@ -122,7 +123,7 @@ class _PowiadomieniaPageState extends State<PowiadomieniaPage> {
               ),
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                padding: const EdgeInsets.fromLTRB(kGapL, kGapS, kGapL, kGapXl),
                 itemCount: items.length,
                 itemBuilder: (context, i) {
                   final n = items[i];
@@ -134,11 +135,11 @@ class _PowiadomieniaPageState extends State<PowiadomieniaPage> {
                     direction: DismissDirection.endToStart,
                     background: Container(
                       alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 20),
-                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.only(right: kGapL),
+                      margin: const EdgeInsets.only(bottom: kGapS),
                       decoration: BoxDecoration(
                           color: Colors.red.shade400,
-                          borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(kRadius)),
                       child: const Icon(Icons.delete_outline, color: Colors.white),
                     ),
                     confirmDismiss: (_) async =>
@@ -183,8 +184,8 @@ class _PowiadomieniaPageState extends State<PowiadomieniaPage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(n['body'] as String? ?? '',
-                                style: const TextStyle(fontSize: 12.5)),
-                            const SizedBox(height: 2),
+                                style: const TextStyle(fontSize: 12)),
+                            const SizedBox(height: kGapXs),
                             Text(_when(n['createdAt']),
                                 style: TextStyle(
                                     fontSize: 11, color: Colors.grey.shade500)),

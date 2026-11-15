@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../constants.dart';
+
 /// Jednolita zaślepka pustej listy (ikona + tytuł + opcjonalny podtytuł).
 class EmptyState extends StatelessWidget {
   final IconData icon;
@@ -28,7 +30,7 @@ class EmptyState extends StatelessWidget {
                 style:
                     TextStyle(color: Colors.grey.shade500, fontSize: 14)),
             if (subtitle != null) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: kGapXs),
               Text(subtitle!,
                   textAlign: TextAlign.center,
                   style:

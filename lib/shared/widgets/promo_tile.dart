@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain_layer/firebase_service.dart';
 
 import '../../domain_layer/domain_models/promoVideo.dart';
+import '../constants.dart';
 import '../globals.dart';
 
 /// Kafelek prezentacji firmy (Odkrywaj, Ulubione): miniatura, nazwa firmy
@@ -65,7 +66,7 @@ class _PromoTileState extends State<PromoTile> {
     return GestureDetector(
       onTap: onTap,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(kRadius),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -89,7 +90,7 @@ class _PromoTileState extends State<PromoTile> {
               right: 0,
               bottom: 0,
               child: Container(
-                padding: const EdgeInsets.fromLTRB(10, 28, 10, 10),
+                padding: const EdgeInsets.fromLTRB(kGapS, kGapXl, kGapS, kGapS),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
@@ -109,7 +110,7 @@ class _PromoTileState extends State<PromoTile> {
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                             height: 1.15)),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: kGapXs),
                     Text(promo.sector,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

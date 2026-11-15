@@ -99,7 +99,8 @@ class _UpdateScreen extends StatelessWidget {
         child: SafeArea(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.all(32),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: kGapL, vertical: kGapXl),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -114,7 +115,7 @@ class _UpdateScreen extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium),
                   if (url != null) ...[
-                    const SizedBox(height: 28),
+                    const SizedBox(height: kGapXl),
                     FilledButton.icon(
                       onPressed: () =>
                           launchUrl(url!, mode: LaunchMode.externalApplication),

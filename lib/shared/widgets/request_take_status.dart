@@ -8,6 +8,7 @@ import '../../domain_layer/domain_models/app_user.dart';
 import '../../domain_layer/domain_models/promoVideo.dart';
 import '../../domain_layer/firebase_service.dart';
 import '../../feature_layer/main_screen/bloc/main_bloc.dart';
+import '../constants.dart';
 import '../functions/plural.dart';
 import '../functions/show_toast.dart';
 import '../functions/show_toast_error.dart';
@@ -125,9 +126,6 @@ class _CompanyOfferSectionState extends State<CompanyOfferSection> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.black87,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
             ),
           ),
         ],
@@ -173,10 +171,10 @@ class _CompanyOfferSectionState extends State<CompanyOfferSection> {
   Widget _badge(
       {required Color color, required IconData icon, required String text}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.all(kGapM),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(kRadius),
         border: Border.all(color: color.withOpacity(0.4)),
       ),
       child: Row(
@@ -385,7 +383,7 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
 
     if (_busy) {
       return const Padding(
-        padding: EdgeInsets.only(top: 6),
+        padding: EdgeInsets.only(top: kGapS),
         child: SizedBox(
             height: 20, width: 20,
             child: CircularProgressIndicator(strokeWidth: 2)),
@@ -395,8 +393,8 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
     // zaakceptowane — w realizacji
     if (req.status == 'taken') {
       return Container(
-        margin: const EdgeInsets.only(top: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        margin: const EdgeInsets.only(top: kGapS),
+        padding: const EdgeInsets.symmetric(horizontal: kGapS, vertical: kGapXs),
         decoration: BoxDecoration(
           color: Colors.green.shade50,
           borderRadius: BorderRadius.circular(8),
@@ -405,7 +403,7 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
         child: Row(
           children: [
             const Icon(Icons.check_circle, size: 15, color: Colors.green),
-            const SizedBox(width: 6),
+            const SizedBox(width: kGapS),
             Expanded(
               child: GestureDetector(
                 onTap: () => context
@@ -444,7 +442,7 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
     final cheapest = prices.length > 1 ? prices.reduce((a, b) => a < b ? a : b) : null;
 
     return Container(
-      margin: const EdgeInsets.only(top: 6),
+      margin: const EdgeInsets.only(top: kGapS),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.blueGrey.withOpacity(0.06),
@@ -498,9 +496,9 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
                             ),
                             if (_companies[o['companyId']] case final s?)
                               Padding(
-                                padding: const EdgeInsets.only(top: 2),
+                                padding: const EdgeInsets.only(top: kGapXs),
                                 child: Wrap(
-                                  spacing: 6,
+                                  spacing: kGapXs,
                                   crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
                                     if (s.reviews > 0) ...[
@@ -527,9 +525,9 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
                               ),
                             if (offerPriceLabel(o) != null || kOfferWhen[o['when']] != null)
                               Padding(
-                                padding: const EdgeInsets.only(top: 2),
+                                padding: const EdgeInsets.only(top: kGapXs),
                                 child: Wrap(
-                                  spacing: 6,
+                                  spacing: kGapXs,
                                   crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
                                     if (offerPriceLabel(o) != null)
@@ -590,8 +588,8 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
         'Zgłoszenia ze zdjęciem dostają więcej ofert — możesz dodać nowe ze zdjęciem.',
     ];
     return Container(
-      margin: const EdgeInsets.only(top: 6),
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.only(top: kGapS),
+      padding: const EdgeInsets.all(kGapS),
       decoration: BoxDecoration(
         color: Colors.amber.shade50,
         borderRadius: BorderRadius.circular(8),
@@ -603,7 +601,7 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
           const Row(
             children: [
               Icon(Icons.lightbulb_outline, size: 16, color: Colors.orange),
-              SizedBox(width: 6),
+              SizedBox(width: kGapS),
               Expanded(
                 child: Text('Jeszcze brak ofert',
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
@@ -618,7 +616,7 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
               style: const TextStyle(fontSize: 12)),
           for (final t in tips)
             Padding(
-              padding: const EdgeInsets.only(top: 2),
+              padding: const EdgeInsets.only(top: kGapXs),
               child: Text('• $t', style: const TextStyle(fontSize: 12)),
             ),
           if (widget.onEditDescription != null && shortDesc)
@@ -637,12 +635,12 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
 
   Widget _decisionBtn(IconData icon, Color color, VoidCallback onTap) {
     return Padding(
-      padding: const EdgeInsets.only(left: 6),
+      padding: const EdgeInsets.only(left: kGapS),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.all(kGapS),
           decoration: BoxDecoration(
             color: color.withOpacity(0.12),
             borderRadius: BorderRadius.circular(8),

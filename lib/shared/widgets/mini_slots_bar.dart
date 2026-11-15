@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../domain_layer/firebase_service.dart';
+import '../constants.dart';
 import '../functions/show_toast.dart';
 import '../functions/show_toast_error.dart';
 import '../globals.dart';
@@ -121,13 +122,13 @@ class _MiniSlotsBarState extends State<MiniSlotsBar> {
       return GestureDetector(
         onTap: () => showLoginPrompt(context, 'zobaczyć terminy'),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: kGapM, vertical: kGapS),
           color: Colors.black.withOpacity(0.45),
           child: const Row(
             children: [
               Icon(Icons.event_available_outlined,
                   color: Colors.white70, size: 16),
-              SizedBox(width: 6),
+              SizedBox(width: kGapS),
               Text('Zaloguj się, aby zobaczyć terminy',
                   style: TextStyle(color: Colors.white, fontSize: 11)),
             ],
@@ -147,13 +148,13 @@ class _MiniSlotsBarState extends State<MiniSlotsBar> {
     final today = DateTime.now();
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: kGapM, vertical: kGapXs),
       color: Colors.black.withOpacity(0.45),
       child: Row(
         children: [
           const Icon(Icons.event_available_outlined,
               color: Colors.white70, size: 16),
-          const SizedBox(width: 6),
+          const SizedBox(width: kGapS),
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -172,12 +173,12 @@ class _MiniSlotsBarState extends State<MiniSlotsBar> {
                   final label =
                       '${isToday ? 'Dziś' : wd[st.weekday - 1]} ${DateFormat('HH:mm').format(st)}';
                   return Padding(
-                    padding: const EdgeInsets.only(right: 6),
+                    padding: const EdgeInsets.only(right: kGapS),
                     child: GestureDetector(
                       onTap: () => _tap(s),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 3),
+                            horizontal: kGapS, vertical: kGapXs),
                         decoration: BoxDecoration(
                           color: mine
                               ? color.withOpacity(0.25)

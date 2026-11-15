@@ -29,16 +29,17 @@ showToast({required String text, Color color = Colors.red, int milliseconds = 20
             child: Material(
               color: Theme.of(NavigationService.navigatorKey.currentContext!).brightness == Brightness.dark ? const Color(0xFF2A2930) : Colors.white,
               elevation: 8, // Ustawienie cienia
-              borderRadius: BorderRadius.circular(8), // Opcjonalnie, jeśli chcesz zaokrąglić rogi
+              borderRadius: BorderRadius.circular(kRadius),
               child: Padding(
-                padding: const EdgeInsets.all(10.0),
+                padding: const EdgeInsets.all(kGapM),
                 child: Column(
                   children: [
                     const Icon(
                       Icons.info,
-                      size: 50,
+                      size: 32,
                       color: cDarkBlue,
                     ),
+                    const SizedBox(height: kGapXs),
                     Center(
                       child: SelectableText(
                         text,

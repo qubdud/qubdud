@@ -22,11 +22,11 @@ class AnonimGateView extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.symmetric(horizontal: kGapL, vertical: kGapXl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox(height: 40),
+            const SizedBox(height: kGapXl),
             Icon(icon, size: 80, color: Colors.grey),
             const SizedBox(height: 24),
             const Text('Przeglądasz aplikację anonimowo',
@@ -36,7 +36,7 @@ class AnonimGateView extends StatelessWidget {
             Text(what,
                 style: const TextStyle(fontSize: 14, color: Colors.grey),
                 textAlign: TextAlign.center),
-            const SizedBox(height: 40),
+            const SizedBox(height: kGapXl),
             WButton(
               text: 'Zaloguj się',
               onPressed: () =>
@@ -50,7 +50,7 @@ class AnonimGateView extends StatelessWidget {
               child: const Text('lub zarejestruj się',
                   style: TextStyle(
                     color: cDarkBlue,
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w700,
                     decoration: TextDecoration.underline,
                   )),
@@ -73,21 +73,21 @@ Future<void> showLoginPrompt(BuildContext context, String action) {
   return showModalBottomSheet<void>(
     context: context,
     shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
     builder: (ctx) => SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+        padding: const EdgeInsets.all(kGapL),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.lock_outline, size: 40, color: Colors.grey.shade500),
-            const SizedBox(height: 10),
+            const SizedBox(height: kGapS),
             const Text('Przeglądasz aplikację anonimowo',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
+            const SizedBox(height: kGapXs),
             Text('Aby $action, zaloguj się lub załóż konto.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13.5, color: Colors.grey.shade600)),
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,

@@ -107,7 +107,7 @@ class _ChatPageMobState extends State<ChatPageMob>
                 controller: _tab,
                 labelStyle:
                     const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-                labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                labelPadding: const EdgeInsets.symmetric(horizontal: kGapXs),
                 dividerColor: Colors.transparent,
                 tabs: _tabs,
               ),
@@ -228,7 +228,7 @@ class _ContactsListState extends State<_ContactsList>
         .toList();
 
     Widget chips() => Padding(
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+          padding: const EdgeInsets.fromLTRB(kGapL, kGapS, kGapL, 0),
           child: Row(
             children: [
               for (final f in <(bool?, String)>[
@@ -242,7 +242,7 @@ class _ContactsListState extends State<_ContactsList>
                   visualDensity: VisualDensity.compact,
                   onSelected: (_) => setState(() => _filter = f.$1),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: kGapS),
               ],
             ],
           ),
@@ -273,7 +273,7 @@ class _ContactsListState extends State<_ContactsList>
             chips(),
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.fromLTRB(kGapL, kGapS, kGapL, kGapL),
                 itemCount: shown.length,
                 itemBuilder: (context, i) {
                   final user = shown[i];
@@ -371,7 +371,7 @@ class _ContactCard extends StatelessWidget {
         : (user.phone ?? '');
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: kGapS),
       child: ListTile(
         onTap: () => context.read<MainScreenBloc>().add(isCompany
             ? GoToProfilPublicznyFirmyEvent(user.id)
@@ -430,12 +430,11 @@ class _ContactCard extends StatelessWidget {
           children: [
             if (unreadCount > 0)
               Container(
-                margin: const EdgeInsets.only(right: 4),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                    color: Colors.red.shade600,
-                    borderRadius: BorderRadius.circular(10)),
+                margin: const EdgeInsets.only(right: kGapXs),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: kGapS, vertical: kGapXs),
+                decoration: ShapeDecoration(
+                    color: Colors.red.shade600, shape: const StadiumBorder()),
                 child: Text('$unreadCount',
                     style: const TextStyle(
                         color: Colors.white,
