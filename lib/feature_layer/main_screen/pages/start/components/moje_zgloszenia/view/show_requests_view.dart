@@ -1,6 +1,7 @@
 import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:qb/shared/functions/days_ago.dart';
 import 'package:qb/shared/functions/plural.dart';
 import 'package:qb/shared/functions/show_toast_error.dart';
 import 'package:qb/shared/functions/show_toast.dart';
@@ -460,9 +461,9 @@ class _MyRequestTileState extends State<_MyRequestTile> {
 /// Wygasają tylko otwarte zgłoszenia (cron po 10 dniach).
 String _wystawione(Request req) {
   final d = req.timestamp!;
-  final diff = DateTime.now().difference(d);
-  if (diff.inDays == 0) return 'wystawione dziś';
-  if (diff.inDays == 1) return 'wystawione wczoraj';
+  final days = calendarDaysAgo(d);
+  if (days <= 0) return 'wystawione dziś';
+  if (days == 1) return 'wystawione wczoraj';
   final data = 'wystawione ${d.day}.${d.month.toString().padLeft(2, '0')}.${d.year}';
   if (req.status != 'open') return data;
   final left = 10 - DateTime.now().difference(req.reopenedAt ?? d).inDays;

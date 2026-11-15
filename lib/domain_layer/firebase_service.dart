@@ -466,6 +466,27 @@ class FirebaseService {
         .toList();
   }
 
+  /// Zgłoszenia klienta na żywo. Niezmienione zgłoszenie zostaje tym samym
+  /// obiektem — jego karta nie przeładowuje zdjęć realizacji.
+  Stream<List<Request>> requestsByUserStream(String userId) {
+    final cache = <String, Request>{};
+    return _firestore
+        .collection('requests')
+        .where('userId', isEqualTo: userId)
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snap) {
+      for (final c in snap.docChanges) {
+        if (c.type == DocumentChangeType.removed) {
+          cache.remove(c.doc.id);
+        } else {
+          cache[c.doc.id] = Request.fromDoc(c.doc);
+        }
+      }
+      return [for (final d in snap.docs) cache[d.id] ??= Request.fromDoc(d)];
+    });
+  }
+
   Future<Set<String>> _skippedRequestIds(String userId) async {
     final snap = await _firestore
         .collection('users')
@@ -1819,6 +1840,7 @@ class FirebaseService {
     for (final d in snap.docs) {
       final req = Request.fromDoc(d);
       if (req.status != 'open' ||
+          !req.is24 ||
           !req.isActiveFor(companyId) ||
           skippedIds.contains(req.id)) {
         continue;

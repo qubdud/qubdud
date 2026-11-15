@@ -235,7 +235,7 @@ class _ViewState extends State<View> {
       location: selectedLocation!,
       city: businessCity.text.trim(),
       description: name.text.trim(),
-      is24: is24,
+      is24: is24 && kEmergencySectors.contains(selectedBranza),
       timing: _timing,
       budget: int.tryParse(_budget.text.trim()),
       answers: _answers,
@@ -314,6 +314,7 @@ class _ViewState extends State<View> {
                       // reset branży przy zmianie kategorii
                       selectedBranza = null;
                       _sectorCtrl.clear();
+                      is24 = false;
                     });
                   },
                 ),
@@ -330,6 +331,10 @@ class _ViewState extends State<View> {
                     setState(() {
                       selectedBranza = val.isEmpty ? null : val;
                       if (selectedBranza != null) _sectorError = null;
+                      if (!kEmergencySectors.contains(selectedBranza)) is24 = false;
+                      final qs = requestQuestionsFor(selectedCategory, selectedBranza);
+                      _answers.removeWhere((k, v) =>
+                          !qs.any((q) => q.label == k && q.options.contains(v)));
                     });
                   },
                 ),
@@ -417,7 +422,7 @@ class _ViewState extends State<View> {
                       ? ''
                       : kRequestTiming.entries.firstWhere((e) => e.value == v).key);
                 }),
-                for (final q in kCategoryQuestions[selectedCategory] ?? const <RequestQuestion>[])
+                for (final q in requestQuestionsFor(selectedCategory, selectedBranza))
                   _chipsQuestion(q.label, q.options, _answers[q.label], (v) {
                     setState(() => v == null ? _answers.remove(q.label) : _answers[q.label] = v);
                   }),
@@ -436,26 +441,27 @@ class _ViewState extends State<View> {
 
                 SizedBox(height: 24),
 
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    WCheckbox(
-                      isError: false,
-                      value: is24,
-                      onChanged: (value) {
-                        setState(() {
-                          is24 = value ?? false;
-                        });
-                      },
-                    ),
-                    SizedBox(width: 16),
-                    Flexible(
-                      child: Text('Wyślij jako zgłoszenie 24'
+                if (kEmergencySectors.contains(selectedBranza)) ...[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      WCheckbox(
+                        isError: false,
+                        value: is24,
+                        onChanged: (value) {
+                          setState(() {
+                            is24 = value ?? false;
+                          });
+                        },
                       ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 24),
+                      const SizedBox(width: 16),
+                      const Flexible(
+                        child: Text('🔴 Awaria — potrzebuję pomocy w ciągu 24 h'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                ],
 
                 WButton(
                   text: 'Dodaj',

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bloc/bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide User;
 import 'package:qb/domain_layer/firebase_service.dart';
@@ -12,22 +14,34 @@ part 'show_requests_state.dart';
 
 
 class ShowRequestsComponentBloc extends Bloc<ShowRequestsComponentEvent, ShowRequestsComponentState> {
+  StreamSubscription<List<Request>>? _sub;
+
   ShowRequestsComponentBloc({
     required FirebaseService firebase,
     required AppUser user,
 
   }) : super(ShowRequestsComponentLoadingState()) {
 
-    on<GetDataShowRequestsComponentEvent>((event, emit) async {
-      try {
-        final userId = FirebaseAuth.instance.currentUser?.uid;
-        if (userId == null) throw Exception('Brak użytkownika');
-        state.requests = await firebase.getRequestsMetadataByUser(userId);
-        emit(ShowRequestsComponentMainState());
-      } catch (_) {
+    // nasłuch na żywo: decyzje firmy (np. „zlecenie wykonane”) widać bez przełączania zakładki
+    on<GetDataShowRequestsComponentEvent>((event, emit) {
+      _sub?.cancel();
+      _sub = null;
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) {
         state.requests = [];
         emit(ShowRequestsComponentErrorState());
+        return;
       }
+      _sub = firebase.requestsByUserStream(userId).listen(
+          (list) => add(_RequestsUpdatedShowRequestsComponentEvent(list)),
+          onError: (_) => add(_RequestsUpdatedShowRequestsComponentEvent(null)));
+    });
+
+    on<_RequestsUpdatedShowRequestsComponentEvent>((event, emit) {
+      state.requests = event.requests ?? [];
+      emit(event.requests == null
+          ? ShowRequestsComponentErrorState()
+          : ShowRequestsComponentMainState());
     });
 
     on<TryDeleteMyRequestShowRequestsComponentEvent>((event, emit) async {
@@ -46,5 +60,9 @@ class ShowRequestsComponentBloc extends Bloc<ShowRequestsComponentEvent, ShowReq
     add(GetDataShowRequestsComponentEvent());
 }
 
-
+  @override
+  Future<void> close() async {
+    await _sub?.cancel();
+    return super.close();
+  }
 }

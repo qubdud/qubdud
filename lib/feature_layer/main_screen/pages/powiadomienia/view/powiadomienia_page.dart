@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../domain_layer/firebase_service.dart';
+import '../../../../../shared/functions/days_ago.dart';
 import '../../../../../shared/functions/effective_role.dart';
 import '../../../../../shared/functions/show_toast.dart';
 import '../../../../../shared/widgets/empty_state.dart';
@@ -53,8 +54,9 @@ class _PowiadomieniaPageState extends State<PowiadomieniaPage> {
     if (diff.inMinutes < 1) return 'przed chwilą';
     if (diff.inMinutes < 60) return '${diff.inMinutes} min temu';
     if (diff.inHours < 24) return '${diff.inHours} godz. temu';
-    if (diff.inDays == 1) return 'wczoraj';
-    if (diff.inDays < 7) return '${diff.inDays} dni temu';
+    final days = calendarDaysAgo(d);
+    if (days <= 1) return 'wczoraj';
+    if (days < 7) return '$days dni temu';
     return '${d.day}.${d.month.toString().padLeft(2, '0')}';
   }
 

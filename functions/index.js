@@ -17,6 +17,11 @@ const db = getFirestore();
 
 const URGENT_RADIUS_KM = 30;
 const NEW_REQUEST_RADIUS_KM = 30;
+// zgłoszenie 24 tylko w tych branżach (kEmergencySectors w apce); stare APK wysyłały is24 wszędzie
+const EMERGENCY_SECTORS = new Set([
+  'Elektryk', 'Hydraulik', 'Montaż pieców gazowych', 'Pompy ciepła',
+  'Serwis RTV AGD', 'Pomoc drogowa', 'Ślusarz', 'Weterynarz',
+]);
 const REQUEST_TTL_DAYS = 10;        // po tylu dniach otwarte zgłoszenie zamyka się samo
 const REVIEW_AFTER_BOOKING_H = 2;   // po zakończonym terminie
 const REVIEW_AFTER_JOB_H = 2;       // po potwierdzonej realizacji
@@ -202,7 +207,7 @@ async function notifyBookingLost(client, companyId, when, status, company) {
 exports.notifyUrgentRequest = onDocumentCreated('requests/{id}', async (event) => {
   const d = event.data && event.data.data();
   if (!d || !d.userId || !d.sector || !d.location || typeof d.location.lat !== 'number') return;
-  const urgent = d.is24 === true;
+  const urgent = d.is24 === true && EMERGENCY_SECTORS.has(d.sector);
 
   const [firms, clientBlocked] = await Promise.all([
     db.collection('users')

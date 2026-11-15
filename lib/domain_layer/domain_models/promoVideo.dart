@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:qb/shared/constants.dart';
 
 class Promo {
   final String id;
@@ -173,7 +174,8 @@ class Request {
       id: doc.id,
       closedReason: data['closedReason'] ?? '',
       realizationStatus: data['realizationStatus'] ?? '',
-      is24: data['is24'] ?? false,
+      // stare APK pozwalały na „24” w każdej branży
+      is24: data['is24'] == true && kEmergencySectors.contains(data['sector']),
       timing: data['timing'] as String? ?? '',
       budget: data['budget'] is int ? data['budget'] as int : null,
       answers: (data['answers'] as Map?)?.map((k, v) => MapEntry('$k', '$v')) ?? const {},
