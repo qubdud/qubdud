@@ -1,6 +1,9 @@
-/// Szybkie wypełnianie loginu na ekranie logowania — tylko w buildzie debug.
-/// Używane wyłącznie pod `kDebugMode`, więc w release (AOT) lista nie trafia
-/// do skompilowanego kodu.
+/// Szybkie wypełnianie loginu na ekranie logowania — w buildzie debug i w APK
+/// dla testerów (`--dart-define=DEMO_LOGIN=true`). W buildzie do sklepu obie
+/// flagi są fałszywe, więc lista nie trafia do skompilowanego kodu.
+/// Konta firm to prawdziwe firmy ze wspólnym hasłem — tylko dla zamkniętej grupy.
+const bool kDemoLogin = bool.fromEnvironment('DEMO_LOGIN');
+
 class DemoAccount {
   final String label;
   final String email;

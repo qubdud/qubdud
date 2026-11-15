@@ -178,9 +178,9 @@ class _LoginPageState extends State<LoginPage> {
                 Center(child: WLabel(text: 'Logowanie')),
                 const SizedBox(height: 16),
 
-                // konta testowe tylko w debug — w release kod i dane kont
-                // są wycinane (kDebugMode to stała)
-                if (kDebugMode) ...[
+                // konta testowe w debug i w buildzie dla testerów (--dart-define=DEMO_LOGIN=true);
+                // w buildzie do sklepu kod i dane kont są wycinane (obie wartości to stałe)
+                if (kDebugMode || kDemoLogin) ...[
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 4),
