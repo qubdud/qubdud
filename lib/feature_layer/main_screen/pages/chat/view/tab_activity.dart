@@ -89,7 +89,7 @@ class _TabActivityState extends State<TabActivity> {
   }
 
   static String _short(String s) =>
-      s.length > 40 ? '${s.substring(0, 40).trimRight()}…' : s;
+      s.characters.length > 40 ? '${s.characters.take(40).toString().trimRight()}…' : s;
 
   static String _hhmm(DateTime d) =>
       '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';

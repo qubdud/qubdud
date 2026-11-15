@@ -367,7 +367,7 @@ class _VideoItemState extends State<_VideoItem> {
                               ...List.generate(
                                 5,
                                 (i) => Icon(
-                                  i < _rating
+                                  i < _rating.round()
                                       ? Icons.star
                                       : Icons.star_border,
                                   color: Colors.amber,

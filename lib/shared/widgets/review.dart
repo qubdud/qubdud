@@ -112,13 +112,23 @@ class _ReviewWithCommentsState extends State<ReviewWithComments> {
     super.dispose();
   }
 
+  void _openCompany() {
+    final bloc = context.read<MainScreenBloc>();
+    final s = bloc.state;
+    if (s is ProfilPublicznyFirmyMainScreenState &&
+        s.id == widget.review.reviewedUserId) {
+      return;
+    }
+    bloc.add(GoToProfilPublicznyFirmyEvent(widget.review.reviewedUserId));
+  }
+
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     if (BlockedUsers.contains(widget.review.userId)) return const SizedBox.shrink();
 
     return GestureDetector(
-      onTap:(){context.read<MainScreenBloc>().add(GoToProfilPublicznyFirmyEvent(widget.review.reviewedUserId));},
+      onTap: _openCompany,
 
 
       child: Column(
@@ -141,7 +151,9 @@ class _ReviewWithCommentsState extends State<ReviewWithComments> {
 
 
                 GestureDetector(
-                  onTap:(){context.read<MainScreenBloc>().add(GoToProfilPublicznyUseraEvent(widget.review.userId));},
+                  onTap: widget.subjectName != null
+                      ? _openCompany
+                      : () => context.read<MainScreenBloc>().add(GoToProfilPublicznyUseraEvent(widget.review.userId)),
 
 
                   child:

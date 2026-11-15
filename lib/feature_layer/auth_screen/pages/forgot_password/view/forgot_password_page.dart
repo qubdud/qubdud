@@ -50,8 +50,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           case 'user-not-found':
             _emailError = 'Nie znaleziono konta dla tego adresu.';
             break;
+          case 'network-request-failed':
+            _emailError = 'Brak połączenia z internetem.';
+            break;
+          case 'too-many-requests':
+            _emailError = 'Za dużo prób — spróbuj za chwilę.';
+            break;
           default:
-            _emailError = e.message ?? 'Nie udało się wysłać wiadomości.';
+            _emailError = 'Nie udało się wysłać wiadomości (${e.code}).';
         }
       });
     } catch (_) {

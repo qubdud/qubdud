@@ -12,3 +12,5 @@ class SelectedDodajReviewPageEvent extends DodajReviewPageEvent {
 }
 
 class GetDataDodajReviewPageEvent extends DodajReviewPageEvent {}
+
+class SkipFileDodajReviewPageEvent extends DodajReviewPageEvent {}

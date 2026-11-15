@@ -2,6 +2,7 @@ import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
+import '../../../../../shared/functions/plural.dart';
 import '../../../../../shared/widgets/review.dart';
 import '../bloc/start_page_bloc.dart';
 
@@ -36,7 +37,7 @@ class StartTabOtrzymaneRecenzje extends StatelessWidget {
               const SizedBox(width: 6),
               Text(avg.toStringAsFixed(1),
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              Text('  (${reviews.length} opinii)',
+              Text('  (${reviews.length} ${plural(reviews.length, 'opinia', 'opinie', 'opinii')})',
                   style: const TextStyle(color: Colors.grey)),
             ],
           ),

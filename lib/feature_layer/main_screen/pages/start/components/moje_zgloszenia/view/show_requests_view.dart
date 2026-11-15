@@ -1,6 +1,7 @@
 import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:qb/shared/functions/plural.dart';
 import 'package:qb/shared/functions/show_toast_error.dart';
 import 'package:qb/shared/functions/show_toast.dart';
 import 'package:qb/shared/widgets/before_after.dart';
@@ -465,7 +466,7 @@ String _wystawione(Request req) {
   if (req.status != 'open') return data;
   final left = 10 - diff.inDays;
   if (left <= 0) return '$data · wygasa';
-  return '$data · wygasa za $left dni';
+  return '$data · wygasa za $left ${plural(left, 'dzień', 'dni', 'dni')}';
 }
 
 class _ClosedLabel extends StatelessWidget {
