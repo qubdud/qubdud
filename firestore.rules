@@ -44,14 +44,18 @@ service cloud.firestore {
               && request.resource.data.views == resource.data.get('views', 0) + 1);
       allow delete: if isMe(resource.data.userId);
 
+      // tylko konto firmowe, pod nazwą ze swojego profilu
       function validPromo(d) {
+        let me = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
         return d.keys().hasOnly(['userId', 'category', 'sector', 'location', 'fileUrl',
                 'thumbUrl', 'fileName', 'timestamp', 'description', 'companyName'])
             && d.userId == request.auth.uid
             && d.category is string && d.sector is string && validLocation(d.location)
             && d.fileUrl is string && d.thumbUrl is string && d.fileName is string
             && d.timestamp == request.time
-            && d.description is string && d.companyName is string;
+            && d.description is string && d.companyName is string
+            && me.get('firma', me.get('isCompany', false)) == true
+            && d.companyName == me.get('companyName', '');
       }
     }
 
@@ -69,7 +73,10 @@ service cloud.firestore {
           // telefon klienta jest tylko w private/contact (jawny ma wyłącznie firma)
           && (!changedKeys().hasAny(['phone'])
               || resource.data.get('firma', resource.data.get('isCompany', false)) == true
-              || request.resource.data.phone == '');
+              || request.resource.data.phone == '')
+          // dane firmy (nazwa w prezentacjach, ofertach, komentarzach) tylko na koncie firmowym
+          && (!changedKeys().hasAny(['companyName', 'companyCity', 'companyAddress', 'companyLocation'])
+              || resource.data.get('firma', resource.data.get('isCompany', false)) == true);
       allow delete: if false;
 
       function validNewUser(d) {
@@ -284,7 +291,8 @@ service cloud.firestore {
             && id == d.companyId + '_' + request.auth.uid
             && d.userName is string && d.companyName is string
             && d.phone is string && d.note is string
-            && d.status == 'pending' && d.createdAt == request.time && d.doneAt == null;
+            && d.status == 'pending' && d.createdAt == request.time && d.doneAt == null
+            && !exists(/databases/$(database)/documents/users/$(d.companyId)/blocked/$(request.auth.uid));
       }
     }
 
@@ -341,13 +349,13 @@ service cloud.firestore {
                 && d.confirmedByCompany == true && d.confirmedByUser == true
                 && d.takenAt == request.time
                 && getAfter(/databases/$(database)/documents/requests/$(requestId)/offers/$(d.takenBy)).data.status == 'accepted')
-            // odblokowanie
+            // odblokowanie (reopenedAt: od niego liczy się 10 dni do wygaśnięcia)
             || (onlyKeys(['takenBy', 'takenByName', 'confirmedByCompany', 'confirmedByUser',
-                          'status', 'realizationStatus'])
+                          'status', 'realizationStatus', 'reopenedAt'])
                 && status == 'taken'
                 && d.status == 'open' && d.takenBy == '' && d.takenByName == ''
                 && d.confirmedByCompany == false && d.confirmedByUser == false
-                && !('realizationStatus' in d))
+                && !('realizationStatus' in d) && d.reopenedAt == request.time)
             // ręczne zamknięcie
             || (onlyKeys(['status', 'closedAt', 'closedReason'])
                 && status != 'closed'
@@ -412,7 +420,8 @@ service cloud.firestore {
               && d.status == 'pending' && d.timestamp == request.time
               && me.get('firma', me.get('isCompany', false)) == true
               && d.companyName == me.get('companyName', '')
-              && r.userId != request.auth.uid && r.get('status', 'open') == 'open';
+              && r.userId != request.auth.uid && r.get('status', 'open') == 'open'
+              && !exists(/databases/$(database)/documents/users/$(r.userId)/blocked/$(request.auth.uid));
         }
       }
     }
@@ -443,14 +452,16 @@ service cloud.firestore {
         allow update: if false;
         allow delete: if isMe(resource.data.authorId);
 
-        // znaczek „właściciel” tylko dla firmy, której dotyczy recenzja
+        // komentuje autor recenzji albo oceniona firma (jak w apce); znaczek „właściciel” tylko dla tej firmy
         function validComment(d) {
           return d.keys().hasOnly(['reviewId', 'authorId', 'authorName', 'isOwner', 'text', 'timestamp'])
               && d.reviewId == reviewId && d.authorId == request.auth.uid
               && commentId == request.auth.uid
               && d.authorName is string && d.text is string && d.text.size() > 0
               && d.timestamp == request.time
-              && d.isOwner == (get(/databases/$(database)/documents/reviews/$(reviewId)).data.reviewedUserId == request.auth.uid);
+              && d.isOwner == (get(/databases/$(database)/documents/reviews/$(reviewId)).data.reviewedUserId == request.auth.uid)
+              && request.auth.uid in [get(/databases/$(database)/documents/reviews/$(reviewId)).data.userId,
+                                      get(/databases/$(database)/documents/reviews/$(reviewId)).data.reviewedUserId];
         }
       }
     }
@@ -535,29 +546,34 @@ service cloud.firestore {
 
     // ── realizacje (zdjęcia Przed/Po) ──
     match /realizations/{realizationId} {
-      allow read: if signedIn();
+      // visible = potwierdzone przez klienta albo opublikowane przez firmę; resztę widzą
+      // tylko klient i firma z tej realizacji (zapytania apki filtrują po visible albo po sobie)
+      allow read: if isMe(resource.data.userId) || isMe(resource.data.companyId)
+          || (signedIn() && resource.data.visible == true);
       // firma realizująca (czeka na potwierdzenie) albo właściciel zgłoszenia („od siebie”)
       allow create: if signedIn() && newRealizationOk(request.resource.data);
       // klient potwierdza/odrzuca czekające zdjęcia firmy, firma publikuje zdjęcia klienta
       allow update: if (isMe(resource.data.userId)
               && resource.data.get('addedByRole', 'company') != 'user'
               && resource.data.get('status', 'approved') == 'pending'
-              && onlyKeys(['status', 'decidedAt'])
+              && onlyKeys(['status', 'decidedAt', 'visible'])
               && request.resource.data.status in ['approved', 'rejected']
-              && request.resource.data.decidedAt == request.time)
+              && request.resource.data.decidedAt == request.time
+              && request.resource.data.visible == (request.resource.data.status == 'approved'))
           || (isMe(resource.data.companyId)
               && resource.data.get('addedByRole', 'company') == 'user'
-              && onlyKeys(['publishedByCompany'])
-              && request.resource.data.publishedByCompany is bool);
+              && onlyKeys(['publishedByCompany', 'visible'])
+              && request.resource.data.publishedByCompany is bool
+              && request.resource.data.visible == request.resource.data.publishedByCompany);
       allow delete: if isMe(resource.data.companyId) || isMe(resource.data.userId);
 
       function newRealizationOk(d) {
         let r = get(/databases/$(database)/documents/requests/$(d.requestId)).data;
         return d.keys().hasOnly(['companyId', 'requestId', 'userId', 'category', 'imageUrl',
-                'beforeUrl', 'addedByRole', 'status', 'publishedByCompany', 'timestamp'])
+                'beforeUrl', 'addedByRole', 'status', 'publishedByCompany', 'visible', 'timestamp'])
             && d.category is string && d.imageUrl is string
             && (!('beforeUrl' in d) || d.beforeUrl is string)
-            && d.publishedByCompany == false && d.timestamp == request.time
+            && d.publishedByCompany == false && d.visible == false && d.timestamp == request.time
             && d.companyId is string && d.companyId != ''
             && r.userId == d.userId && r.takenBy == d.companyId
             && ((d.addedByRole == 'company' && d.companyId == request.auth.uid
