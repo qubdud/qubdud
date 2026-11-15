@@ -93,7 +93,7 @@ async function uploadPublic(localPath, destination) {
         const dt = new Date(today.getFullYear(), today.getMonth(),
           today.getDate() + d, Math.floor(minutes / 60), minutes % 60);
         batch.set(slotsCol.doc(), {
-          start: Timestamp.fromDate(dt), durationMin: 30,
+          start: Timestamp.fromDate(dt), durationMin: 30, bookedBy: '',
         });
         count++;
       }

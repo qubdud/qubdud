@@ -6,21 +6,10 @@ import 'anonim_gate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
-import '../../domain_layer/domain_models/app_user.dart';
 import '../../domain_layer/firebase_service.dart';
-import '../../feature_layer/main_screen/bloc/main_bloc.dart';
-import '../functions/effective_role.dart';
 import '../functions/show_toast.dart';
 import '../functions/show_toast_error.dart';
 import '../globals.dart';
-
-/// Nazwa, pod którą rezerwuję termin — zgodna z trybem konta
-/// (firma w trybie użytkownika rezerwuje jako osoba prywatna).
-String bookingName(AppUser? me) {
-  if (isCompanyMode(me)) return me?.companyName ?? 'Firma';
-  final name = '${me?.firstName ?? ''} ${me?.lastName ?? ''}'.trim();
-  return name.isEmpty ? 'Użytkownik' : name;
-}
 
 /// Mini-mapka slotów firmy na panelu z filmem: najbliższe terminy jako
 /// klikalne kropki (rezerwacja jednym tapnięciem). Na żywo.
@@ -84,7 +73,6 @@ class _MiniSlotsBarState extends State<MiniSlotsBar> {
 
     if (status == 'free') {
       final st = s['start'] as DateTime;
-      final myName = bookingName(context.read<MainScreenBloc>().state.user);
       final go = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -107,7 +95,6 @@ class _MiniSlotsBarState extends State<MiniSlotsBar> {
           companyId: widget.companyId,
           slotId: s['id'] as String,
           myUid: _myUid,
-          myName: myName,
         );
         showToast(text: 'Zarezerwowano — czeka na akceptację firmy');
       } catch (e) {
