@@ -64,7 +64,8 @@ const Map<String, List<RequestQuestion>> kCategoryQuestions = {
     RequestQuestion('Odbiór', ['Dostawa', 'Odbiór osobisty', 'Obojętnie']),
   ],
   'Sprzątanie': [
-    RequestQuestion('Rodzaj obiektu', ['Mieszkanie', 'Dom', 'Biuro / lokal', 'Po remoncie']),
+    RequestQuestion('Rodzaj obiektu', ['Mieszkanie', 'Dom', 'Biuro / lokal']),
+    RequestQuestion('Rodzaj sprzątania', ['Standardowe', 'Generalne', 'Po remoncie']),
     RequestQuestion('Metraż', ['Do 50 m²', '50–100 m²', '100–200 m²', 'Ponad 200 m²']),
     RequestQuestion('Częstotliwość', ['Jednorazowo', 'Co tydzień', 'Co dwa tygodnie', 'Co miesiąc']),
   ],

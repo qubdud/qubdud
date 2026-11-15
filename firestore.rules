@@ -321,9 +321,9 @@ service cloud.firestore {
                 && d.status == 'open' && d.takenBy == '' && d.takenByName == ''
                 && d.confirmedByCompany == false && d.confirmedByUser == false
                 && !('realizationStatus' in d))
-            // ręczne zamknięcie
+            // ręczne zamknięcie otwartego (w realizacji: odblokowanie albo decyzja o wykonaniu)
             || (onlyKeys(['status', 'closedAt', 'closedReason'])
-                && status != 'closed'
+                && status == 'open'
                 && d.status == 'closed' && d.closedReason == 'byUser' && d.closedAt == request.time)
             // decyzja o zdjęciach firmy
             || (status == 'taken' && photos == 'pending'

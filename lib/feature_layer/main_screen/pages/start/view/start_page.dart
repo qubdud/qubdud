@@ -15,6 +15,7 @@ import '../widgets/start_tab_moi_klienci.dart';
 import '../widgets/start_tab_otrzymane_rec.dart';
 import '../widgets/start_tab_wyszukane.dart';
 import '../../../../../shared/new_counts.dart';
+import '../../../../../shared/push_service.dart';
 
 class StartPage extends StatelessWidget {
   const StartPage({super.key});
@@ -42,6 +43,7 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late bool _isAnon;
   late bool _isCompany;
+  late final AppLifecycleListener _lifecycle;
 
   @override
   void initState() {
@@ -68,6 +70,14 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
     });
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _markSeen(_tabController.index));
+    _lifecycle = AppLifecycleListener(onResume: _refreshRequests);
+    PushService.requestsChanged.addListener(_refreshRequests);
+  }
+
+  /// Lista zgłoszeń firmy po powrocie apki i po pushu — bez ekranu ładowania.
+  void _refreshRequests() {
+    if (!mounted || !_isCompany) return;
+    context.read<StartPageBloc>().add(GetDataStartPageEvent(silent: true));
   }
 
   /// Zakładka otwarta → jej licznik znika (poza Kalendarzem: tam liczba
@@ -88,6 +98,8 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
 
   @override
   void dispose() {
+    _lifecycle.dispose();
+    PushService.requestsChanged.removeListener(_refreshRequests);
     _tabController.dispose();
     super.dispose();
   }

@@ -43,6 +43,11 @@ class _RealizationSectionState extends State<RealizationSection> {
       _photos = [];
       _jobStatus = widget.request.realizationStatus;
       _load();
+    } else if (oldWidget.request.realizationStatus !=
+        widget.request.realizationStatus) {
+      // zmiana na żywo (nasłuch zgłoszenia): druga strona dodała/wycofała zdjęcia lub zdecydowała
+      _jobStatus = widget.request.realizationStatus;
+      _load();
     }
   }
 
@@ -64,6 +69,8 @@ class _RealizationSectionState extends State<RealizationSection> {
   }
 
   Future<void> _askForPhotos() async {
+    if (_busy) return;
+    setState(() => _busy = true);
     try {
       await context.read<ChatService>().sendMessage(
             widget.request.takenBy,
@@ -71,8 +78,10 @@ class _RealizationSectionState extends State<RealizationSection> {
           );
     } catch (_) {
       showToastError(text: 'Nie udało się wysłać wiadomości');
+      if (mounted) setState(() => _busy = false);
       return;
     }
+    // _busy zostaje do przejścia na czat — ekran znika z opóźnieniem animacji
     if (!mounted) return;
     context
         .read<MainScreenBloc>()
@@ -97,7 +106,9 @@ class _RealizationSectionState extends State<RealizationSection> {
       if (mounted) setState(() => _jobStatus = status);
       await _load();
     } on StateError catch (e) {
+      // firma cofnęła prośbę — nic już nie czeka na decyzję
       showToastError(text: e.message);
+      if (mounted) setState(() => _jobStatus = '');
       await _load();
     } catch (_) {
       showToastError(text: 'Nie udało się zapisać decyzji');
@@ -157,6 +168,7 @@ class _RealizationSectionState extends State<RealizationSection> {
       await context
           .read<FirebaseService>()
           .withdrawRealization(id, widget.request.id);
+      if (mounted) setState(() => _jobStatus = '');
       await _load();
     } catch (_) {
       showToastError(text: 'Nie udało się usunąć zdjęć');
@@ -192,7 +204,11 @@ class _RealizationSectionState extends State<RealizationSection> {
   Widget build(BuildContext context) {
     final me = context.read<MainScreenBloc>().state.user;
     final req = widget.request;
-    if (req.status != 'taken' || me == null) return const SizedBox.shrink();
+    // po potwierdzeniu zgłoszenie jest zamknięte — wynik zostaje, akcje znikają
+    final active = req.status == 'taken';
+    if ((!active && req.realizationStatus != 'approved') || me == null) {
+      return const SizedBox.shrink();
+    }
 
     final isRealizingCompany = me.id == req.takenBy;
     final isOwner = me.id == req.userId;
@@ -243,6 +259,8 @@ class _RealizationSectionState extends State<RealizationSection> {
         const SizedBox(height: 12),
         if (_busy)
           const Center(child: CircularProgressIndicator())
+        else if (!active)
+          const SizedBox.shrink()
         else if (isRealizingCompany) ...[
           if (canAdd) ...[
             OutlinedButton.icon(

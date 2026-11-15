@@ -387,7 +387,8 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                           size: 20),
                       onPressed: () => setState(() => _editing = !_editing),
                     ),
-                    if (widget.req.status != 'closed')
+                    // w realizacji zostaje „Odblokuj” i potwierdzenie wykonania
+                    if (widget.req.status == 'open')
                       IconButton(
                         icon: Icon(Icons.lock_outline,
                             size: 20, color: Colors.grey.shade600),
@@ -536,15 +537,21 @@ class _RealizationRequestState extends State<_RealizationRequest> {
     } catch (_) {}
   }
 
-  Future<void> _decide(String status) async {
+  Future<void> _decide(String status, {bool withPhotos = true}) async {
     final approve = status == 'approved';
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(approve ? 'Potwierdzasz wykonanie?' : 'To nie Twoje zdjęcia?'),
+        title: Text(approve
+            ? 'Potwierdzasz wykonanie?'
+            : (withPhotos ? 'To nie Twoje zdjęcia?' : 'Zlecenie nie jest skończone?')),
         content: Text(approve
-            ? 'Zdjęcia pojawią się na profilu firmy, a zgłoszenie zostanie zamknięte jako zrealizowane.'
-            : 'Firma dostanie informację i będzie mogła dodać właściwe zdjęcia.'),
+            ? (withPhotos
+                ? 'Zdjęcia pojawią się na profilu firmy, a zgłoszenie zostanie zamknięte jako zrealizowane.'
+                : 'Zgłoszenie zostanie zamknięte jako zrealizowane.')
+            : (withPhotos
+                ? 'Firma dostanie informację i będzie mogła dodać właściwe zdjęcia.'
+                : 'Firma dostanie informację, że zlecenie nie jest jeszcze skończone.')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -554,7 +561,7 @@ class _RealizationRequestState extends State<_RealizationRequest> {
                   backgroundColor:
                       approve ? Colors.green.shade600 : Colors.red.shade600),
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text(approve ? 'Potwierdzam' : 'Odrzuć')),
+              child: Text(approve ? 'Potwierdzam' : (withPhotos ? 'Odrzuć' : 'Jeszcze nie'))),
         ],
       ),
     );
@@ -566,8 +573,12 @@ class _RealizationRequestState extends State<_RealizationRequest> {
           .setRealizationStatus(widget.request.id, status);
       showToast(
           text: approve
-              ? 'Potwierdzone — zdjęcia są już na profilu firmy'
-              : 'Odrzucono — firma może dodać inne zdjęcia');
+              ? (withPhotos
+                  ? 'Potwierdzone — zdjęcia są już na profilu firmy'
+                  : 'Potwierdzone — zlecenie zamknięte')
+              : (withPhotos
+                  ? 'Odrzucono — firma może dodać inne zdjęcia'
+                  : 'Firma dostanie informację, że zlecenie nie jest skończone'));
       if (mounted) {
         context
             .read<ShowRequestsComponentBloc>()
@@ -575,7 +586,11 @@ class _RealizationRequestState extends State<_RealizationRequest> {
       }
     } on StateError catch (e) {
       showToastError(text: e.message);
-      await _load();
+      if (mounted) {
+        context
+            .read<ShowRequestsComponentBloc>()
+            .add(GetDataShowRequestsComponentEvent());
+      }
     } catch (_) {
       showToastError(text: 'Nie udało się zapisać decyzji');
     }
@@ -590,8 +605,15 @@ class _RealizationRequestState extends State<_RealizationRequest> {
         .toList();
     final mine = _all.where((r) => r['addedByRole'] == 'user').toList();
     final canAddOwn = widget.request.status == 'taken' && mine.isEmpty;
+    // firma oznaczyła zlecenie jako wykonane bez zdjęć
+    final jobDone = pending.isEmpty &&
+        widget.request.status == 'taken' &&
+        widget.request.realizationStatus == 'pending';
+    final company = widget.request.takenByName.isNotEmpty
+        ? widget.request.takenByName
+        : 'Firma';
 
-    if (pending.isEmpty && mine.isEmpty && !canAddOwn) {
+    if (pending.isEmpty && !jobDone && mine.isEmpty && !canAddOwn) {
       return const SizedBox.shrink();
     }
 
@@ -601,7 +623,7 @@ class _RealizationRequestState extends State<_RealizationRequest> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ── firma prosi o potwierdzenie ──
-          if (pending.isNotEmpty)
+          if (pending.isNotEmpty || jobDone)
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -614,11 +636,15 @@ class _RealizationRequestState extends State<_RealizationRequest> {
                 children: [
                   Row(
                     children: [
-                      RealizationThumb(photo: pending.first, size: 54),
-                      const SizedBox(width: 10),
+                      if (pending.isNotEmpty) ...[
+                        RealizationThumb(photo: pending.first, size: 54),
+                        const SizedBox(width: 10),
+                      ],
                       Expanded(
                         child: Text(
-                          '${widget.request.takenByName.isNotEmpty ? widget.request.takenByName : 'Firma'} prosi o potwierdzenie realizacji. Potwierdzenie zamyka zgłoszenie.',
+                          pending.isNotEmpty
+                              ? '$company prosi o potwierdzenie realizacji. Potwierdzenie zamyka zgłoszenie.'
+                              : '$company prosi o potwierdzenie, że zlecenie jest wykonane. Potwierdzenie zamyka zgłoszenie.',
                           style: TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w600,
@@ -638,9 +664,11 @@ class _RealizationRequestState extends State<_RealizationRequest> {
                           style: TextButton.styleFrom(
                               foregroundColor: Colors.red.shade700,
                               visualDensity: VisualDensity.compact),
-                          onPressed: () => _decide('rejected'),
-                          child: const Text('To nie moje',
-                              style: TextStyle(fontSize: 13)),
+                          onPressed: () => _decide('rejected',
+                              withPhotos: pending.isNotEmpty),
+                          child: Text(
+                              pending.isNotEmpty ? 'To nie moje' : 'Jeszcze nie',
+                              style: const TextStyle(fontSize: 13)),
                         ),
                         const SizedBox(width: 6),
                         FilledButton.icon(
@@ -654,7 +682,8 @@ class _RealizationRequestState extends State<_RealizationRequest> {
                                   horizontal: 14, vertical: 4),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8))),
-                          onPressed: () => _decide('approved'),
+                          onPressed: () => _decide('approved',
+                              withPhotos: pending.isNotEmpty),
                         ),
                       ],
                     ),

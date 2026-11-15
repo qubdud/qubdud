@@ -88,7 +88,7 @@ class DodajPageBloc extends Bloc<DodajPageEvent, DodajPageState> {
 
     // Cały zapis w jednym handlerze: wyjście z ekranu w trakcie wysyłania
     // zamyka BLoC (emit staje się no-op), ale plik i metadane i tak się zapiszą.
-    on<DodajDodajPageEvent>((event, emit) async {
+    Future<void> save(Emitter<DodajPageState> emit) async {
       final current = state;
       final content = state.selectedContent;
       final meta = state.requestMetadata;
@@ -199,6 +199,18 @@ class DodajPageBloc extends Bloc<DodajPageEvent, DodajPageState> {
         emit(content.selectType == 'request'
             ? DodajRequestPromoState(thumb)
             : DodajPageMainState());
+      }
+    }
+
+    // drugi tap w znikający formularz nie tworzy drugiego zgłoszenia
+    var sending = false;
+    on<DodajDodajPageEvent>((event, emit) async {
+      if (sending) return;
+      sending = true;
+      try {
+        await save(emit);
+      } finally {
+        sending = false;
       }
     });
   }

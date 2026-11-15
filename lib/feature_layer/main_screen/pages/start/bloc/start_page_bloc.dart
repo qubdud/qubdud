@@ -30,7 +30,7 @@ class StartPageBloc extends Bloc<StartPageEvent, StartPageState> {
 
     on<GetDataStartPageEvent>((event, emit) async {
 
-      emit(StartPageLoadingState());
+      if (!event.silent) emit(StartPageLoadingState());
       // każda sekcja osobno: błąd jednej nie czyści pozostałych
       final failed = <String>[];
       Future<T> section<T>(String name, Future<T> Function() load, T empty) async {

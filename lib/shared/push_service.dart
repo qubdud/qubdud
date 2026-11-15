@@ -20,6 +20,9 @@ class PushService {
   // jeszcze raz — pytamy o nią tylko raz na proces
   static bool _initialHandled = false;
 
+  /// Rośnie przy pushu o zgłoszeniu w foreground — lista zgłoszeń firmy się odświeża.
+  static final requestsChanged = ValueNotifier<int>(0);
+
   static Future<void> register(
     String uid,
     FirebaseService firebase,
@@ -54,6 +57,10 @@ class PushService {
     // apka na wierzchu — system nie pokazuje bannera, więc pokazujemy toast
     await _onMessage?.cancel();
     _onMessage = FirebaseMessaging.onMessage.listen((msg) {
+      if (const ['new_request', 'urgent_request', 'offer_decision', 'request_deleted']
+          .contains(msg.data['type'])) {
+        requestsChanged.value++;
+      }
       final n = msg.notification;
       if (n == null) return;
       final data = msg.data;

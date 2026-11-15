@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../constants.dart';
 
 class WInputField extends StatefulWidget {
@@ -20,6 +21,7 @@ class WInputField extends StatefulWidget {
   final Function()? onSend;
   final Function()? onEditingComplete;
   final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
 
 
   const WInputField({
@@ -39,6 +41,7 @@ class WInputField extends StatefulWidget {
     this.onSend,
     this.onEditingComplete,
     this.keyboardType,
+    this.inputFormatters,
     this.prefixIcon,
     this.focusColor,
     this.onChanged,
@@ -119,6 +122,7 @@ class _WInputFieldState extends State<WInputField> {
               Expanded(
                 child: TextFormField(
                   keyboardType: widget.keyboardType,
+                  inputFormatters: widget.inputFormatters,
 
 
                   enableInteractiveSelection: !widget.blockCopy, // blokuje zaznaczanie i kopiowanie
