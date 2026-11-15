@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' show min;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -176,6 +177,12 @@ class _ViewState extends State<View> {
           : '${author.firstName ?? ''} ${author.lastName ?? ''}'.trim();
       final email = author?.email ?? '';
       final phone = author?.phone ?? '';
+      final screen = MediaQuery.of(context).size;
+      // tablet / poziomo: kwadrat do 45% wysokości ekranu, telefon jak dotąd
+      final wide = screen.width >= 600;
+      final mediaSide = wide
+          ? min(min(screen.width, maxColumnSize) - 32, screen.height * 0.45)
+          : screen.width - 32;
 
 
       return SingleChildScrollView(
@@ -194,8 +201,8 @@ class _ViewState extends State<View> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: SizedBox(
-                      height: MediaQuery.of(context).size.width - 32,
-                      width: double.infinity,
+                      height: mediaSide,
+                      width: wide ? mediaSide : double.infinity,
                       child: CachedNetworkImage(
                         imageUrl: Globals.instance.selectedRequest!.fileUrl,
                         fit: BoxFit.cover,
@@ -226,8 +233,8 @@ class _ViewState extends State<View> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: SizedBox(
-                          height: MediaQuery.of(context).size.width - 32,
-                          width: double.infinity,
+                          height: mediaSide,
+                          width: wide ? mediaSide : double.infinity,
                           child: VideoPlayerItem(
                               videoUrl:
                                   Globals.instance.selectedRequest!.fileUrl),

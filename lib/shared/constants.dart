@@ -261,3 +261,16 @@ final Map<String, List<String>> categories = {
   ],
 };
 
+/// Branże, w których klient może wysłać zgłoszenie awaryjne (is24, czerwony push).
+/// Ta sama lista jest w functions/index.js (EMERGENCY_SECTORS).
+const kEmergencySectors = {
+  'Elektryk',
+  'Hydraulik',
+  'Montaż pieców gazowych',
+  'Pompy ciepła',
+  'Serwis RTV AGD',
+  'Pomoc drogowa',
+  'Ślusarz',
+  'Weterynarz',
+};
+

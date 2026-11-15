@@ -4,6 +4,11 @@ abstract class ShowRequestsComponentEvent {}
 
 class GetDataShowRequestsComponentEvent extends ShowRequestsComponentEvent {}
 
+class _RequestsUpdatedShowRequestsComponentEvent extends ShowRequestsComponentEvent {
+  final List<Request>? requests;
+  _RequestsUpdatedShowRequestsComponentEvent(this.requests);
+}
+
 class GoToMainShowRequestsComponentEvent extends ShowRequestsComponentEvent {}
 
 class VideoListUpdated extends ShowRequestsComponentEvent {
