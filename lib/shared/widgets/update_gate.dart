@@ -99,22 +99,22 @@ class _UpdateScreen extends StatelessWidget {
         child: SafeArea(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.all(32),
+              padding: const EdgeInsets.all(kGapL),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.system_update, size: 72, color: cDarkBlue),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: kGapL),
                   Text('Zaktualizuj aplikację',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 12),
+                          ?.copyWith(fontSize: 18, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: kGapS),
                   Text(text,
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium),
                   if (url != null) ...[
-                    const SizedBox(height: 28),
+                    const SizedBox(height: kGapXl),
                     FilledButton.icon(
                       onPressed: () =>
                           launchUrl(url!, mode: LaunchMode.externalApplication),

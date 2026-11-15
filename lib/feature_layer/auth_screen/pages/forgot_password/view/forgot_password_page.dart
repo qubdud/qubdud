@@ -75,14 +75,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.fromLTRB(kGapL, 0, kGapL, kGapL),
         child: Column(
           children: [
-            SizedBox(height: topPadding > 1 ? topPadding : 64),
-            const SizedBox(height: 20),
+            SizedBox(height: topPadding + kGapXl),
             const Text('QUBDUD',
-                style: TextStyle(fontSize: 33, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: kGapL),
             Center(
               child: GestureDetector(
                 onTap: () =>
@@ -91,21 +90,20 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   '< Wróć',
                   style: TextStyle(
                       color: cDarkerBlue,
-                      fontSize: 18,
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
                       decoration: TextDecoration.underline),
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: kGapL),
             WLabel(text: 'Nie pamiętasz hasła?'),
-            const SizedBox(height: 8),
             const Text(
               'Podaj adres e-mail, którym utworzono konto. Wyślemy na niego link do ustawienia nowego hasła.',
-              style: TextStyle(color: cDarkBrown, fontSize: 16),
+              style: TextStyle(color: cDarkBrown, fontSize: 14),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: kGapXl),
             WInputField(
               controller: _email,
               label: 'E-mail',
@@ -113,9 +111,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               isPassword: false,
               hintText: 'Wpisz adres e-mail',
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: kGapXl),
             WButton(text: 'Wyślij link', onPressed: _sendResetEmail),
-            const SizedBox(height: 24),
+            const SizedBox(height: kGapL),
             const Text(
               'Jeśli wiadomość nie dotarła, sprawdź folder Spam.',
               style: TextStyle(color: cDarkBrown, fontSize: 14),

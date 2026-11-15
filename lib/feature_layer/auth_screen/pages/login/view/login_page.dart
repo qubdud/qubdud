@@ -163,30 +163,28 @@ class _LoginPageState extends State<LoginPage> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          SizedBox(height: topPadding > 1 ? topPadding : 64),
-          const SizedBox(height: 20),
+          SizedBox(height: topPadding + kGapXl),
           const Text('QUBDUD',
-              style: TextStyle(fontSize: 33, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 20),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: kGapL),
           WButton(text: 'Przeglądaj', onPressed: _browseAnonymously),
-          const SizedBox(height: 32),
+          const SizedBox(height: kGapXl),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: kGapL),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Center(child: WLabel(text: 'Logowanie')),
-                const SizedBox(height: 16),
 
                 // konta testowe w debug i w buildzie dla testerów (--dart-define=DEMO_LOGIN=true);
                 // w buildzie do sklepu kod i dane kont są wycinane (obie wartości to stałe)
                 if (kDebugMode || kDemoLogin) ...[
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 4),
+                        horizontal: kGapM, vertical: kGapXs),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(kRadius),
                       border: Border.all(color: Colors.orange, width: 2),
                     ),
                     child: DropdownButtonHideUnderline(
@@ -194,12 +192,12 @@ class _LoginPageState extends State<LoginPage> {
                         isExpanded: true,
                         value: _selectedDemo,
                         hint: const Text('⚡ Wybierz konto testowe',
-                            style: TextStyle(fontSize: 15)),
+                            style: TextStyle(fontSize: 14)),
                         items: demoAccounts
                             .map((a) => DropdownMenuItem(
                                   value: a,
                                   child: Text(a.label,
-                                      style: const TextStyle(fontSize: 15),
+                                      style: const TextStyle(fontSize: 14),
                                       overflow: TextOverflow.ellipsis),
                                 ))
                             .toList(),
@@ -217,7 +215,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: kGapM),
                 ],
 
                 WInputField(
@@ -228,7 +226,7 @@ class _LoginPageState extends State<LoginPage> {
                   hintText: 'Wpisz adres e-mail',
                 //  keyboardType: TextInputType.emailAddress,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: kGapM),
                 WInputField(
                   controller: _password,
                   label: 'Hasło',
@@ -239,7 +237,7 @@ class _LoginPageState extends State<LoginPage> {
                   onTogglePasswordVisibility: () =>
                       setState(() => _obscurePassword = !_obscurePassword),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: kGapM),
                 Row(
                   children: [
                     WCheckbox(
@@ -248,14 +246,14 @@ class _LoginPageState extends State<LoginPage> {
                       onChanged: (val) =>
                           setState(() => _rememberMe = val ?? false),
                     ),
-                    const SizedBox(width: 12),
-                    const Text('Zapamiętaj mnie', style: TextStyle(fontSize: 15)),
+                    const SizedBox(width: kGapM),
+                    const Text('Zapamiętaj mnie', style: TextStyle(fontSize: 14)),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: kGapM),
                 if (_generalError != null)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.only(bottom: kGapM),
                     child: Text(_generalError!,
                         style: const TextStyle(color: Colors.red, fontSize: 14)),
                   ),
@@ -273,14 +271,14 @@ class _LoginPageState extends State<LoginPage> {
                         )),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: kGapXl),
                 Center(child: WButton(text: 'Zaloguj się', onPressed: _login)),
-                const SizedBox(height: 32),
+                const SizedBox(height: kGapXl),
                 const Center(
                   child: Text('Nie masz konta?',
                       style: TextStyle(color: cDarkBrown)),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: kGapS),
                 Center(
                   child: GestureDetector(
                     onTap: () => context
@@ -289,7 +287,7 @@ class _LoginPageState extends State<LoginPage> {
                     child: const Text('Zarejestruj się',
                         style: TextStyle(
                           color: cDarkBlue,
-                          fontSize: 18,
+                          fontSize: 15,
                           fontWeight: FontWeight.w700,
                         )),
                   ),
@@ -297,7 +295,7 @@ class _LoginPageState extends State<LoginPage> {
               ],
             ),
           ),
-          const SizedBox(height: 60),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + kGapXl),
         ],
       ),
     );
