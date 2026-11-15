@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain_layer/firebase_service.dart';
 import '../../feature_layer/main_screen/bloc/main_bloc.dart';
+import '../constants.dart';
 import '../functions/show_toast.dart';
 import '../functions/show_toast_error.dart';
 import '../globals.dart';
@@ -156,8 +157,8 @@ Future<ContactRequestInput?> showContactRequestDialog(
                 style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             Text('Firma dostanie tylko ten numer i powiadomienie, że czekasz na telefon.',
-                style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600)),
-            const SizedBox(height: 14),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            const SizedBox(height: kGapM),
             TextField(
               controller: phoneCtrl,
               keyboardType: TextInputType.phone,
@@ -165,11 +166,12 @@ Future<ContactRequestInput?> showContactRequestDialog(
               decoration: const InputDecoration(
                 labelText: 'Twój telefon',
                 prefixIcon: Icon(Icons.phone_outlined),
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(kRadius))),
                 isDense: true,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: kGapM),
             TextField(
               controller: noteCtrl,
               maxLength: 100,
@@ -177,7 +179,8 @@ Future<ContactRequestInput?> showContactRequestDialog(
               decoration: const InputDecoration(
                 labelText: 'Krótka wiadomość (opcjonalnie)',
                 hintText: 'np. proszę o telefon po 16',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(kRadius))),
                 isDense: true,
               ),
             ),

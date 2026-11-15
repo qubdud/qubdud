@@ -8,7 +8,8 @@ import '../../../../../domain_layer/firebase_service.dart';
 import '../../../../../shared/functions/show_toast.dart';
 import '../../../../../shared/functions/show_toast_error.dart';
 import '../../../../../shared/realizations.dart';
-import '../../../../../shared/widgets/w_small_label.dart';
+import '../../../../../shared/constants.dart';
+import '../../../../../shared/widgets/w_smallest_label.dart';
 import '../../../bloc/main_bloc.dart';
 
 /// Sekcja „Zdjęcia realizacji" na widoku zgłoszenia — widoczna po
@@ -186,18 +187,18 @@ class _RealizationSectionState extends State<RealizationSection> {
       _ => (Colors.amber.shade800, Icons.hourglass_top, 'Czeka na potwierdzenie klienta'),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: kGapM, vertical: kGapXs),
       decoration: BoxDecoration(
         color: color.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withOpacity(0.4)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
-          Text(text, style: TextStyle(fontSize: 12.5, color: color, fontWeight: FontWeight.w600)),
+          const SizedBox(width: kGapS),
+          Flexible(child: Text(text, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600))),
         ],
       ),
     );
@@ -237,9 +238,7 @@ class _RealizationSectionState extends State<RealizationSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 8),
-        WSmallLabel(text: 'Zdjęcia realizacji'),
-        const SizedBox(height: 8),
+        WSmallestLabel(text: 'Zdjęcia realizacji'),
         if (existing == null && _jobStatus == 'approved')
           Center(child: _statusChip('approved'))
         else if (noPhotoPending)
@@ -256,7 +255,7 @@ class _RealizationSectionState extends State<RealizationSection> {
           )
         else ...[
           Center(child: RealizationThumb(photo: existing, size: 140)),
-          const SizedBox(height: 10),
+          const SizedBox(height: kGapS),
           Center(child: _statusChip(status)),
         ],
         const SizedBox(height: 12),
@@ -306,7 +305,7 @@ class _RealizationSectionState extends State<RealizationSection> {
               style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: kGapM),
             Row(
               children: [
                 Expanded(
@@ -317,7 +316,7 @@ class _RealizationSectionState extends State<RealizationSection> {
                     onPressed: () => _decide('approved'),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: kGapM),
                 Expanded(
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.close, size: 18),
@@ -342,7 +341,7 @@ class _RealizationSectionState extends State<RealizationSection> {
               style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: kGapM),
             Row(
               children: [
                 Expanded(
@@ -353,7 +352,7 @@ class _RealizationSectionState extends State<RealizationSection> {
                     onPressed: () => _decide('approved'),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: kGapM),
                 Expanded(
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.close, size: 18),
@@ -379,9 +378,9 @@ class _RealizationSectionState extends State<RealizationSection> {
             isOwner
                 ? 'Twoje zdjęcia'
                 : 'Zdjęcia od klienta — możesz je opublikować na swoim profilu',
-            style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: kGapXs),
           Wrap(
             spacing: 8,
             runSpacing: 8,

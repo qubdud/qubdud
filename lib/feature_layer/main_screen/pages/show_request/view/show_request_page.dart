@@ -20,7 +20,7 @@ import '../../../../../shared/client_notes.dart';
 import '../../../../../shared/functions/effective_role.dart';
 import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/request_take_status.dart';
-import '../../../../../shared/widgets/w_small_label.dart';
+import '../../../../../shared/widgets/w_smallest_label.dart';
 import '../../../bloc/main_bloc.dart';
 import '../bloc/show_request_page_bloc.dart';
 import '../widgets/realization_section.dart';
@@ -190,7 +190,6 @@ class _ViewState extends State<View> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-          WSmallLabel(text: 'Widok zgłoszenia'),
           if (Globals.instance.selectedRequest!.mediaType == 'image' &&
               Globals.instance.selectedRequest!.fileUrl.isNotEmpty)
             GestureDetector(
@@ -215,8 +214,8 @@ class _ViewState extends State<View> {
                     ),
                   ),
                   const Positioned(
-                    right: 10,
-                    bottom: 10,
+                    right: kGapS,
+                    bottom: kGapS,
                     child: _ZoomHint(icon: Icons.zoom_out_map),
                   ),
                 ],
@@ -241,8 +240,8 @@ class _ViewState extends State<View> {
                         ),
                       ),
                       const Positioned(
-                        right: 10,
-                        bottom: 10,
+                        right: kGapS,
+                        bottom: kGapS,
                         child: _ZoomHint(icon: Icons.fullscreen),
                       ),
                     ],
@@ -252,14 +251,15 @@ class _ViewState extends State<View> {
 
                 //VideoPlayerItem(videoUrl: Globals.instance.selectedRequest!.fileUrl),
 
-              SizedBox(height: 24,),
-              WSmallLabel(text: 'Opis zgłoszenia'),
+              if (Globals.instance.selectedRequest!.fileUrl.isNotEmpty)
+                const SizedBox(height: kGapXl),
+              WSmallestLabel(text: 'Opis zgłoszenia'),
               Text(Globals.instance.selectedRequest!.description),
               if (Globals.instance.selectedRequest!.timing.isNotEmpty ||
                   Globals.instance.selectedRequest!.budget != null ||
                   Globals.instance.selectedRequest!.answers.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                WSmallLabel(text: 'Szczegóły'),
+                WSmallestLabel(text: 'Szczegóły'),
                 if (kRequestTiming[Globals.instance.selectedRequest!.timing] != null)
                   Text('Kiedy: ${kRequestTiming[Globals.instance.selectedRequest!.timing]}'),
                 if (Globals.instance.selectedRequest!.budget != null)
@@ -269,7 +269,7 @@ class _ViewState extends State<View> {
               ],
 
               SizedBox(height: 24,),
-              WSmallLabel(text: 'Lokalizacja zgłoszenia'),
+              WSmallestLabel(text: 'Lokalizacja zgłoszenia'),
 
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -279,7 +279,7 @@ class _ViewState extends State<View> {
                   Text((Globals.instance.selectedRequest!.distance!/1000).toInt().toString()+'km'),
                 ],
               ),
-
+              const SizedBox(height: kGapS),
 
 
               SizedBox(
@@ -329,7 +329,7 @@ class _ViewState extends State<View> {
                     ]),),
               if (exact == null)
                 Padding(
-                  padding: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.only(top: kGapS),
                   child: Text(
                     'Przybliżona okolica (ok. 1 km). Dokładne miejsce zobaczysz po przyjęciu Twojej oferty.',
                     textAlign: TextAlign.center,
@@ -339,14 +339,14 @@ class _ViewState extends State<View> {
 
 
               SizedBox(height: 24,),
-              WSmallLabel(text: 'Dane zgłaszającego'),
+              WSmallestLabel(text: 'Dane zgłaszającego'),
               Column(children: [
 
                 Text(
                   'Imię'.toUpperCase(),
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: 12,
                   ),
                 ),
                 Row(
@@ -383,25 +383,25 @@ class _ViewState extends State<View> {
                 ClientNoteBadge(
                     userId: Globals.instance.selectedRequest!.userId,
                     maxLines: 3),
-                SizedBox(height: 24,),
+                const SizedBox(height: kGapM),
 
                 if (email.isNotEmpty) ...[
                   Text(
                     'e-mail'.toUpperCase(),
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      fontSize: 14,
+                      fontSize: 12,
                     ),
                   ),
                   Text(email),
-                  SizedBox(height: 24,),
+                  const SizedBox(height: kGapM),
                 ],
 
                 Text(
                   'telefon'.toUpperCase(),
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: 12,
                   ),
                 ),
                 if (phone.isNotEmpty)
@@ -420,12 +420,12 @@ class _ViewState extends State<View> {
                       : 'brak',
                       textAlign: TextAlign.center),
 
-                SizedBox(height: 24,),
+                const SizedBox(height: kGapM),
 
 
                 if (author != null &&
                     meId != Globals.instance.selectedRequest!.userId)
-                Row(children: [
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Container(
                   decoration: BoxDecoration(
                     color: Colors.black45,
@@ -434,13 +434,14 @@ class _ViewState extends State<View> {
                   child: IconButton(
                     icon: const Icon(Icons.message_outlined, color: Colors.white, size: 18),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    constraints: const BoxConstraints(
+                        minWidth: kButtonHeightSmall, minHeight: kButtonHeightSmall),
                     onPressed: () {
                       context.read<MainScreenBloc>().add(GoToChatEvent(Globals.instance.selectedRequest!.userId));
                     },
                   ),
                 ),
-                  SizedBox(width: 16,),
+                  const SizedBox(width: kGapM),
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.black45,
@@ -449,7 +450,8 @@ class _ViewState extends State<View> {
                     child: IconButton(
                       icon: const Icon(Icons.phone, color: Colors.white, size: 18),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
+                      constraints: const BoxConstraints(
+                          minWidth: kButtonHeightSmall, minHeight: kButtonHeightSmall),
                       onPressed:
                           phone.isNotEmpty ? () => _dial(phone) : null,
                     ),
@@ -551,7 +553,7 @@ class _ZoomHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(kGapS),
       decoration: const BoxDecoration(
           color: Colors.black54, shape: BoxShape.circle),
       child: Icon(icon, color: Colors.white, size: 20),
