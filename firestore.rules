@@ -1,7 +1,8 @@
 rules_version = '2';
 
 // QUBDUD — reguły Firestore.
-// Zasada: anonim (Firebase anonymous auth) widzi WYŁĄCZNIE prezentacje (promos).
+// Zasada: anonim (Firebase anonymous auth) widzi WYŁĄCZNIE prezentacje (promos) i wizytówkę
+// firmy na stronie WWW (profil firmy, wolne terminy, opinie, opublikowane realizacje).
 // Wszystko inne wymaga pełnego konta. Zapis przepuszcza tylko te pola i przejścia,
 // które robi apka; zapisy krzyżowe (firma↔klient) wyłącznie między stronami relacji.
 // Cloud Functions działają z Admin SDK i omijają te reguły.
@@ -62,7 +63,8 @@ service cloud.firestore {
     // ── użytkownicy i firmy ──
     match /users/{userId} {
       // apka czyta profile pojedynczo; listowanie kolekcji ujawniałoby dane wszystkich
-      allow get: if signedIn();
+      allow get: if signedIn()
+          || (anyAuth() && resource.data.get('firma', resource.data.get('isCompany', false)) == true);
       allow list: if false;
       allow create: if isMe(userId) && validNewUser(request.resource.data);
       // rola (firma/isCompany), NIP, e-mail, zgody i pola systemowe są niezmienne
@@ -103,7 +105,8 @@ service cloud.firestore {
       // Obcy widzi wyłącznie wolne terminy i swoje (lista: where('bookedBy', 'in', ['', uid])).
       match /slots/{slotId} {
         allow read: if isMe(userId)
-            || (signedIn() && resource.data.bookedBy in ['', request.auth.uid]);
+            || (signedIn() && resource.data.bookedBy in ['', request.auth.uid])
+            || (anyAuth() && resource.data.bookedBy == '');
         allow create: if isMe(userId)
             && request.resource.data.keys().hasOnly(['start', 'durationMin', 'bookedBy'])
             && request.resource.data.start is timestamp
@@ -428,7 +431,7 @@ service cloud.firestore {
 
     // ── recenzje i komentarze: jedna recenzja na parę klient–firma, jeden komentarz na osobę ──
     match /reviews/{reviewId} {
-      allow read: if signedIn();
+      allow read: if anyAuth();
       allow create: if signedIn() && validReview(request.resource.data);
       allow update: if false;
       allow delete: if isMe(resource.data.userId);
@@ -447,7 +450,7 @@ service cloud.firestore {
       }
 
       match /comments/{commentId} {
-        allow read: if signedIn();
+        allow read: if anyAuth();
         allow create: if signedIn() && validComment(request.resource.data);
         allow update: if false;
         allow delete: if isMe(resource.data.authorId);
@@ -549,7 +552,7 @@ service cloud.firestore {
       // visible = potwierdzone przez klienta albo opublikowane przez firmę; resztę widzą
       // tylko klient i firma z tej realizacji (zapytania apki filtrują po visible albo po sobie)
       allow read: if isMe(resource.data.userId) || isMe(resource.data.companyId)
-          || (signedIn() && resource.data.visible == true);
+          || (anyAuth() && resource.data.visible == true);
       // firma realizująca (czeka na potwierdzenie) albo właściciel zgłoszenia („od siebie”)
       allow create: if signedIn() && newRealizationOk(request.resource.data);
       // klient potwierdza/odrzuca czekające zdjęcia firmy, firma publikuje zdjęcia klienta
