@@ -206,7 +206,7 @@ const firestoreCases = [
 
   // ── slots ──
   list('user czyta wolne terminy firmy', 'ALLOW', '/users/c1/slots/s1', U1, slotNew),
-  list('user czyta stary wolny termin bez bookedBy', 'ALLOW', '/users/c1/slots/s1', U1, { start: LATER }),
+  list('#2 stary termin bez bookedBy (uzupełnia go migrate_slots_private.js)', 'DENY', '/users/c1/slots/s1', U1, { start: LATER }),
   list('klient czyta swoją rezerwację', 'ALLOW', '/users/c1/slots/s1', U1, slotPending),
   get('klient czyta swój termin w transakcji', 'ALLOW', '/users/c1/slots/s1', U1, slotAccepted),
   list('firma czyta zajęte terminy', 'ALLOW', '/users/c1/slots/s1', C1, slotPending),

@@ -96,7 +96,7 @@ service cloud.firestore {
       // Obcy widzi wyłącznie wolne terminy i swoje (lista: where('bookedBy', 'in', ['', uid])).
       match /slots/{slotId} {
         allow read: if isMe(userId)
-            || (signedIn() && resource.data.get('bookedBy', '') in ['', request.auth.uid]);
+            || (signedIn() && resource.data.bookedBy in ['', request.auth.uid]);
         allow create: if isMe(userId)
             && request.resource.data.keys().hasOnly(['start', 'durationMin', 'bookedBy'])
             && request.resource.data.start is timestamp
