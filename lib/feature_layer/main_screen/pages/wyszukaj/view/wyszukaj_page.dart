@@ -8,7 +8,6 @@ import 'package:qb/feature_layer/main_screen/bloc/main_appbar_cubit.dart';
 import 'package:qb/shared/constants.dart';
 import 'package:qb/shared/widgets/w_dropdown.dart';
 import 'package:qb/shared/widgets/w_input_field.dart';
-import 'package:qb/shared/widgets/w_small_label.dart';
 import 'package:flutter/material.dart';
 import 'package:qb/shared/widgets/contact_request_button.dart';
 import 'package:qb/shared/widgets/anonim_gate.dart';
@@ -120,7 +119,7 @@ class _ViewState extends State<View> {
                       style: TextStyle(
                           color: cDarkerBlue,
                           fontWeight: FontWeight.bold,
-                          fontSize: 24)),
+                          fontSize: 18)),
                 ),
               ),
               IconButton(
@@ -198,13 +197,15 @@ class _ViewState extends State<View> {
 
       return SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(kGapL),
           child: Column(
             children: [
-              WSmallLabel(text: 'Wyszukaj firmę / usługę'),
+              const Text('Wyszukaj firmę / usługę',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
 
 
-              SizedBox(height: 24),
+              const SizedBox(height: kGapL),
               WAnimatedDropdown(
                 controller: _categoryCtrl,
                 label: 'Wybierz kategorię',
@@ -218,7 +219,7 @@ class _ViewState extends State<View> {
                   });
                 },
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: kGapM),
               WAnimatedDropdown(
                 controller: _sectorCtrl,
                 label: 'Wybierz branżę',
@@ -232,7 +233,7 @@ class _ViewState extends State<View> {
                   });
                 },
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: kGapM),
 
               WInputField(
                   controller: businessCity,
@@ -301,12 +302,9 @@ class _ViewState extends State<View> {
                   }
               ),
 
-              SizedBox(height: 20),
-
-
-              const SizedBox(height: 24),
+              const SizedBox(height: kGapXl),
               Text('lub ustaw na mapie'),
-              const SizedBox(height: 24),
+              const SizedBox(height: kGapM),
 
               SizedBox(
                 height: 200,
@@ -359,7 +357,7 @@ class _ViewState extends State<View> {
                   ],
                 ),),
 
-              SizedBox(height: 24),
+              const SizedBox(height: kGapXl),
 
               WButton(
                 isEnabled: !isSearching,
@@ -376,7 +374,7 @@ class _ViewState extends State<View> {
                   context.read<WyszukajPageBloc>().add(TryWyszukajPageEvent(sector: selectedBranza!, category: selectedCategory!, location: selectedLocation!));
                 },
               ),
-              const SizedBox(height: 60),
+              const SizedBox(height: kGapXl),
             ],
           ),
         ),
@@ -460,7 +458,7 @@ class _ViewState extends State<View> {
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               child: promo.thumbUrl.isNotEmpty
                   ? Image.network(promo.thumbUrl,
                       width: 80, height: 120, fit: BoxFit.cover)
@@ -471,7 +469,7 @@ class _ViewState extends State<View> {
                       child: const Icon(Icons.business_outlined),
                     ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: kGapM),
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -497,7 +495,7 @@ class _ViewState extends State<View> {
                     Text('${(promo.distance! / 1000).toStringAsFixed(1)} km',
                         style: TextStyle(
                             fontSize: 12, color: Colors.grey.shade500)),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: kGapS),
                   Row(
                     children: [
                       ElevatedButton.icon(
@@ -506,9 +504,9 @@ class _ViewState extends State<View> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black87,
                           foregroundColor: Colors.white,
+                          minimumSize: const Size(0, kButtonHeightSmall),
                           padding:
-                              const EdgeInsets.symmetric(horizontal: 12),
-                          visualDensity: VisualDensity.compact,
+                              const EdgeInsets.symmetric(horizontal: kGapM),
                         ),
                         onPressed: () {
                           Navigator.pop(ctx);
@@ -517,12 +515,12 @@ class _ViewState extends State<View> {
                                   playlist: all, initialIndex: index));
                         },
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: kGapS),
                       OutlinedButton(
                         style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, kButtonHeightSmall),
                           padding:
-                              const EdgeInsets.symmetric(horizontal: 12),
-                          visualDensity: VisualDensity.compact,
+                              const EdgeInsets.symmetric(horizontal: kGapM),
                         ),
                         onPressed: () {
                           Navigator.pop(ctx);
@@ -635,8 +633,8 @@ class VideoFeedPage extends StatelessWidget {
 
         // ── Licznik i dystans ─────────────────────────────────
         Positioned(
-          left: 12,
-          top: 10,
+          left: kGapM,
+          top: kGapM,
           child: Text(
             '${actual + 1} / $all',
             style: const TextStyle(
@@ -645,8 +643,8 @@ class VideoFeedPage extends StatelessWidget {
           ),
         ),
         Positioned(
-          right: 12,
-          top: 10,
+          right: kGapM,
+          top: kGapM,
           child: Text(
             '${(promo.distance! / 1000).toStringAsFixed(1)} km',
             style: const TextStyle(
@@ -674,7 +672,7 @@ class VideoFeedPage extends StatelessWidget {
                       .add(TryAddFavWyszukajPageEvent(promo.id));
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: kGapL),
               // Dodaj do kontaktów
               _ActionIcon(
                 icon: Icons.person_add_outlined,
@@ -688,7 +686,7 @@ class VideoFeedPage extends StatelessWidget {
                       .add(TryAddContactEvent(promo.userId));
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: kGapL),
               ContactRequestButton(
                 companyId: promo.userId,
                 companyName: promo.companyName,
@@ -797,7 +795,7 @@ class _CompanyBarState extends State<_CompanyBar> {
             .add(GoToProfilPublicznyFirmyEvent(widget.promo.userId));
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: kGapL, vertical: kGapS),
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.65),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(0)),
@@ -816,7 +814,7 @@ class _CompanyBarState extends State<_CompanyBar> {
                           color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                     ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: kGapM),
 
             // Nazwa + gwiazdki
             Expanded(
@@ -835,7 +833,7 @@ class _CompanyBarState extends State<_CompanyBar> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: kGapXs),
                   if (_loaded && _reviewCount > 0)
                     Row(
                       children: [
@@ -847,7 +845,7 @@ class _CompanyBarState extends State<_CompanyBar> {
                             size: 14,
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: kGapXs),
                         Text(
                           '(${_reviewCount})',
                           style: const TextStyle(color: Colors.white70, fontSize: 12),

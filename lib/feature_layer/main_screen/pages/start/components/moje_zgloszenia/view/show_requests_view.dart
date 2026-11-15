@@ -16,7 +16,6 @@ import 'package:qb/feature_layer/main_screen/bloc/main_bloc.dart';
 import '../../../../../../../shared/globals.dart';
 import '../../../../../../../shared/widgets/loading.dart';
 import '../../../../../../../shared/widgets/request_take_status.dart';
-import '../../../../../../../shared/widgets/w_button.dart';
 import '../../../../../../../shared/widgets/w_input_field.dart';
 import '../../../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../../../shared/widgets/load_error.dart';
@@ -56,20 +55,15 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+          padding: const EdgeInsets.fromLTRB(kGapL, kGapL, kGapL, kGapS),
           child: SizedBox(
-            height: 56,
             width: double.infinity,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.add_circle_outline, size: 26),
-              label: const Text('Dodaj zgłoszenie',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
+            child: FilledButton.icon(
+              icon: const Icon(Icons.add_circle_outline),
+              label: const Text('Dodaj zgłoszenie'),
+              style: FilledButton.styleFrom(
                 backgroundColor: cDarkBlue,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28)),
-                elevation: 3,
               ),
               onPressed: () =>
                   context.read<MainScreenBloc>().add(GoToDodajEvent()),
@@ -153,7 +147,7 @@ class _ViewState extends State<View> with SingleTickerProviderStateMixin {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(kGapL, kGapS, kGapL, kGapL),
       itemCount: state.requests.length,
       itemBuilder: (context, index) => _MyRequestTile(
           key: ValueKey(state.requests[index].id),
@@ -295,9 +289,11 @@ class _MyRequestTileState extends State<_MyRequestTile> {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
+      margin: const EdgeInsets.only(bottom: kGapM),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(kRadius)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(kGapM),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -309,7 +305,7 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                     context.read<MainScreenBloc>().add(GoToShowRequestEvent());
                   },
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(8),
                     child: widget.req.thumbUrl.isNotEmpty
                         ? CachedNetworkImage(
                             imageUrl: widget.req.thumbUrl,
@@ -326,7 +322,7 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                           ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: kGapM),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -341,19 +337,18 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis),
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: kGapS),
                           if (widget.req.is24)
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 5, vertical: 2),
+                              padding: const EdgeInsets.all(kGapXs),
                               decoration: BoxDecoration(
                                 color: Colors.red,
-                                borderRadius: BorderRadius.circular(6),
+                                borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Text('24h',
                                   style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 10,
+                                      fontSize: 11,
                                       fontWeight: FontWeight.bold)),
                             ),
                         ],
@@ -363,12 +358,12 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                               fontSize: 12, color: Colors.grey)),
                       if (widget.req.timestamp != null)
                         Padding(
-                          padding: const EdgeInsets.only(top: 2),
+                          padding: const EdgeInsets.only(top: kGapXs),
                           child: Row(
                             children: [
                               Icon(Icons.schedule,
                                   size: 12, color: Colors.grey.shade500),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: kGapXs),
                               Text(_wystawione(widget.req),
                                   style: TextStyle(
                                       fontSize: 11,
@@ -385,6 +380,7 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                 Column(
                   children: [
                     IconButton(
+                      visualDensity: VisualDensity.compact,
                       icon: Icon(_editing ? Icons.close : Icons.edit_outlined,
                           size: 20),
                       onPressed: () => setState(() => _editing = !_editing),
@@ -392,12 +388,14 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                     // w realizacji zostaje „Odblokuj” i potwierdzenie wykonania
                     if (widget.req.status == 'open')
                       IconButton(
+                        visualDensity: VisualDensity.compact,
                         icon: Icon(Icons.lock_outline,
                             size: 20, color: Colors.grey.shade600),
                         tooltip: 'Zamknij zgłoszenie',
                         onPressed: _close,
                       ),
                     IconButton(
+                        visualDensity: VisualDensity.compact,
                         icon: const Icon(Icons.delete_outline,
                             size: 20, color: Colors.red),
                         tooltip: 'Usuń zgłoszenie',
@@ -408,7 +406,7 @@ class _MyRequestTileState extends State<_MyRequestTile> {
               ],
             ),
             if (_editing) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: kGapM),
               WInputField(
                 controller: _desc,
                 label: 'Opis zgłoszenia',
@@ -416,16 +414,21 @@ class _MyRequestTileState extends State<_MyRequestTile> {
                 hintText: 'Wpisz opis',
                 maxLines: 3,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: kGapS),
               Align(
                 alignment: Alignment.centerRight,
-                child: WButton(
-                  text: 'Zapisz',
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: cDarkBlue,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(0, kButtonHeightSmall),
+                  ),
                   onPressed: _saveDescription,
+                  child: const Text('Zapisz'),
                 ),
               ),
             ] else if (widget.req.description.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: kGapS),
               Text(widget.req.description,
                   style: const TextStyle(fontSize: 13),
                   maxLines: 2,
@@ -434,7 +437,7 @@ class _MyRequestTileState extends State<_MyRequestTile> {
             if (requestBriefLabel(timing: widget.req.timing, budget: widget.req.budget,
                     answers: widget.req.answers).isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: kGapXs),
                 child: Text(
                     requestBriefLabel(timing: widget.req.timing, budget: widget.req.budget,
                         answers: widget.req.answers),
@@ -484,15 +487,15 @@ class _ClosedLabel extends StatelessWidget {
     };
     final label = stage.label();
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(top: kGapS),
       child: Row(
         children: [
           Icon(icon, size: 18, color: color),
-          const SizedBox(width: 6),
+          const SizedBox(width: kGapS),
           Text(
             '${label[0].toUpperCase()}${label.substring(1)}',
             style: TextStyle(
-                fontSize: 12.5, fontWeight: FontWeight.w600, color: color),
+                fontSize: 12, fontWeight: FontWeight.w600, color: color),
           ),
         ],
       ),
@@ -632,17 +635,17 @@ class _RealizationRequestState extends State<_RealizationRequest> {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(top: kGapS),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ── firma prosi o potwierdzenie ──
           if (pending.isNotEmpty || jobDone)
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(kGapS),
               decoration: BoxDecoration(
                 color: Colors.amber.shade50,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(kRadius),
                 border: Border.all(color: Colors.amber.shade300),
               ),
               child: Column(
@@ -652,7 +655,7 @@ class _RealizationRequestState extends State<_RealizationRequest> {
                     children: [
                       if (pending.isNotEmpty) ...[
                         RealizationThumb(photo: pending.first, size: 54),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: kGapS),
                       ],
                       Expanded(
                         child: Text(
@@ -660,14 +663,14 @@ class _RealizationRequestState extends State<_RealizationRequest> {
                               ? '$company prosi o potwierdzenie realizacji. Potwierdzenie zamyka zgłoszenie.'
                               : '$company prosi o potwierdzenie, że zlecenie jest wykonane. Potwierdzenie zamyka zgłoszenie.',
                           style: TextStyle(
-                              fontSize: 12.5,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: Colors.amber.shade900),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: kGapS),
                   if (_busy)
                     const Center(child: CircularProgressIndicator())
                   else
@@ -676,26 +679,23 @@ class _RealizationRequestState extends State<_RealizationRequest> {
                       children: [
                         TextButton(
                           style: TextButton.styleFrom(
-                              foregroundColor: Colors.red.shade700,
-                              visualDensity: VisualDensity.compact),
+                              foregroundColor: Colors.red.shade700),
                           onPressed: () => _decide('rejected',
                               withPhotos: pending.isNotEmpty),
                           child: Text(
                               pending.isNotEmpty ? 'To nie moje' : 'Jeszcze nie',
                               style: const TextStyle(fontSize: 13)),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: kGapS),
                         FilledButton.icon(
                           icon: const Icon(Icons.check, size: 15),
                           label: const Text('Potwierdź',
                               style: TextStyle(fontSize: 13)),
                           style: FilledButton.styleFrom(
                               backgroundColor: Colors.green.shade600,
-                              visualDensity: VisualDensity.compact,
+                              minimumSize: const Size(0, kButtonHeightSmall),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 4),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8))),
+                                  horizontal: kGapM)),
                           onPressed: () => _decide('approved',
                               withPhotos: pending.isNotEmpty),
                         ),
@@ -708,11 +708,11 @@ class _RealizationRequestState extends State<_RealizationRequest> {
           // ── moje zdjęcia z realizacji ──
           if (mine.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(top: kGapS),
               child: Row(
                 children: [
                   RealizationThumb(photo: mine.first, size: 44),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: kGapS),
                   Expanded(
                     child: Text(
                       mine.first['publishedByCompany'] == true
@@ -749,7 +749,7 @@ class _RealizationRequestState extends State<_RealizationRequest> {
                             title: const Text('Para Przed / Po'),
                             onTap: () => Navigator.pop(ctx, 'pair'),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: kGapS),
                         ],
                       ),
                     ),

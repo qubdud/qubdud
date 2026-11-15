@@ -45,8 +45,8 @@ Widget BpsAppBar(String appBarTitle, VoidCallback? appBarVoidCallback, Widget? c
         decoration: BoxDecoration(
           color: background,
           borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(12),
-            bottomRight: Radius.circular(12),
+            bottomLeft: Radius.circular(kRadius),
+            bottomRight: Radius.circular(kRadius),
           ),
           boxShadow: [
             BoxShadow(
@@ -69,7 +69,7 @@ Widget BpsAppBar(String appBarTitle, VoidCallback? appBarVoidCallback, Widget? c
                   style: const TextStyle(
                     color: cDarkerBlue,
                     fontWeight: FontWeight.bold,
-                    fontSize: 24,
+                    fontSize: 18,
                   ),
                 ),
                 automaticallyImplyLeading: false,
@@ -83,8 +83,8 @@ Widget BpsAppBar(String appBarTitle, VoidCallback? appBarVoidCallback, Widget? c
                 elevation: 0,
                 shape: const RoundedRectangleBorder(
                     borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(10),
-                      bottomRight: Radius.circular(10),
+                      bottomLeft: Radius.circular(kRadius),
+                      bottomRight: Radius.circular(kRadius),
                     ))),
             if (child != null && !childTitle) child,
           ],

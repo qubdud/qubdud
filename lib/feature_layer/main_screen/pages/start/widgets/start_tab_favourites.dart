@@ -1,5 +1,6 @@
 import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:flutter/material.dart';
+import 'package:qb/shared/constants.dart';
 import 'package:qb/shared/widgets/promo_tile.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../bloc/main_bloc.dart';
@@ -21,12 +22,12 @@ class StartTabFavourites extends StatelessWidget {
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(kGapL),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         childAspectRatio: 0.7,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
+        crossAxisSpacing: kGapM,
+        mainAxisSpacing: kGapM,
       ),
       itemCount: state.favVideo.length,
       itemBuilder: (context, index) {

@@ -45,7 +45,7 @@ class NavBarComponent extends StatelessWidget {
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOutCirc,
             width: MediaQuery.of(context).size.width / navItems.length,
-            height: 90,
+            height: 64,
             child: TweenAnimationBuilder<Color?>(
               tween: ColorTween(
                 begin: colorStart,
@@ -54,9 +54,8 @@ class NavBarComponent extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               builder: (context, color, child) {
                 return Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const SizedBox(height: 12),
                     Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -66,14 +65,14 @@ class NavBarComponent extends StatelessWidget {
                             right: -12,
                             top: -8,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                              decoration: BoxDecoration(
+                              padding: const EdgeInsets.symmetric(horizontal: kGapXs, vertical: 1),
+                              decoration: ShapeDecoration(
                                 color: Colors.red.shade600,
-                                borderRadius: BorderRadius.circular(10),
+                                shape: const StadiumBorder(),
                               ),
                               child: Text(
                                 item.count > 99 ? '99+' : '${item.count}',
-                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                               ),
                             ),
                           ),
@@ -92,7 +91,7 @@ class NavBarComponent extends StatelessWidget {
                           ),
                       ],
                     ),
-                    const SizedBox(height: 11),
+                    const SizedBox(height: kGapXs),
                     Text(
                       maxLines: 1,
                       overflow: TextOverflow.clip,

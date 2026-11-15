@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qb/shared/constants.dart';
 import 'package:qb/shared/widgets/anonim_gate.dart';
 import 'package:qb/shared/widgets/contact_request_button.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -230,7 +231,7 @@ class _VideoItemState extends State<_VideoItem> {
                   }
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: kGapL),
               _ActionIcon(
                 icon: Icons.person_add_outlined,
                 tooltip: 'Dodaj do kontaktów',
@@ -250,13 +251,13 @@ class _VideoItemState extends State<_VideoItem> {
                   }
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: kGapL),
               ContactRequestButton(
                 companyId: widget.promo.userId,
                 companyName:
                     _author?.companyName ?? widget.promo.companyName,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: kGapL),
               _ActionIcon(
                 icon: Icons.share_outlined,
                 tooltip: 'Udostępnij',
@@ -271,7 +272,7 @@ class _VideoItemState extends State<_VideoItem> {
                       'Zobacz prezentację firmy $name w aplikacji QUBDUD:\nqubdud://promo/${widget.promo.id}');
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: kGapL),
               _ActionIcon(
                 icon: Icons.flag_outlined,
                 tooltip: 'Zgłoś',
@@ -280,7 +281,7 @@ class _VideoItemState extends State<_VideoItem> {
                     targetId: widget.promo.id,
                     targetUserId: widget.promo.userId),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: kGapL),
               // licznik wyświetleń
               Column(
                 children: [
@@ -322,7 +323,7 @@ class _VideoItemState extends State<_VideoItem> {
                 .add(GoToProfilPublicznyFirmyEvent(widget.promo.userId)),
             child: Container(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  const EdgeInsets.symmetric(horizontal: kGapL, vertical: kGapS),
               color: Colors.black.withOpacity(0.65),
               child: Row(
                 children: [
@@ -343,7 +344,7 @@ class _VideoItemState extends State<_VideoItem> {
                                 fontWeight: FontWeight.bold),
                           ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: kGapM),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -360,7 +361,7 @@ class _VideoItemState extends State<_VideoItem> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: kGapXs),
                         if (_reviewCount > 0)
                           Row(
                             children: [
@@ -374,7 +375,7 @@ class _VideoItemState extends State<_VideoItem> {
                                   size: 14,
                                 ),
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: kGapXs),
                               Text('($_reviewCount)',
                                   style: const TextStyle(
                                       color: Colors.white70, fontSize: 12)),

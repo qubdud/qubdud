@@ -126,6 +126,7 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
         List<MenuItem> menuItems = [
           if (state.user?.firma == true)
             MenuItem(
+                icon: Icons.swap_horiz,
                 text: Globals.instance.companyView
                     ? 'Przełącz na: Użytkownik'
                     : 'Przełącz na: Firma',
@@ -133,17 +134,22 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
                     .read<MainScreenBloc>()
                     .add(SwitchModeEvent(!Globals.instance.companyView))),
           MenuItem(
+              icon: Icons.description_outlined,
               text: 'Regulamin',
               onTap: () {
                 context.read<MainScreenBloc>().add(GoToRulesEvent());
               }),
           MenuItem(
+              icon: Icons.logout,
               text: 'Wyloguj się',
               onTap: () {
                 context.read<MainScreenBloc>().add(LogoutEvent());
               }),
           if (state.user?.id.isNotEmpty == true)
-            MenuItem(text: 'Usuń konto', onTap: _confirmDeleteAccount),
+            MenuItem(
+                icon: Icons.delete_outline,
+                text: 'Usuń konto',
+                onTap: _confirmDeleteAccount),
         ];
 
         return BlocBuilder<MainScreenControlCubit, MainScreenControlState>(
