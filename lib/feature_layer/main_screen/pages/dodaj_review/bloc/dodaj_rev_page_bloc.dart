@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:bloc/bloc.dart';
@@ -38,66 +39,72 @@ class DodajReviewPageBloc extends Bloc<DodajReviewPageEvent, DodajReviewPageStat
       emit(DodajRequestPromoState(thumb));
     });
 
+    on<SkipFileDodajReviewPageEvent>((event, emit) {
+      state.selectedContent = null;
+      state.reviewMetadata = null;
+      emit(DodajRequestPromoState(''));
+    });
+
     // Cały zapis w jednym handlerze: wyjście z ekranu w trakcie wysyłania
     // zamyka BLoC (emit staje się no-op), ale recenzja i tak się zapisze.
     on<DodajDodajReviewPageEvent>((event, emit) async {
       final current = state;
-      final content = state.selectedContent!;
+      final meta = state.reviewMetadata;
+      // drugie tapnięcie w trakcie wysyłki
+      if (current is! DodajRequestPromoState || meta == null) return;
+      final content = state.selectedContent;
+      final promo = Globals.instance.selectedPromo;
       emit(DodajReviewPageLoadingState());
-
-      String? thumb;
-      try {
-        thumb = current is DodajRequestPromoState
-            ? current.thumbPath
-            : await makeThumbnail(content.file, content.fileType);
-      } catch (_) {}
-      if (thumb == null) {
-        showToastError(text: 'Nie udało się odczytać pliku. Wybierz inny.');
-        emit(DodajReviewPageMainState());
-        return;
-      }
 
       try {
         final user =
             await firebase.fetchUser(FirebaseAuth.instance.currentUser!.uid);
         state.appUser = user;
-        final media = await firebase.uploadMedia(
-          file: content.file,
-          thumb: File(thumb),
-          mediaType: content.fileType == 'video' ? 'video' : 'image',
-          onProgress: (progress) =>
-              emit(DodajReviewPageUploadingState(progress)),
-        );
-        final promo = Globals.instance.selectedPromo;
-        await firebase.saveReviewMetadata(Review(
+        final media = content == null
+            ? (fileName: '', fileUrl: '', thumbUrl: '')
+            : await firebase.uploadMedia(
+                file: content.file,
+                thumb: File(current.thumbPath),
+                mediaType: content.fileType == 'video' ? 'video' : 'image',
+                onProgress: (progress) =>
+                    emit(DodajReviewPageUploadingState(progress)),
+              );
+        final save = firebase.saveReviewMetadata(Review(
           userId: user!.id,
           promoId: promo?.id == 'profile_review' ? '' : (promo?.id ?? ''),
           reviewedUserId: promo?.userId ?? '',
           authorName: '${user.firstName ?? ''} ${user.lastName ?? ''}'.trim(),
-          score: state.reviewMetadata!.score,
-          description: state.reviewMetadata!.description,
+          score: meta.score,
+          description: meta.description,
           fileName: media.fileName,
           fileUrl: media.fileUrl,
           thumbUrl: media.thumbUrl,
           id: '',
           timestamp: null,
         ));
+        await (content == null ? save.timeout(const Duration(seconds: 10)) : save);
         showToast(text: 'Przesłano');
+        emit(DodajReviewPageNextState());
+      } on TimeoutException {
+        showToast(text: 'Brak internetu — opinia wyśle się po połączeniu');
         emit(DodajReviewPageNextState());
       } catch (e) {
         // reguły przyjmują jedną recenzję klienta na firmę (id = autor_firma)
         showToastError(
             text: e is FirebaseException && e.code == 'permission-denied'
                 ? 'Opinię o tej firmie możesz wystawić tylko raz.'
-                : uploadErrorText(e));
+                : content == null
+                    ? 'Nie udało się dodać opinii. Sprawdź internet i spróbuj ponownie.'
+                    : uploadErrorText(e));
         // powrót do formularza z oceną i opisem
-        emit(DodajRequestPromoState(thumb));
+        emit(DodajRequestPromoState(current.thumbPath));
       }
     });
 
 
     on<GetDataDodajReviewPageEvent>((event, emit) async {
       emit(DodajReviewPageLoadingState());
+      state.reviews = [];
       try {
         // Jeśli selectedPromo to placeholder z profilu firmy (id='profile_review')
         // — pobierz pierwszy prawdziwy promo tej firmy
@@ -118,7 +125,7 @@ class DodajReviewPageBloc extends Bloc<DodajReviewPageEvent, DodajReviewPageStat
         state.reviews = await firebase.getReviewsMetadataByReviewedUser(companyId);
         emit(DodajReviewPageMainState());
       } catch (e) {
-        showToastError(text: 'Błąd pobierania danych: $e');
+        showToastError(text: 'Nie udało się pobrać opinii.');
         emit(DodajReviewPageMainState());
       }
     });

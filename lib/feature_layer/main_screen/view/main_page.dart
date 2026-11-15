@@ -154,7 +154,7 @@ class _MainViewState extends State<MainView> with SingleTickerProviderStateMixin
 
 
               PopScope(
-                canPop: state is StartMainScreenState,
+                canPop: state is StartMainScreenState || state.user == null,
                 onPopInvokedWithResult: (didPop, res){
 
                   if(!didPop){

@@ -14,6 +14,7 @@ import '../../../shared/moderation.dart';
 import '../../../shared/push_service.dart';
 import '../../../shared/new_counts.dart';
 import '../../../shared/functions/effective_role.dart';
+import '../../../shared/functions/plural.dart';
 import '../../../shared/functions/show_toast.dart';
 import '../../../shared/globals.dart';
 import 'main_appbar_cubit.dart';
@@ -123,9 +124,7 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
         );
         if (urgent > 0) {
           showToast(
-              text: urgent == 1
-                  ? 'Masz 1 pilne zgłoszenie w pobliżu!'
-                  : 'Masz $urgent pilne zgłoszenia w pobliżu!');
+              text: 'Masz $urgent ${plural(urgent, 'pilne zgłoszenie', 'pilne zgłoszenia', 'pilnych zgłoszeń')} w pobliżu!');
         }
       } catch (e, s) {
         addError(e, s);
@@ -174,6 +173,11 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     });
 
     on<GoBackEvent>((event, emit) async {
+      if (state.user == null) {
+        // np. Regulamin otwarty z menu po nieudanym starcie
+        if (state is! LoadingMainScreenState) add(InitEvent());
+        return;
+      }
       if (_backStack.isEmpty) {
         add(GoToHomeEvent());
         return;

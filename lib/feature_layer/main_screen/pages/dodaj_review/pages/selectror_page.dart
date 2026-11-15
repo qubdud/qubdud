@@ -202,6 +202,32 @@ class _ViewState extends State<View> {
                         ),
                       ),
                     ),
+
+                    const Divider(),
+
+                    InkWell(
+                      onTap: () => context.read<DodajReviewPageBloc>().add(SkipFileDodajReviewPageEvent()),
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: Ink(
+                        padding: const EdgeInsets.all(16.0),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.edit_note_outlined),
+                            SizedBox(width: 16),
+                            Expanded(
+                              child: Text(
+                                'Bez zdjęcia — tylko ocena i opis',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

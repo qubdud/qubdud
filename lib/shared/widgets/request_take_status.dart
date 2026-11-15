@@ -8,6 +8,7 @@ import '../../domain_layer/domain_models/app_user.dart';
 import '../../domain_layer/domain_models/promoVideo.dart';
 import '../../domain_layer/firebase_service.dart';
 import '../../feature_layer/main_screen/bloc/main_bloc.dart';
+import '../functions/plural.dart';
 import '../functions/show_toast.dart';
 import '../functions/show_toast_error.dart';
 import '../moderation.dart';
@@ -205,18 +206,6 @@ class RequestOffersBar extends StatefulWidget {
 }
 
 typedef _CompanyStats = ({double rating, int reviews, int jobs, double? km, int? sinceYear});
-
-String _opinions(int n) {
-  if (n == 1) return 'opinia';
-  final d = n % 10, h = n % 100;
-  return d >= 2 && d <= 4 && (h < 12 || h > 14) ? 'opinie' : 'opinii';
-}
-
-String _jobsWord(int n) {
-  if (n == 1) return 'zlecenie';
-  final d = n % 10, h = n % 100;
-  return d >= 2 && d <= 4 && (h < 12 || h > 14) ? 'zlecenia' : 'zleceń';
-}
 
 class _RequestOffersBarState extends State<RequestOffersBar> {
   List<Map<String, dynamic>> _offers = [];
@@ -519,13 +508,13 @@ class _RequestOffersBarState extends State<RequestOffersBar> {
                                           size: 14, color: Colors.amber),
                                       Text(
                                           '${s.rating.toStringAsFixed(1).replaceAll('.', ',')} '
-                                          '(${s.reviews} ${_opinions(s.reviews)})',
+                                          '(${s.reviews} ${plural(s.reviews, 'opinia', 'opinie', 'opinii')})',
                                           style: const TextStyle(fontSize: 11)),
                                     ] else
                                       const Text('Bez opinii',
                                           style: TextStyle(fontSize: 11, color: Colors.grey)),
                                     if (s.jobs > 0)
-                                      Text('· ${s.jobs} ${_jobsWord(s.jobs)}',
+                                      Text('· ${s.jobs} ${plural(s.jobs, 'zlecenie', 'zlecenia', 'zleceń')}',
                                           style: const TextStyle(fontSize: 11, color: Colors.grey)),
                                     if (s.km != null)
                                       Text('· ${s.km! < 10 ? s.km!.toStringAsFixed(1).replaceAll('.', ',') : s.km!.round()} km',

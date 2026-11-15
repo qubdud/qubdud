@@ -358,7 +358,7 @@ class _RelationListState extends State<_RelationList> {
   }
 
   static String _short(String s) =>
-      s.length > 32 ? '${s.substring(0, 32).trimRight()}…' : s;
+      s.characters.length > 32 ? '${s.characters.take(32).toString().trimRight()}…' : s;
 
   static Color _slotColor(String status) => status == 'accepted'
       ? Colors.green.shade700

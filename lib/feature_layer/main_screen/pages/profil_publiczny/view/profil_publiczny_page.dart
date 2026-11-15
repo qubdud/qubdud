@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../../../shared/widgets/before_after.dart';
+import '../../../../../shared/functions/plural.dart';
 import '../../../../../shared/functions/show_toast.dart';
 import '../../../../../shared/functions/show_toast_error.dart';
 import '../../../../../shared/widgets/load_error.dart';
@@ -257,9 +258,7 @@ class _ProfilViewState extends State<_ProfilView> {
                                     size: 14, color: Colors.green),
                                 const SizedBox(width: 4),
                                 Text(
-                                  n == 1
-                                      ? '1 zrealizowane zlecenie'
-                                      : '$n zrealizowanych zleceń',
+                                  '$n ${plural(n, 'zrealizowane zlecenie', 'zrealizowane zlecenia', 'zrealizowanych zleceń')}',
                                   style: const TextStyle(
                                       fontSize: 12,
                                       color: Colors.green,
@@ -997,7 +996,7 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               Text(
-                '  (${widget.reviews.length} opinii)',
+                '  (${widget.reviews.length} ${plural(widget.reviews.length, 'opinia', 'opinie', 'opinii')})',
                 style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
               ),
               const Spacer(),

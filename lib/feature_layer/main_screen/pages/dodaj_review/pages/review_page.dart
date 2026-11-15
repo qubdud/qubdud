@@ -149,6 +149,15 @@ class _ViewState extends State<_View> {
                   ),
                 ),
                 const SizedBox(height: 24),
+              ] else ...[
+                TextButton.icon(
+                  onPressed: () => context
+                      .read<DodajReviewPageBloc>()
+                      .add(GetDataDodajReviewPageEvent()),
+                  icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+                  label: const Text('Dodaj zdjęcie lub film'),
+                ),
+                const SizedBox(height: 16),
               ],
 
               // ── Gwiazdki ──────────────────────────────────────
@@ -194,7 +203,7 @@ class _ViewState extends State<_View> {
 
               WButton(
                 text: 'Dodaj recenzję',
-                isEnabled: _rating > 0 && content != null,
+                isEnabled: _rating > 0,
                 onPressed: () {
                   context.read<DodajReviewPageBloc>().state.reviewMetadata =
                       ReviewMetadata(

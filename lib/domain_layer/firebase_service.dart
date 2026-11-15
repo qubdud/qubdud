@@ -595,6 +595,7 @@ class FirebaseService {
 
     return querySnapshot.docs
         .map((doc) => Review.fromDoc(doc))
+        .where((r) => !BlockedUsers.contains(r.userId))
         .toList();
   }
 

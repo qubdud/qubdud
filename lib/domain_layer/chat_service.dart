@@ -229,8 +229,8 @@ class ChatService {
         }
 
         String lastMessage = data['lastMessage'] ?? '';
-        if (lastMessage.length > 40) {
-          lastMessage = '${lastMessage.substring(0, 37)}...';
+        if (lastMessage.characters.length > 40) {
+          lastMessage = '${lastMessage.characters.take(37)}...';
         }
 
         overviews.add(<String, dynamic>{
