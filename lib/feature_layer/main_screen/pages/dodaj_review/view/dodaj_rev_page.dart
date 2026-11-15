@@ -97,21 +97,21 @@ class _ViewState extends State<View> {
               // Lista recenzji z podglądem pliku i komentarzami
               if (state.reviews.isNotEmpty) ...[
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: kGapL, vertical: kGapS),
                   child: Text('Opinie (${state.reviews.length})',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
                 ...state.reviews.map((review) => Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: kGapL, vertical: kGapXs),
                   child: Card(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadius)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Miniatura zdjęcia/video
                         if (review.thumbUrl.isNotEmpty)
                           ClipRRect(
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(kRadius)),
                             child: CachedNetworkImage(
                               imageUrl: review.thumbUrl,
                               width: double.infinity,
@@ -121,7 +121,7 @@ class _ViewState extends State<View> {
                           ),
                         // Treść + komentarze
                         Padding(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(kGapM),
                           child: ReviewWithComments(review: review),
                         ),
                       ],
@@ -134,23 +134,23 @@ class _ViewState extends State<View> {
 
 
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(kGapL),
                 child: Column(
                   children: [
                     // Info o firmie której dotyczy recenzja
                     if (Globals.instance.selectedPromo != null) ...[
                       Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        margin: const EdgeInsets.only(bottom: kGapL),
+                        padding: const EdgeInsets.symmetric(horizontal: kGapM, vertical: kGapS),
                         decoration: BoxDecoration(
                           color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(kRadius),
                           border: Border.all(color: Colors.blue.shade100),
                         ),
                         child: Row(
                           children: [
                             const Icon(Icons.business_outlined, size: 16, color: Colors.blueGrey),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: kGapS),
                             const Text('Recenzja dla: ', style: TextStyle(fontSize: 13, color: Colors.blueGrey)),
                             Expanded(
                               child: Text(
@@ -200,7 +200,7 @@ class _ViewState extends State<View> {
               builder: (context, value, child) {
                 return Text(
                   '${value.toInt()}%',
-                  style: const TextStyle(fontSize: 50, fontWeight: FontWeight.bold, color: cDarkBlue),
+                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: cDarkBlue),
                 );
               },
             ),

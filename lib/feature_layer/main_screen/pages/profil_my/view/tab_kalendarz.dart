@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../../domain_layer/firebase_service.dart';
+import '../../../../../shared/constants.dart';
 import '../../../../../shared/functions/show_toast.dart';
 import '../../../../../shared/functions/show_toast_error.dart';
 import '../../../../../shared/client_notes.dart';
@@ -333,7 +334,7 @@ class _TabKalendarzState extends State<TabKalendarz> {
         _slots.where((s) => s['status'] == 'pending').toList();
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(kGapL),
       children: [
         // ── Mini panel tygodnia (zajętość na żywo) ───────
         SizedBox(
@@ -354,8 +355,8 @@ class _TabKalendarzState extends State<TabKalendarz> {
                   daySlots.any((s) => s['status'] == 'pending');
               return Expanded(
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  margin: const EdgeInsets.symmetric(horizontal: kGapXs / 2),
+                  padding: const EdgeInsets.symmetric(vertical: kGapS),
                   decoration: BoxDecoration(
                     color: hasPending
                         ? Colors.amber.withOpacity(0.2)
@@ -368,11 +369,15 @@ class _TabKalendarzState extends State<TabKalendarz> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                          '${const ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'][day.weekday - 1]} ${DateFormat('d.MM').format(day)}',
-                          style: const TextStyle(
-                              fontSize: 9, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 2),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                            '${const ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'][day.weekday - 1]} ${DateFormat('d.MM').format(day)}',
+                            maxLines: 1,
+                            style: const TextStyle(
+                                fontSize: 11, fontWeight: FontWeight.w600)),
+                      ),
+                      const SizedBox(height: kGapXs),
                       Text(
                           daySlots.isEmpty
                               ? '—'
@@ -385,20 +390,20 @@ class _TabKalendarzState extends State<TabKalendarz> {
             }).toList(),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: kGapM),
 
         // ── Rezerwacje do akceptacji ──────────────────────
         if (widget.showBookings && pending.isNotEmpty) ...[
           const Text('Rezerwacje do akceptacji',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: kGapS),
           ...pending.map((s) => Card(
-                margin: const EdgeInsets.only(bottom: 8),
+                margin: const EdgeInsets.only(bottom: kGapS),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(kRadius)),
                 child: Padding(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: kGapM, vertical: kGapS),
                   child: Row(
                     children: [
                       Container(
@@ -407,7 +412,7 @@ class _TabKalendarzState extends State<TabKalendarz> {
                         decoration: const BoxDecoration(
                             color: Colors.amber, shape: BoxShape.circle),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: kGapS),
                       Expanded(
                         child: GestureDetector(
                           onTap: () => context.read<MainScreenBloc>().add(
@@ -455,25 +460,25 @@ class _TabKalendarzState extends State<TabKalendarz> {
                   ),
                 ),
               )),
-          const SizedBox(height: 12),
+          const SizedBox(height: kGapM),
         ],
 
         Text(
           'Sloty na najbliższy tydzień. Klienci klikają kropkę na Twoim profilu — żółta czeka na Twoją decyzję (tap na żółtej = akceptuj, przytrzymaj slot = usuń).',
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: kGapS),
         if (widget.showGenerator) ...[
           OutlinedButton.icon(
             icon: const Icon(Icons.auto_awesome_outlined, size: 18),
             label: const Text('Generuj sloty (start, długość, ilość, dni)'),
             onPressed: _generateSlots,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: kGapL),
           // czym są terminy — klient zobaczy to nad kropkami na Twoim profilu
           const Text('Czym są Twoje terminy?',
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-          const SizedBox(height: 6),
+          const SizedBox(height: kGapS),
           TextField(
             controller: _infoCtrl,
             maxLength: 200,
@@ -497,12 +502,12 @@ class _TabKalendarzState extends State<TabKalendarz> {
               onPressed: _infoDirty ? _saveInfo : null,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: kGapS),
         ],
         _legend(),
-        const SizedBox(height: 12),
+        const SizedBox(height: kGapM),
         ...days.map((day) => _dayCard(day)),
-        const SizedBox(height: 40),
+        const SizedBox(height: kGapXl),
       ],
     );
   }
@@ -515,12 +520,12 @@ class _TabKalendarzState extends State<TabKalendarz> {
                 width: 10,
                 height: 10,
                 decoration: BoxDecoration(color: c, shape: BoxShape.circle)),
-            const SizedBox(width: 4),
+            const SizedBox(width: kGapXs),
             Text(label, style: const TextStyle(fontSize: 11)),
           ],
         );
     return Wrap(
-      spacing: 12,
+      spacing: kGapM,
       children: [
         dot(Colors.grey.shade400, 'wolny'),
         dot(Colors.amber, 'czeka'),
@@ -536,10 +541,10 @@ class _TabKalendarzState extends State<TabKalendarz> {
     }).toList();
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.only(bottom: kGapS),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadius)),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(kGapM),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -565,8 +570,8 @@ class _TabKalendarzState extends State<TabKalendarz> {
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade400))
             else
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: kGapS,
+                runSpacing: kGapS,
                 children: daySlots.map((s) {
                   final st = s['start'] as DateTime;
                   final status = s['status'] as String;
@@ -589,7 +594,7 @@ class _TabKalendarzState extends State<TabKalendarz> {
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 5),
+                          horizontal: kGapS, vertical: kGapXs),
                       decoration: BoxDecoration(
                         color: color.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(8),
@@ -607,7 +612,7 @@ class _TabKalendarzState extends State<TabKalendarz> {
                                 decoration: BoxDecoration(
                                     color: color, shape: BoxShape.circle),
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: kGapXs),
                               Text(label,
                                   style: const TextStyle(fontSize: 12)),
                             ],
@@ -615,7 +620,7 @@ class _TabKalendarzState extends State<TabKalendarz> {
                           if (who.isNotEmpty)
                             Text(who,
                                 style: TextStyle(
-                                    fontSize: 9,
+                                    fontSize: 11,
                                     color: Colors.grey.shade600),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis),

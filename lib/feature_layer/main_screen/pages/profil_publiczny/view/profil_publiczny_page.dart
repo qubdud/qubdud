@@ -23,7 +23,7 @@ import '../../../../../domain_layer/firebase_service.dart';
 import '../../../../../shared/moderation.dart';
 import '../../../../../shared/widgets/loading.dart';
 import '../../../../../shared/widgets/review.dart';
-import '../../../../../shared/widgets/w_small_label.dart';
+import '../../../../../shared/widgets/w_smallest_label.dart';
 import '../../../bloc/main_bloc.dart';
 import '../bloc/profil_my_page_bloc.dart';
 
@@ -124,7 +124,8 @@ class _ProfilViewState extends State<_ProfilView> {
             children: [
               SingleChildScrollView(
             controller: _scroll,
-            padding: EdgeInsets.only(bottom: canBook ? 88 : 0),
+            padding: EdgeInsets.only(
+                bottom: canBook ? kButtonHeight + 2 * kGapL : 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -140,15 +141,15 @@ class _ProfilViewState extends State<_ProfilView> {
                   ),
 
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-                  child: WSmallLabel(text: 'Prezentacje firmy'),
+                  padding: const EdgeInsets.fromLTRB(kGapL, kGapXl, kGapL, kGapXs),
+                  child: WSmallestLabel(text: 'Prezentacje firmy'),
                 ),
                 _buildVideosGrid(context, state.videos),
 
                 if (state.targetUser != null)
                   _RealizationsSection(companyId: state.targetUser!.id),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: kGapXl),
                 _ReviewsSection(
                   reviews: state.reviews,
                   avgScore: state.averageScore,
@@ -156,30 +157,26 @@ class _ProfilViewState extends State<_ProfilView> {
                   companyName: state.targetUser?.companyName ?? 'Firma',
                 ),
 
-                const SizedBox(height: 60),
+                const SizedBox(height: kGapXl),
               ],
             ),
           ),
               // przyklejone CTA — sloty są w środku strony, przycisk zawsze widoczny
               if (canBook && _showCta)
                 Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 16,
+                  left: kGapL,
+                  right: kGapL,
+                  bottom: kGapL,
                   child: SizedBox(
-                    height: 52,
+                    height: kButtonHeight,
                     child: ElevatedButton.icon(
                       onPressed: _scrollToSlots,
-                      icon: const Icon(Icons.event_available, size: 22),
-                      label: const Text('Umów',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold)),
+                      icon: const Icon(Icons.event_available, size: 18),
+                      label: const Text('Umów'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: cDarkBlue,
                         foregroundColor: Colors.white,
                         elevation: 6,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(26)),
                       ),
                     ),
                   ),
@@ -199,7 +196,7 @@ class _ProfilViewState extends State<_ProfilView> {
     // EXPIRES: po uruchomieniu demo/_seed/migrate_profile_bio.js --apply (zostaje samo bio)
     final description = bio.isNotEmpty ? bio : (info?.description.trim() ?? '');
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
+      padding: const EdgeInsets.all(kGapL),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1C1B21) : Colors.grey.shade50,
         border: Border(
@@ -221,7 +218,7 @@ class _ProfilViewState extends State<_ProfilView> {
                   style: const TextStyle(fontSize: 24, color: Colors.white),
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: kGapM),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,7 +226,7 @@ class _ProfilViewState extends State<_ProfilView> {
                     Text(user?.companyName ?? 'Firma',
                         style: TextStyle(
                             fontSize:
-                                (user?.companyName?.length ?? 0) > 40 ? 16 : 20,
+                                (user?.companyName?.length ?? 0) > 40 ? 16 : 18,
                             fontWeight: FontWeight.bold)),
                     if (user?.companyCity != null)
                       Text(user!.companyCity!,
@@ -250,13 +247,13 @@ class _ProfilViewState extends State<_ProfilView> {
                           final n = snap.data ?? 0;
                           if (n == 0) return const SizedBox.shrink();
                           return Padding(
-                            padding: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.only(top: kGapXs),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 const Icon(Icons.verified_outlined,
                                     size: 14, color: Colors.green),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: kGapXs),
                                 Text(
                                   '$n ${plural(n, 'zrealizowane zlecenie', 'zrealizowane zlecenia', 'zrealizowanych zleceń')}',
                                   style: const TextStyle(
@@ -306,12 +303,12 @@ class _ProfilViewState extends State<_ProfilView> {
             ],
           ),
           if (description.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: kGapM),
             Text(description,
                 style: const TextStyle(fontSize: 14, height: 1.5)),
           ],
           if (!own) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: kGapM),
             Row(
               children: [
                 Expanded(
@@ -324,13 +321,10 @@ class _ProfilViewState extends State<_ProfilView> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: cDarkBlue,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: kGapS),
                 Expanded(
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.bookmark_add_outlined, size: 16),
@@ -357,9 +351,6 @@ class _ProfilViewState extends State<_ProfilView> {
                       backgroundColor:
                           isDark ? Colors.white12 : Colors.grey.shade200,
                       foregroundColor: isDark ? Colors.white : Colors.black87,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
                   ),
                 ),
@@ -374,19 +365,19 @@ class _ProfilViewState extends State<_ProfilView> {
   Widget _buildVideosGrid(BuildContext context, List<Promo> videos) {
     if (videos.isEmpty) {
       return const Padding(
-        padding: EdgeInsets.all(16),
+        padding: EdgeInsets.all(kGapL),
         child: Text('Brak filmów.', style: TextStyle(color: Colors.grey)),
       );
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: kGapL),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+        crossAxisSpacing: kGapS,
+        mainAxisSpacing: kGapS,
         childAspectRatio: 0.6,
       ),
       itemCount: videos.length,
@@ -394,7 +385,7 @@ class _ProfilViewState extends State<_ProfilView> {
         onTap: () => context.read<MainScreenBloc>().add(
             GoToPromoFirmyEvent(videos[i], playlist: videos, initialIndex: i)),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           child: CachedNetworkImage(
             imageUrl: videos[i].thumbUrl,
             fit: BoxFit.cover,
@@ -483,20 +474,20 @@ class _RealizationsSectionState extends State<_RealizationsSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-          child: WSmallLabel(text: 'Realizacje'),
+          padding: const EdgeInsets.fromLTRB(kGapL, kGapXl, kGapL, kGapXs),
+          child: WSmallestLabel(text: 'Realizacje'),
         ),
         SizedBox(
           height: 130,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: kGapL),
             itemCount: _photos.length,
             itemBuilder: (context, i) {
               final photo = _photos[i];
               final status = (photo['status'] as String?) ?? 'approved';
               return Padding(
-                padding: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.only(right: kGapS),
                 child: Stack(
                   children: [
                     RealizationThumb(
@@ -507,8 +498,8 @@ class _RealizationsSectionState extends State<_RealizationsSection> {
                     // zdjęcia od klienta: firma decyduje o publikacji
                     if (_isOwner && photo['addedByRole'] == 'user')
                       Positioned(
-                        left: 4,
-                        bottom: 4,
+                        left: kGapXs,
+                        bottom: kGapXs,
                         child: GestureDetector(
                           onTap: () async {
                             final publish = photo['publishedByCompany'] != true;
@@ -524,12 +515,12 @@ class _RealizationsSectionState extends State<_RealizationsSection> {
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 3),
+                                horizontal: kGapS, vertical: kGapXs),
                             decoration: BoxDecoration(
                               color: photo['publishedByCompany'] == true
                                   ? Colors.green.shade600
                                   : Colors.black54,
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               photo['publishedByCompany'] == true
@@ -537,7 +528,7 @@ class _RealizationsSectionState extends State<_RealizationsSection> {
                                   : 'opublikuj',
                               style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 9,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.bold),
                             ),
                           ),
@@ -545,28 +536,28 @@ class _RealizationsSectionState extends State<_RealizationsSection> {
                       ),
                     if (_isOwner && photo['addedByRole'] != 'user' && status != 'approved')
                       Positioned(
-                        left: 6,
-                        top: 6,
+                        left: kGapXs,
+                        top: kGapXs,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: kGapS, vertical: kGapXs),
                           decoration: BoxDecoration(
                             color: status == 'rejected' ? Colors.red.shade600 : Colors.amber.shade700,
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             status == 'rejected' ? 'odrzucone' : 'czeka na klienta',
-                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
                     if (_isOwner)
                       Positioned(
-                        right: 4,
-                        bottom: 4,
+                        right: kGapXs,
+                        bottom: kGapXs,
                         child: GestureDetector(
                           onTap: () => _remove(photo),
                           child: Container(
-                            padding: const EdgeInsets.all(5),
+                            padding: const EdgeInsets.all(kGapXs),
                             decoration: const BoxDecoration(
                                 color: Colors.black54, shape: BoxShape.circle),
                             child: const Icon(Icons.delete_outline, size: 16, color: Colors.white),
@@ -580,7 +571,7 @@ class _RealizationsSectionState extends State<_RealizationsSection> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+          padding: const EdgeInsets.fromLTRB(kGapL, kGapS, kGapL, 0),
           child: Text(
             _isOwner
                 ? 'Klienci widzą tylko realizacje, które potwierdzili. Zdjęcia dodane przez klientów pokazujesz przyciskiem „opublikuj".'
@@ -680,24 +671,26 @@ class _SlotsSectionState extends State<_SlotsSection> {
             children: [
               Text(widget.companyName,
                   style: const TextStyle(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
+              const SizedBox(height: kGapS),
               Row(
                 children: [
                   const Icon(Icons.event_available, size: 20, color: cDarkBlue),
-                  const SizedBox(width: 8),
-                  Text(when,
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w800)),
+                  const SizedBox(width: kGapS),
+                  Flexible(
+                    child: Text(when,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w800)),
+                  ),
                 ],
               ),
               if (info.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: kGapM),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(kGapM),
                   decoration: BoxDecoration(
                     color: cDarkBlue.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(kRadius),
                   ),
                   child: Text(info,
                       style: const TextStyle(
@@ -707,9 +700,9 @@ class _SlotsSectionState extends State<_SlotsSection> {
                           height: 1.3)),
                 ),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: kGapM),
               Text('Firma zobaczy Twój telefon i e-mail, potwierdzi albo odrzuci rezerwację — dostaniesz powiadomienie.',
-                  style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600)),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
             ],
           ),
           actions: [
@@ -778,12 +771,12 @@ class _SlotsSectionState extends State<_SlotsSection> {
   Widget build(BuildContext context) {
     if (_anonim) {
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+        padding: const EdgeInsets.fromLTRB(kGapL, kGapXl, kGapL, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            WSmallLabel(text: 'Umów (najbliższe 7 dni)'),
-            const SizedBox(height: 8),
+            WSmallestLabel(text: 'Umów (najbliższe 7 dni)'),
+            const SizedBox(height: kGapXs),
             OutlinedButton.icon(
               icon: const Icon(Icons.lock_outline, size: 18),
               label: const Text('Zaloguj się, aby zobaczyć terminy'),
@@ -795,7 +788,7 @@ class _SlotsSectionState extends State<_SlotsSection> {
     }
     if (_error) {
       return Padding(
-        padding: const EdgeInsets.only(top: 24),
+        padding: const EdgeInsets.only(top: kGapXl),
         child: LoadError(
           message: 'Nie udało się wczytać terminów',
           compact: true,
@@ -816,27 +809,26 @@ class _SlotsSectionState extends State<_SlotsSection> {
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+      padding: const EdgeInsets.fromLTRB(kGapL, kGapXl, kGapL, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          WSmallLabel(text: 'Umów (najbliższe 7 dni)'),
+          WSmallestLabel(text: 'Umów (najbliższe 7 dni)'),
           if (widget.info?.trim().isNotEmpty == true) ...[
-            const SizedBox(height: 10),
             Center(
               child: Text(widget.info!.trim(),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                      fontSize: 17,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: cDarkBlue,
                       height: 1.3)),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: kGapXs),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: kGapS),
           ...byDay.entries.map((e) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: kGapS),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -848,15 +840,15 @@ class _SlotsSectionState extends State<_SlotsSection> {
                     ),
                     Expanded(
                       child: Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
+                        spacing: kGapS,
+                        runSpacing: kGapS,
                         children: e.value.map((s) => _slotDot(s)).toList(),
                       ),
                     ),
                   ],
                 ),
               )),
-          const SizedBox(height: 4),
+          const SizedBox(height: kGapXs),
           Text(
             _own
                 ? 'Tak klienci widzą Twoje terminy. Zarządzasz nimi w Profilu → Kalendarz.'
@@ -904,7 +896,7 @@ class _SlotsSectionState extends State<_SlotsSection> {
                 decoration:
                     BoxDecoration(color: color, shape: BoxShape.circle),
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: kGapXs),
               Text(
                 DateFormat('HH:mm').format(st),
                 style: TextStyle(
@@ -982,7 +974,7 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
     final isAnon = Globals.instance.anonim;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: kGapL),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -990,7 +982,7 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
           Row(
             children: [
               const Icon(Icons.star, color: Colors.amber, size: 20),
-              const SizedBox(width: 4),
+              const SizedBox(width: kGapXs),
               Text(
                 widget.avgScore.toStringAsFixed(1),
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -1004,7 +996,7 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
               if (_checked && !isAnon && !_alreadyReviewed && _canReview)
                 TextButton.icon(
                   icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Dodaj opinię', style: TextStyle(fontSize: 13)),
+                  label: const Text('Dodaj opinię'),
                   onPressed: () {
                     // Ustawiamy tymczasowe promo z userId firmy
                     // żeby bloc recenzji wiedział komu wystawić opinię
@@ -1028,9 +1020,9 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
                         Theme.of(context).brightness == Brightness.dark
                             ? Colors.white70
                             : Colors.black87,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: kGapM),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(kRadius),
                       side: BorderSide(
                           color: Theme.of(context).brightness ==
                                   Brightness.dark
@@ -1041,7 +1033,7 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
                 )
               else if (_checked && !isAnon && _alreadyReviewed)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: kGapS, vertical: kGapXs),
                   decoration: BoxDecoration(
                     color: Colors.green.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -1051,19 +1043,19 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.check, size: 14, color: Colors.green),
-                      SizedBox(width: 4),
+                      SizedBox(width: kGapXs),
                       Text('Oceniłeś', style: TextStyle(fontSize: 12, color: Colors.green)),
                     ],
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: kGapM),
 
           // ── Lista opinii ──────────────────────────────────
           if (widget.reviews.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: kGapL),
               child: Center(
                 child: Text(
                   _canReview
@@ -1094,15 +1086,15 @@ class ReviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: kGapM),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF232228) : Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(kRadius),
         border:
             Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(kGapM),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1120,7 +1112,7 @@ class ReviewCard extends StatelessWidget {
                       fit: BoxFit.cover,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: kGapM),
                 ],
                 Expanded(
                     child: ReviewWithComments(
@@ -1182,7 +1174,7 @@ class _CompanyContact extends StatelessWidget {
     }
     if (rows.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.only(top: kGapXs),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: rows),
     );
   }
@@ -1190,17 +1182,17 @@ class _CompanyContact extends StatelessWidget {
   Widget _row(IconData icon, String text, VoidCallback onTap) => InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
+          padding: const EdgeInsets.symmetric(vertical: kGapXs / 2),
           child: Row(
             children: [
               Icon(icon, size: 14, color: cDarkBlue),
-              const SizedBox(width: 6),
+              const SizedBox(width: kGapXs),
               Flexible(
                 child: Text(text,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 12,
                         color: cDarkBlue,
                         fontWeight: FontWeight.w600)),
               ),
