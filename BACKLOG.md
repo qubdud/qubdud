@@ -48,18 +48,18 @@ Kolejność ≈ priorytet. Przy każdym punkcie: co dokładnie zrobić.
 12. **Listy klientów/firm ładowane „po jednym” (N+1)** — równoległe pobieranie (`Future.wait`) i mniej danych na starcie.
 13. **Każdy film w feedzie pobiera wszystkie opinie firmy** — trzymać średnią i liczbę opinii w dokumencie firmy (liczone w Cloud Function).
 14. **Filmy prezentacji = główny koszt transferu** — kompresja do 720p (~1–2 MB), cache w telefonie, docelowo tańszy hosting (Cloudflare R2 albo własny serwer).
-12. Drobne z przeglądu: „Pokazuj telefon/adres” nie ukrywa danych w bazie; brak ochrony przed nakładającymi się terminami; dzwonek: limit 60 przed filtrem trybu; licznik „Kontakty” liczy rozmowy z zablokowanymi; usunięcie slotu poza apką zostawia „przyjętą” wizytę.
+15. **Drobne z przeglądu**: „Pokazuj telefon/adres” nie ukrywa danych w bazie; brak ochrony przed nakładającymi się terminami; dzwonek: limit 60 przed filtrem trybu; licznik „Kontakty” liczy rozmowy z zablokowanymi; usunięcie slotu poza apką zostawia „przyjętą” wizytę.
 
 ## Wydanie
 
-15. **Klucz release** — APK testowy jest podpisany kluczem debug. Przed Sklepem Play: znaleźć/utworzyć keystore, `android/key.properties`, Play App Signing.
-16. **iOS** — `ios/Runner/Info.plist`: NSCameraUsageDescription, NSPhotoLibraryUsageDescription, NSMicrophoneUsageDescription; konto Apple Developer; TestFlight.
-17. **Regulamin i polityka RODO** — w apce są puste miejsca zamiast danych administratora (prawnicy). Dane prawdziwych firm z publicznych źródeł w bazie — zgody albo usunięcie przed publicznym startem.
-18. **Pilotaż** — 2–3 konta firm testowych obsługiwane przez zespół, żeby testerzy dostawali oferty.
+16. **Klucz release** — APK testowy jest podpisany kluczem debug. Przed Sklepem Play: znaleźć/utworzyć keystore, `android/key.properties`, Play App Signing.
+17. **iOS** — `ios/Runner/Info.plist`: NSCameraUsageDescription, NSPhotoLibraryUsageDescription, NSMicrophoneUsageDescription; konto Apple Developer; TestFlight.
+18. **Regulamin i polityka RODO** — w apce są puste miejsca zamiast danych administratora (prawnicy). Dane prawdziwych firm z publicznych źródeł w bazie — zgody albo usunięcie przed publicznym startem.
+19. **Pilotaż** — 2–3 konta firm testowych obsługiwane przez zespół, żeby testerzy dostawali oferty.
 
 ## Techniczne
 
-19. **Test reguł z repo** — `node demo/_seed/test_rules.js` (wymaga klucza konta serwisowego, uruchamia właściciel).
-20. **Limit CPU Cloud Run w europe-central2 (20 vCPU)** — gdy będzie historia zużycia, złożyć wniosek o zwiększenie (Quotas → „Total CPU allocation… europe-central2”). Do tego czasu funkcje mają `cpu: 'gcf_gen1'` i wdrażamy paczkami po 4.
-21. **Sprzątanie po migracjach** — po potwierdzeniu, że w `users` nie ma już `fcmTokens`, usunąć fragmenty oznaczone `EXPIRES` w `functions/index.js`.
-22. **Pusty `test/widget_test.dart`** — usunąć albo dodać prawdziwy test.
+20. **Test reguł z repo** — `node demo/_seed/test_rules.js` (wymaga klucza konta serwisowego, uruchamia właściciel).
+21. **Limit CPU Cloud Run w europe-central2 (20 vCPU)** — gdy będzie historia zużycia, złożyć wniosek o zwiększenie (Quotas → „Total CPU allocation… europe-central2”). Do tego czasu funkcje mają `cpu: 'gcf_gen1'` i wdrażamy paczkami po 4.
+22. **Sprzątanie po migracjach** — po potwierdzeniu, że w `users` nie ma już `fcmTokens`, usunąć fragmenty oznaczone `EXPIRES` w `functions/index.js`.
+23. **Pusty `test/widget_test.dart`** — usunąć albo dodać prawdziwy test.
