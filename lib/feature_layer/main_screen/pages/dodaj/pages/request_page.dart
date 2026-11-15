@@ -9,7 +9,7 @@ import 'package:qb/shared/constants.dart';
 import 'package:qb/shared/functions/show_toast_error.dart';
 import 'package:qb/shared/widgets/w_dropdown.dart';
 import 'package:qb/shared/widgets/w_input_field.dart';
-import 'package:qb/shared/widgets/w_small_label.dart';
+import 'package:qb/shared/widgets/w_smallest_label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -246,15 +246,30 @@ class _ViewState extends State<View> {
   Widget _chipsQuestion(String label, List<String> options, String? selected,
       ValueChanged<String?> onChanged) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: kGapM),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          WSmallLabel(text: label),
-          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+                height: 1.2,
+                color: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.color
+                    ?.withValues(alpha: 0.75),
+              ),
+            ),
+          ),
+          const SizedBox(height: kGapXs),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: kGapS,
+            runSpacing: kGapS,
             children: [
               for (final o in options)
                 ChoiceChip(
@@ -288,9 +303,9 @@ class _ViewState extends State<View> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                WSmallLabel(text: 'Szczegóły zgłoszenia'),
+                WSmallestLabel(text: 'Szczegóły zgłoszenia'),
 
-                SizedBox(height: 16),
+                const SizedBox(height: kGapS),
 
                 WInputField(
                   label: 'Opis zgłoszenia',
@@ -299,7 +314,7 @@ class _ViewState extends State<View> {
                   errorText: _descError,
                 ),
 
-                SizedBox(height: 24),
+                const SizedBox(height: kGapM),
                 WAnimatedDropdown(
                   controller: _categoryCtrl,
                   label: 'Wybierz kategorię',
@@ -318,7 +333,7 @@ class _ViewState extends State<View> {
                     });
                   },
                 ),
-                SizedBox(height: 24),
+                const SizedBox(height: kGapM),
                 WAnimatedDropdown(
                   controller: _sectorCtrl,
                   label: 'Wybierz branżę',
@@ -338,7 +353,7 @@ class _ViewState extends State<View> {
                     });
                   },
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: kGapM),
 
                 WInputField(
                     controller: businessCity,
@@ -348,7 +363,7 @@ class _ViewState extends State<View> {
                     onChanged: _onCityChanged,
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: kGapM),
                 OutlinedButton.icon(
                   onPressed: _locating ? null : _useMyLocation,
                   icon: _locating
@@ -359,9 +374,9 @@ class _ViewState extends State<View> {
                       : const Icon(Icons.my_location),
                   label: const Text('Użyj mojej lokalizacji'),
                 ),
-                const SizedBox(height: 28),
-                Text('lub ustaw na mapie'),
-                const SizedBox(height: 24),
+                const SizedBox(height: kGapM),
+                const Text('lub ustaw na mapie', style: TextStyle(fontSize: 13)),
+                const SizedBox(height: kGapS),
 
                 SizedBox(
                   height: 200,
@@ -410,12 +425,12 @@ class _ViewState extends State<View> {
                   ),),
                 if (_locationError != null)
                   Padding(
-                    padding: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.only(top: kGapXs),
                     child: Text(_locationError!,
-                        style: const TextStyle(fontSize: 14, color: cMidPink)),
+                        style: const TextStyle(fontSize: 12, color: cMidPink)),
                   ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: kGapL),
                 _chipsQuestion('Kiedy?', kRequestTiming.values.toList(),
                     kRequestTiming[_timing], (v) {
                   setState(() => _timing = v == null
@@ -439,7 +454,7 @@ class _ViewState extends State<View> {
                   ],
                 ),
 
-                SizedBox(height: 24),
+                const SizedBox(height: kGapXl),
 
                 if (kEmergencySectors.contains(selectedBranza)) ...[
                   Row(
@@ -454,13 +469,13 @@ class _ViewState extends State<View> {
                           });
                         },
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: kGapM),
                       const Flexible(
                         child: Text('🔴 Awaria — potrzebuję pomocy w ciągu 24 h'),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: kGapL),
                 ],
 
                 WButton(
@@ -468,7 +483,7 @@ class _ViewState extends State<View> {
                   isEnabled: !isSearching,
                   onPressed: _submit,
                 ),
-                const SizedBox(height: 60),
+                const SizedBox(height: kGapXl),
               ],
             ),
           ),

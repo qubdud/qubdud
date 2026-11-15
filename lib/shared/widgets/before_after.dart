@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../constants.dart';
+
 /// Suwak porównania Przed/Po — przeciągnij pionową linię.
 class BeforeAfterSlider extends StatefulWidget {
   final String beforeUrl;
@@ -103,10 +105,10 @@ class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
   }
 
   Widget _label(String text) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: kGapS, vertical: kGapXs),
         decoration: BoxDecoration(
           color: Colors.black54,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Text(text,
             style: const TextStyle(
@@ -124,6 +126,7 @@ void showRealizationDialog(BuildContext context, Map<String, dynamic> photo) {
     context: context,
     builder: (_) => Dialog(
       insetPadding: const EdgeInsets.all(12),
+      clipBehavior: Clip.antiAlias,
       child: before != null && before.isNotEmpty
           ? BeforeAfterSlider(beforeUrl: before, afterUrl: after)
           : InteractiveViewer(child: CachedNetworkImage(imageUrl: after)),
@@ -153,7 +156,7 @@ class RealizationThumb extends StatelessWidget {
       child: Stack(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             child: CachedNetworkImage(
               imageUrl: photo['imageUrl'] ?? '',
               width: size,
@@ -189,15 +192,15 @@ class RealizationThumb extends StatelessWidget {
               top: 4,
               child: Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    const EdgeInsets.symmetric(horizontal: kGapXs, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.black54,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text('Przed/Po',
+                child: Text('Przed/Po',
                     style: TextStyle(
                         color: Colors.white,
-                        fontSize: 9,
+                        fontSize: size > 80 ? 11 : 9,
                         fontWeight: FontWeight.bold)),
               ),
             ),

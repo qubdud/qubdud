@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:image_picker/image_picker.dart';
 import 'package:qb/shared/constants.dart';
-import 'package:qb/shared/widgets/w_small_label.dart';
+import 'package:qb/shared/widgets/w_smallest_label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -46,10 +46,12 @@ class _ViewState extends State<View> {
         return
           Column(
           children: [
-            if (isCompanyMode(user)) SizedBox(height: 16),
-            if (isCompanyMode(user)) WSmallLabel(text: 'PREZENTACJA'),
+            if (isCompanyMode(user)) const SizedBox(height: kGapS),
+            if (isCompanyMode(user)) WSmallestLabel(text: 'PREZENTACJA'),
             if (isCompanyMode(user))
               WCard(
+                margin: EdgeInsets.zero,
+                padding: const EdgeInsets.all(kGapL),
                 child: Material(
                   color: Colors.transparent,
                   child: Column(
@@ -60,7 +62,7 @@ class _ViewState extends State<View> {
                         style: TextStyle(fontSize: 14),
                       ),
 
-                      SizedBox(height: 16),
+                      const SizedBox(height: kGapM),
 
                       InkWell(
                         onTap: () async {
@@ -73,29 +75,31 @@ class _ViewState extends State<View> {
 
                            context.read<DodajPageBloc>().add(SelectedDodajPageEvent(fileType: 'video', file: file, selectType: 'promo', ))  ;},
 
-                        borderRadius: BorderRadius.circular(8.0),
+                        borderRadius: BorderRadius.circular(kRadius),
                         // jeśli chcesz rounded splash
                         child: Ink(
                           padding: const EdgeInsets.all(16.0),
                           decoration: BoxDecoration(
                             color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
-                            borderRadius: BorderRadius.circular(8.0),
+                            borderRadius: BorderRadius.circular(kRadius),
                           ),
                           child: Row(
                             children: [
                               Icon(Icons.camera_alt_outlined),
-                              SizedBox(width: 16),
+                              const SizedBox(width: kGapM),
 
-                              Text(
-                                'Nagraj z kamery',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                              const Expanded(
+                                child: Text(
+                                  'Nagraj z kamery',
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                                ),
                               ),
                             ],
                           ),
                         ),
                       ),
 
-                      Divider(),
+                      const SizedBox(height: kGapS),
 
                       InkWell(
         onTap: () async {
@@ -111,22 +115,24 @@ class _ViewState extends State<View> {
 
         context.read<DodajPageBloc>().add(SelectedDodajPageEvent(fileType: 'video', file: file, selectType: 'promo', ))  ;},
 
-                        borderRadius: BorderRadius.circular(8.0),
+                        borderRadius: BorderRadius.circular(kRadius),
                         // jeśli chcesz rounded splash
                         child: Ink(
                           padding: const EdgeInsets.all(16.0),
                           decoration: BoxDecoration(
                             color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
-                            borderRadius: BorderRadius.circular(8.0),
+                            borderRadius: BorderRadius.circular(kRadius),
                           ),
                           child: Row(
                             children: [
                               Icon(Icons.video_collection_outlined),
-                              SizedBox(width: 16),
+                              const SizedBox(width: kGapM),
 
-                              Text(
-                                'Wybierz z galerii',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                              const Expanded(
+                                child: Text(
+                                  'Wybierz z galerii',
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                                ),
                               ),
                             ],
                           ),
@@ -136,11 +142,13 @@ class _ViewState extends State<View> {
                   ),
                 ),
               ),
-            if (!isCompanyMode(user)) SizedBox(height: 32),
+            if (!isCompanyMode(user)) const SizedBox(height: kGapS),
 
-            if (!isCompanyMode(user)) WSmallLabel(text: 'ZGŁOSZENIE '),
+            if (!isCompanyMode(user)) WSmallestLabel(text: 'ZGŁOSZENIE '),
 
             if (!isCompanyMode(user)) WCard(
+              margin: EdgeInsets.zero,
+              padding: const EdgeInsets.all(kGapL),
               child: Material(
                 color: Colors.transparent,
                 child: Column(
@@ -150,7 +158,7 @@ class _ViewState extends State<View> {
                       'Tutaj dodasz zgłoszenie — opisz, czego potrzebujesz, a firmy z okolicy odpowiedzą.',
                       style: TextStyle(fontSize: 14),
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: kGapM),
                     InkWell(
                       onTap: () async {
                         final picker = ImagePicker();
@@ -163,28 +171,30 @@ class _ViewState extends State<View> {
 
                         context.read<DodajPageBloc>().add(SelectedDodajPageEvent(fileType: 'img', file: file, selectType: 'request', ))  ;},
 
-                      borderRadius: BorderRadius.circular(8.0),
+                      borderRadius: BorderRadius.circular(kRadius),
                       // jeśli chcesz rounded splash
                       child: Ink(
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
                           color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
-                          borderRadius: BorderRadius.circular(8.0),
+                          borderRadius: BorderRadius.circular(kRadius),
                         ),
                         child: Row(
                           children: [
                             Icon(Icons.photo_camera_outlined),
-                            SizedBox(width: 16),
+                            const SizedBox(width: kGapM),
 
-                            Text(
-                              'Zrób zdjęcie',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                            const Expanded(
+                              child: Text(
+                                'Zrób zdjęcie',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    Divider(),
+                    const SizedBox(height: kGapS),
 
                     InkWell(
                       onTap: () async {
@@ -199,29 +209,31 @@ class _ViewState extends State<View> {
 
 
                         context.read<DodajPageBloc>().add(SelectedDodajPageEvent(fileType: 'video', file: file, selectType: 'request', ))  ;},
-                      borderRadius: BorderRadius.circular(8.0),
+                      borderRadius: BorderRadius.circular(kRadius),
                       // jeśli chcesz rounded splash
                       child: Ink(
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
                           color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
-                          borderRadius: BorderRadius.circular(8.0),
+                          borderRadius: BorderRadius.circular(kRadius),
                         ),
                         child: Row(
                           children: [
                             Icon(Icons.video_call_outlined),
-                            SizedBox(width: 16),
+                            const SizedBox(width: kGapM),
 
-                            Text(
-                              'Nagraj z kamery',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                            const Expanded(
+                              child: Text(
+                                'Nagraj z kamery',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ),
 
-                    Divider(),
+                    const SizedBox(height: kGapS),
 
                     InkWell(
                       onTap: () async {
@@ -234,29 +246,31 @@ class _ViewState extends State<View> {
 
 
                         context.read<DodajPageBloc>().add(SelectedDodajPageEvent(fileType: 'img', file: file, selectType: 'request', ))  ;},
-                      borderRadius: BorderRadius.circular(8.0),
+                      borderRadius: BorderRadius.circular(kRadius),
                       // jeśli chcesz rounded splash
                       child: Ink(
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
                           color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
-                          borderRadius: BorderRadius.circular(8.0),
+                          borderRadius: BorderRadius.circular(kRadius),
                         ),
                         child: Row(
                           children: [
                             Icon(Icons.photo_outlined),
-                            SizedBox(width: 16),
+                            const SizedBox(width: kGapM),
 
-                            Text(
-                              'Wybierz obraz',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                            const Expanded(
+                              child: Text(
+                                'Wybierz obraz',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ),
 
-                    Divider(),
+                    const SizedBox(height: kGapS),
 
                     InkWell(
                       onTap: () async {
@@ -271,47 +285,49 @@ class _ViewState extends State<View> {
 
 
                         context.read<DodajPageBloc>().add(SelectedDodajPageEvent(fileType: 'video', file: file, selectType: 'request', ))  ;},
-                      borderRadius: BorderRadius.circular(8.0),
+                      borderRadius: BorderRadius.circular(kRadius),
                       // jeśli chcesz rounded splash
                       child: Ink(
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
                           color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
-                          borderRadius: BorderRadius.circular(8.0),
+                          borderRadius: BorderRadius.circular(kRadius),
                         ),
                         child: Row(
                           children: [
                             Icon(Icons.video_library_outlined),
-                            SizedBox(width: 16),
+                            const SizedBox(width: kGapM),
 
-                            Text(
-                              'Wybierz wideo',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                            const Expanded(
+                              child: Text(
+                                'Wybierz wideo',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ),
 
-                    Divider(),
+                    const SizedBox(height: kGapS),
 
                     InkWell(
                       onTap: () => context.read<DodajPageBloc>().add(SkipFileDodajPageEvent()),
-                      borderRadius: BorderRadius.circular(8.0),
+                      borderRadius: BorderRadius.circular(kRadius),
                       child: Ink(
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
                           color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
-                          borderRadius: BorderRadius.circular(8.0),
+                          borderRadius: BorderRadius.circular(kRadius),
                         ),
                         child: Row(
                           children: [
                             Icon(Icons.edit_note_outlined),
-                            SizedBox(width: 16),
-                            Expanded(
+                            const SizedBox(width: kGapM),
+                            const Expanded(
                               child: Text(
                                 'Bez zdjęcia — tylko opis',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                               ),
                             ),
                           ],

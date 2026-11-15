@@ -47,7 +47,7 @@ Future<OfferDraft?> showOfferDialog(BuildContext context, String clientName) asy
       builder: (ctx, setState) => Dialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+          padding: const EdgeInsets.fromLTRB(kGapL, kGapL, kGapL, kGapM),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -59,21 +59,22 @@ Future<OfferDraft?> showOfferDialog(BuildContext context, String clientName) asy
                   Expanded(
                     child: Text(
                         clientName.isEmpty ? 'Oferta' : 'Oferta dla: $clientName',
-                        style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: kGapM),
               TextField(
                 controller: ctrl,
                 maxLines: 6,
                 minLines: 4,
                 maxLength: 400,
-                style: const TextStyle(fontSize: 16),
+                style: const TextStyle(fontSize: 14),
                 decoration: const InputDecoration(
                   hintText: 'Co oferujesz, jak możesz pomóc…',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.all(14),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(kRadius))),
+                  contentPadding: EdgeInsets.all(kGapM),
                 ),
               ),
               CheckboxListTile(
@@ -86,7 +87,7 @@ Future<OfferDraft?> showOfferDialog(BuildContext context, String clientName) asy
               ),
               const Text('Cena (opcjonalnie)',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 6),
+              const SizedBox(height: kGapXs),
               Row(
                 children: [
                   Expanded(child: _priceField(priceCtrl, 'od')),
@@ -102,10 +103,10 @@ Future<OfferDraft?> showOfferDialog(BuildContext context, String clientName) asy
               const SizedBox(height: 12),
               const Text('Kiedy możesz zacząć?',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 6),
+              const SizedBox(height: kGapXs),
               Wrap(
-                spacing: 6,
-                runSpacing: 6,
+                spacing: kGapS,
+                runSpacing: kGapS,
                 children: [
                   for (final e in kOfferWhen.entries)
                     ChoiceChip(
@@ -122,24 +123,20 @@ Future<OfferDraft?> showOfferDialog(BuildContext context, String clientName) asy
               const SizedBox(height: 8),
               const Text('Klient zobaczy ofertę przy swoim zgłoszeniu i porówna ją z innymi.',
                   style: TextStyle(fontSize: 12, color: Colors.grey)),
-              const SizedBox(height: 14),
+              const SizedBox(height: kGapL),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14)),
                       onPressed: () => Navigator.pop(ctx),
                       child: const Text('Anuluj'),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: kGapM),
                   Expanded(
                     flex: 2,
                     child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                          backgroundColor: cDarkBlue,
-                          padding: const EdgeInsets.symmetric(vertical: 14)),
+                      style: FilledButton.styleFrom(backgroundColor: cDarkBlue),
                       icon: const Icon(Icons.send, size: 18),
                       label: const Text('Wyślij ofertę',
                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
@@ -189,6 +186,7 @@ Widget _priceField(TextEditingController c, String hint) => TextField(
       decoration: InputDecoration(
         hintText: hint,
         isDense: true,
-        border: const OutlineInputBorder(),
+        border: const OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(kRadius))),
       ),
     );
