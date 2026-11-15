@@ -88,10 +88,12 @@ class _WInputFieldState extends State<WInputField> {
         // Górny pasek z etykietą
         if (widget.label != null)
           Text(
-            widget.label!.toUpperCase(),
+            widget.label!,
             style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              fontSize: 13,
+              height: 1.2,
+              color: cDarkBrown.withOpacity(0.75),
             ),
           ),
         if (widget.label != null) const SizedBox(height: 4),
@@ -121,6 +123,7 @@ class _WInputFieldState extends State<WInputField> {
             children: [
               Expanded(
                 child: TextFormField(
+                  style: const TextStyle(fontSize: 14),
                   keyboardType: widget.keyboardType,
                   inputFormatters: widget.inputFormatters,
 
@@ -140,13 +143,14 @@ class _WInputFieldState extends State<WInputField> {
                   focusNode: _focusNode,
                   decoration: InputDecoration(
                     prefixIcon: widget.prefixIcon,
+                    isDense: true,
                     contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
                     border: InputBorder.none,
                     hintText: widget.hintText ?? 'Wpisz...',
                     hintStyle: TextStyle(
                       fontFamily: 'Poppins',
                       fontWeight: FontWeight.w400,
-                      fontSize: 15,
+                      fontSize: 14,
                       color: _isFocused ? cDarkBrown : cDarkBrown.withOpacity(0.7),
                     ),
                   ),

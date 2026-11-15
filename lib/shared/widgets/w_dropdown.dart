@@ -98,10 +98,12 @@ class _WAnimatedDropdownState extends State<WAnimatedDropdown> {
       children: [
         if (widget.label != null)
           Text(
-            widget.label!.toUpperCase(),
+            widget.label!,
             style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              fontSize: 13,
+              height: 1.2,
+              color: cDarkBrown.withOpacity(0.75),
             ),
           ),
         if (widget.label != null) const SizedBox(height: 4),
@@ -110,21 +112,21 @@ class _WAnimatedDropdownState extends State<WAnimatedDropdown> {
         Container(
           decoration: BoxDecoration(
             color: widget.isEnabled ? Colors.white : cDisabledBorderColor,
-            border: Border.all(color: borderColor, width: 2),
-            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: borderColor, width: _isFocused ? 1.5 : 1),
+            borderRadius: BorderRadius.circular(kRadius),
             boxShadow: _isFocused
                 ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      offset: const Offset(0, 4),
-                      blurRadius: 16,
+                      color: Colors.black.withOpacity(0.06),
+                      offset: const Offset(0, 2),
+                      blurRadius: 6,
                     ),
                   ]
                 : [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      offset: const Offset(0, 4),
-                      blurRadius: 16,
+                      color: Colors.black.withOpacity(0.03),
+                      offset: const Offset(0, 1),
+                      blurRadius: 3,
                     ),
                   ],
           ),
@@ -159,6 +161,7 @@ class _WAnimatedDropdownState extends State<WAnimatedDropdown> {
               children: [
                 Expanded(
                   child: TextFormField(
+                    style: const TextStyle(fontSize: 14),
                     controller: _controller,
                     focusNode: widget.isEnabled ? _focusNode : null,
                     readOnly: !isDropdownVisible || !widget.isSearchable || !widget.isEnabled,
@@ -171,13 +174,14 @@ class _WAnimatedDropdownState extends State<WAnimatedDropdown> {
                                 )
                               : null)
                           : null,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
                       border: InputBorder.none,
                       hintText: isDropdownVisible ? (!widget.isSearchable ? widget.hintText : null) : widget.hintText,
                       hintStyle: TextStyle(
                         fontFamily: 'Poppins',
                         fontWeight: FontWeight.w400,
-                        fontSize: 16,
+                        fontSize: 14,
                         color: widget.isEnabled ? (_isFocused ? cDarkBrown : cDarkBrown.withOpacity(0.7)) : cDisabledColor,
                       ),
                     ),
@@ -231,7 +235,7 @@ class _WAnimatedDropdownState extends State<WAnimatedDropdown> {
           Text(
             widget.errorText!,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 12,
               color: errorTextColor,
             ),
           ),
@@ -298,7 +302,7 @@ class _WAnimatedDropdownState extends State<WAnimatedDropdown> {
                                   dense: true,
                                   title: Text(
                                     item,
-                                    style: TextStyle(color: cDarkBrown, fontSize: 16),
+                                    style: TextStyle(color: cDarkBrown, fontSize: 14),
                                   ),
                                 ),
                               ),
