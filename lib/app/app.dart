@@ -130,28 +130,47 @@ class App extends StatelessWidget {
         scrolledUnderElevation: 0.0,
         backgroundColor: Colors.white,
         titleTextStyle: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 24,
+          fontWeight: FontWeight.w600,
+          fontSize: 18,
           color: cDarkBrown,
           fontFamily: 'Poppins',
         ),
         iconTheme: IconThemeData(color: cDarkBrown),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: ButtonStyle(
+        style: _buttonStyle(height: kButtonHeightSmall).copyWith(
           overlayColor: WidgetStateProperty.all(Colors.transparent),
         ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(style: _buttonStyle()),
+      elevatedButtonTheme: ElevatedButtonThemeData(style: _buttonStyle()),
+      outlinedButtonTheme: OutlinedButtonThemeData(style: _buttonStyle()),
+      listTileTheme: const ListTileThemeData(
+        contentPadding: EdgeInsets.symmetric(horizontal: kGapL),
+        minVerticalPadding: kGapS,
       ),
       textTheme: const TextTheme(
         displayMedium: TextStyle(fontFamily: 'Poppins', color: cDarkBrown),
         displayLarge: TextStyle(fontFamily: 'Poppins', color: cDarkBrown),
         displaySmall: TextStyle(fontFamily: 'Poppins', color: cDarkBrown),
-        bodyMedium: TextStyle(fontFamily: 'Poppins', color: cDarkBrown, fontSize: 16),
+        bodyMedium: TextStyle(fontFamily: 'Poppins', color: cDarkBrown, fontSize: 14),
         bodySmall: TextStyle(fontFamily: 'Poppins', color: cDarkBrown),
         bodyLarge: TextStyle(fontFamily: 'Poppins', color: cDarkBrown),
       ),
     );
   }
+
+  ButtonStyle _buttonStyle({double height = kButtonHeight}) => ButtonStyle(
+        minimumSize: WidgetStatePropertyAll(Size(0, height)),
+        padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: kGapL, vertical: kGapS)),
+        shape: const WidgetStatePropertyAll(RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(kRadius)))),
+        textStyle: const WidgetStatePropertyAll(TextStyle(
+            fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.w600)),
+        visualDensity: VisualDensity.standard,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      );
 
   ThemeData _darkTheme() {
     const light = Color(0xFFE6E1DC);
@@ -188,23 +207,30 @@ class App extends StatelessWidget {
         scrolledUnderElevation: 0.0,
         backgroundColor: Color(0xFF1C1B21),
         titleTextStyle: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 24,
+          fontWeight: FontWeight.w600,
+          fontSize: 18,
           color: light,
           fontFamily: 'Poppins',
         ),
         iconTheme: IconThemeData(color: light),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: ButtonStyle(
+        style: _buttonStyle(height: kButtonHeightSmall).copyWith(
           overlayColor: WidgetStateProperty.all(Colors.transparent),
         ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(style: _buttonStyle()),
+      elevatedButtonTheme: ElevatedButtonThemeData(style: _buttonStyle()),
+      outlinedButtonTheme: OutlinedButtonThemeData(style: _buttonStyle()),
+      listTileTheme: const ListTileThemeData(
+        contentPadding: EdgeInsets.symmetric(horizontal: kGapL),
+        minVerticalPadding: kGapS,
       ),
       textTheme: const TextTheme(
         displayMedium: TextStyle(fontFamily: 'Poppins', color: light),
         displayLarge: TextStyle(fontFamily: 'Poppins', color: light),
         displaySmall: TextStyle(fontFamily: 'Poppins', color: light),
-        bodyMedium: TextStyle(fontFamily: 'Poppins', color: light, fontSize: 16),
+        bodyMedium: TextStyle(fontFamily: 'Poppins', color: light, fontSize: 14),
         bodySmall: TextStyle(fontFamily: 'Poppins', color: light),
         bodyLarge: TextStyle(fontFamily: 'Poppins', color: light),
       ),

@@ -34,6 +34,16 @@ const cMidRed = Color(0xFFED285B);
 final cDisabledBorderColor = Colors.grey.withOpacity(0.1);
 final cDisabledColor = Colors.grey.withOpacity(0.5);
 
+// Miary UI: odstępy tylko ze skali, jedna wysokość przycisków, jedno zaokrąglenie
+const double kGapXs = 4;
+const double kGapS = 8;
+const double kGapM = 12;
+const double kGapL = 16;
+const double kGapXl = 24;
+const double kButtonHeight = 44;
+const double kButtonHeightSmall = 36;
+const double kRadius = 12;
+
 const double minWideScreen = 1200.0;
 const double maxColumnSize = 600.0;
 

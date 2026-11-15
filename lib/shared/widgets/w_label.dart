@@ -11,14 +11,14 @@ Widget WLabel({required String text, Color? color}) {
           style: TextStyle(
             color: color,
             fontFamily: 'Poppins',
-            fontSize: 32,
+            fontSize: 22,
             fontWeight: FontWeight.w700,
           ),
         ),
       ),
     ),
     const SizedBox(
-      height: 24,
+      height: 16,
     ),
   ]);
 }

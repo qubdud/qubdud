@@ -91,7 +91,7 @@ class _WInputFieldState extends State<WInputField> {
             widget.label!.toUpperCase(),
             style: TextStyle(
               fontWeight: FontWeight.w600,
-              fontSize: 14,
+              fontSize: 12,
             ),
           ),
         if (widget.label != null) const SizedBox(height: 4),
@@ -99,21 +99,21 @@ class _WInputFieldState extends State<WInputField> {
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border.all(color: borderColor, width: 2),
-            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: borderColor, width: _isFocused ? 1.5 : 1),
+            borderRadius: BorderRadius.circular(kRadius),
             boxShadow: _isFocused
                 ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      offset: const Offset(0, 4),
-                      blurRadius: 16,
+                      color: Colors.black.withOpacity(0.06),
+                      offset: const Offset(0, 2),
+                      blurRadius: 6,
                     ),
                   ]
                 : [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      offset: const Offset(0, 4),
-                      blurRadius: 16,
+                      color: Colors.black.withOpacity(0.03),
+                      offset: const Offset(0, 1),
+                      blurRadius: 3,
                     ),
                   ],
           ),
@@ -140,13 +140,13 @@ class _WInputFieldState extends State<WInputField> {
                   focusNode: _focusNode,
                   decoration: InputDecoration(
                     prefixIcon: widget.prefixIcon,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
                     border: InputBorder.none,
                     hintText: widget.hintText ?? 'Wpisz...',
                     hintStyle: TextStyle(
                       fontFamily: 'Poppins',
                       fontWeight: FontWeight.w400,
-                      fontSize: 16,
+                      fontSize: 15,
                       color: _isFocused ? cDarkBrown : cDarkBrown.withOpacity(0.7),
                     ),
                   ),
@@ -179,7 +179,7 @@ class _WInputFieldState extends State<WInputField> {
           Text(
             widget.errorText!,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 12,
               color: helpTextColor,
             ),
           ),

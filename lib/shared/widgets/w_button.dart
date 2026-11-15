@@ -71,13 +71,14 @@ class WButton extends StatelessWidget {
         disabledBackgroundColor: backgroundColor,
         disabledForegroundColor: foregroundColor,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(kRadius),
           side: BorderSide(
             color: borderColor,
-            width: colorType == ButtonColorType.white ? 2 : 0,
+            width: colorType == ButtonColorType.white ? 1.5 : 0,
           ),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        minimumSize: const Size(0, kButtonHeight),
         shadowColor: Colors.transparent,
       ).copyWith(
         overlayColor: WidgetStateProperty.resolveWith<Color?>(
@@ -90,9 +91,9 @@ class WButton extends StatelessWidget {
           Text(
             text,
             style: const TextStyle(
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               fontFamily: 'Poppins',
-              fontSize: 18,
+              fontSize: 15,
             ),
           ),
           if (count > 0)   const SizedBox(width: 8),

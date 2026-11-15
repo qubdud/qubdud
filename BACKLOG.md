@@ -33,9 +33,11 @@ Kolejność ≈ priorytet. Przy każdym punkcie: co dokładnie zrobić.
 
 9. **Aktualizacje dla testerów z apki** — w `config/app` ustawić `androidUrl` na prywatny link z APK i przy nowej wersji podnosić `minBuild`: testerzy ze starą wersją zobaczą ekran „Zaktualizuj” z przyciskiem do pobrania. Link (Firebase Hosting, kanał podglądu) jest ważny 30 dni od ostatniego wgrania — każde wgranie przedłuża.
 
+10. **Nieoczekiwane wylogowanie (do obserwacji)** — 15.11 ok. 14:35 UTC Firebase Auth sam zakończył sesję qa.user1 na emulatorze z 1.4.1 (apka reaguje na `authStateChanges` == null w `main_bloc.dart`). Profil i konto były w porządku, nikt nie instalował apki, żadna funkcja nie zmienia kont. Przyczyna nieznana. Do zrobienia: przy takim wylogowaniu wysyłać do Crashlytics non-fatal z powodem (ostatni błąd odświeżenia tokenu), żeby u testerów było widać przyczynę.
+
 ## Strona WWW dla gości (zgłoszenie bez apki)
 
-10. **Strona (np. qubdud.pl/zglos)**: gość zgłasza bez instalacji, loguje się linkiem z maila, widzi oferty, przyjmuje, pisze z firmą.
+11. **Strona (np. qubdud.pl/zglos)**: gość zgłasza bez instalacji, loguje się linkiem z maila, widzi oferty, przyjmuje, pisze z firmą.
    - Osobny projekt `/web` (Vite + TypeScript + Firebase JS SDK), Firebase Hosting.
    - Gość = zwykły użytkownik Firebase (email link) → reguły, funkcje i apka firmy bez zmian.
    - Etapy: logowanie i profil → formularz (te same pola co apka, zdjęcia bez GPS) → „Moje zgłoszenie” z ofertami → czat → maile → testy i wdrożenie.
@@ -44,24 +46,24 @@ Kolejność ≈ priorytet. Przy każdym punkcie: co dokładnie zrobić.
 
 ## Wydajność i koszty (pakiet D z przeglądu)
 
-11. **Lista zgłoszeń firmy czyta całą historię branży** + osobny odczyt oferty na każde zgłoszenie. Czytać tylko otwarte z ostatnich ~14 dni (zapytanie po `status` i `timestamp`), oferty jednym zapytaniem.
-12. **Listy klientów/firm ładowane „po jednym” (N+1)** — równoległe pobieranie (`Future.wait`) i mniej danych na starcie.
-13. **Każdy film w feedzie pobiera wszystkie opinie firmy** — trzymać średnią i liczbę opinii w dokumencie firmy (liczone w Cloud Function).
-14. **Filmy prezentacji = główny koszt transferu** — kompresja do 720p (~1–2 MB), cache w telefonie, docelowo tańszy hosting (Cloudflare R2 albo własny serwer).
-15. **Drobne z przeglądu**: „Pokazuj telefon/adres” nie ukrywa danych w bazie; brak ochrony przed nakładającymi się terminami; dzwonek: limit 60 przed filtrem trybu; licznik „Kontakty” liczy rozmowy z zablokowanymi; usunięcie slotu poza apką zostawia „przyjętą” wizytę.
-16. **Kategorie firm w danych** — część zaimportowanych firm ma złą kategorię (np. „Tuszyk Tattoo” — studio tatuażu — w „Opieka nad zwierzętami”). Przejrzeć `users` z `firma: true` i poprawić `companyCategory`/`companySector`.
+12. **Lista zgłoszeń firmy czyta całą historię branży** + osobny odczyt oferty na każde zgłoszenie. Czytać tylko otwarte z ostatnich ~14 dni (zapytanie po `status` i `timestamp`), oferty jednym zapytaniem.
+13. **Listy klientów/firm ładowane „po jednym” (N+1)** — równoległe pobieranie (`Future.wait`) i mniej danych na starcie.
+14. **Każdy film w feedzie pobiera wszystkie opinie firmy** — trzymać średnią i liczbę opinii w dokumencie firmy (liczone w Cloud Function).
+15. **Filmy prezentacji = główny koszt transferu** — kompresja do 720p (~1–2 MB), cache w telefonie, docelowo tańszy hosting (Cloudflare R2 albo własny serwer).
+16. **Drobne z przeglądu**: „Pokazuj telefon/adres” nie ukrywa danych w bazie; brak ochrony przed nakładającymi się terminami; dzwonek: limit 60 przed filtrem trybu; licznik „Kontakty” liczy rozmowy z zablokowanymi; usunięcie slotu poza apką zostawia „przyjętą” wizytę.
+17. **Kategorie firm w danych** — część zaimportowanych firm ma złą kategorię (np. „Tuszyk Tattoo” — studio tatuażu — w „Opieka nad zwierzętami”). Przejrzeć `users` z `firma: true` i poprawić `companyCategory`/`companySector`.
 
 ## Wydanie
 
-17. **Klucz release** — APK testowy jest podpisany kluczem debug. Przed Sklepem Play: znaleźć/utworzyć keystore, `android/key.properties`, Play App Signing.
-18. **iOS** — `ios/Runner/Info.plist`: NSCameraUsageDescription, NSPhotoLibraryUsageDescription, NSMicrophoneUsageDescription; konto Apple Developer; TestFlight.
-19. **Regulamin i polityka RODO** — w apce są puste miejsca zamiast danych administratora (prawnicy). Dane prawdziwych firm z publicznych źródeł w bazie — zgody albo usunięcie przed publicznym startem.
-20. **Pilotaż** — 2–3 konta firm testowych obsługiwane przez zespół, żeby testerzy dostawali oferty.
-21. **Wybierak kont testowych w APK dla testerów** — od 1.4.2 lista „⚡ Wybierz konto testowe” jest w buildzie z `--dart-define=DEMO_LOGIN=true` (gradle: `-Pdart-defines=<base64 "DEMO_LOGIN=true">`). Konta firm to prawdziwe firmy ze wspólnym, prostym hasłem — każdy z plikiem APK może działać jako taka firma. Przed szerszym udostępnieniem: podmienić na fikcyjne firmy demo (np. „Demo Sprzątanie”, „Demo Hydraulik”) z osobnym hasłem, a buildy do Sklepu budować bez DEMO_LOGIN.
+18. **Klucz release** — APK testowy jest podpisany kluczem debug. Przed Sklepem Play: znaleźć/utworzyć keystore, `android/key.properties`, Play App Signing.
+19. **iOS** — `ios/Runner/Info.plist`: NSCameraUsageDescription, NSPhotoLibraryUsageDescription, NSMicrophoneUsageDescription; konto Apple Developer; TestFlight.
+20. **Regulamin i polityka RODO** — w apce są puste miejsca zamiast danych administratora (prawnicy). Dane prawdziwych firm z publicznych źródeł w bazie — zgody albo usunięcie przed publicznym startem.
+21. **Pilotaż** — 2–3 konta firm testowych obsługiwane przez zespół, żeby testerzy dostawali oferty.
+22. **Wybierak kont testowych w APK dla testerów** — od 1.4.2 lista „⚡ Wybierz konto testowe” jest w buildzie z `--dart-define=DEMO_LOGIN=true` (gradle: `-Pdart-defines=<base64 "DEMO_LOGIN=true">`). Konta firm to prawdziwe firmy ze wspólnym, prostym hasłem — każdy z plikiem APK może działać jako taka firma. Przed szerszym udostępnieniem: podmienić na fikcyjne firmy demo (np. „Demo Sprzątanie”, „Demo Hydraulik”) z osobnym hasłem, a buildy do Sklepu budować bez DEMO_LOGIN.
 
 ## Techniczne
 
-22. **Test reguł z repo** — `node demo/_seed/test_rules.js` (wymaga klucza konta serwisowego, uruchamia właściciel).
-23. **Limit CPU Cloud Run w europe-central2 (20 vCPU)** — gdy będzie historia zużycia, złożyć wniosek o zwiększenie (Quotas → „Total CPU allocation… europe-central2”). Do tego czasu funkcje mają `cpu: 'gcf_gen1'` i wdrażamy paczkami po 4.
-24. **Sprzątanie po migracjach** — po potwierdzeniu, że w `users` nie ma już `fcmTokens`, usunąć fragmenty oznaczone `EXPIRES` w `functions/index.js`.
-25. **Pusty `test/widget_test.dart`** — usunąć albo dodać prawdziwy test.
+23. **Test reguł z repo** — `node demo/_seed/test_rules.js` (wymaga klucza konta serwisowego, uruchamia właściciel).
+24. **Limit CPU Cloud Run w europe-central2 (20 vCPU)** — gdy będzie historia zużycia, złożyć wniosek o zwiększenie (Quotas → „Total CPU allocation… europe-central2”). Do tego czasu funkcje mają `cpu: 'gcf_gen1'` i wdrażamy paczkami po 4.
+25. **Sprzątanie po migracjach** — po potwierdzeniu, że w `users` nie ma już `fcmTokens`, usunąć fragmenty oznaczone `EXPIRES` w `functions/index.js`.
+26. **Pusty `test/widget_test.dart`** — usunąć albo dodać prawdziwy test.
