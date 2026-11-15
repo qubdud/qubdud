@@ -11,7 +11,7 @@ const { getDatabase } = require('firebase-admin/database');
 const { getAuth } = require('firebase-admin/auth');
 const { getStorage } = require('firebase-admin/storage');
 
-setGlobalOptions({ region: 'europe-central2', maxInstances: 5 });
+setGlobalOptions({ region: 'europe-central2', maxInstances: 5, cpu: 'gcf_gen1' });
 initializeApp();
 const db = getFirestore();
 
