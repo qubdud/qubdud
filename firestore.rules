@@ -425,14 +425,16 @@ service cloud.firestore {
         allow update: if false;
         allow delete: if isMe(resource.data.authorId);
 
-        // znaczek „właściciel” tylko dla firmy, której dotyczy recenzja
+        // komentuje autor recenzji albo oceniona firma (jak w apce); znaczek „właściciel” tylko dla tej firmy
         function validComment(d) {
           return d.keys().hasOnly(['reviewId', 'authorId', 'authorName', 'isOwner', 'text', 'timestamp'])
               && d.reviewId == reviewId && d.authorId == request.auth.uid
               && commentId == request.auth.uid
               && d.authorName is string && d.text is string && d.text.size() > 0
               && d.timestamp == request.time
-              && d.isOwner == (get(/databases/$(database)/documents/reviews/$(reviewId)).data.reviewedUserId == request.auth.uid);
+              && d.isOwner == (get(/databases/$(database)/documents/reviews/$(reviewId)).data.reviewedUserId == request.auth.uid)
+              && request.auth.uid in [get(/databases/$(database)/documents/reviews/$(reviewId)).data.userId,
+                                      get(/databases/$(database)/documents/reviews/$(reviewId)).data.reviewedUserId];
         }
       }
     }
