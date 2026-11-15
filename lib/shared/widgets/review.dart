@@ -340,7 +340,7 @@ class _CommentBubble extends StatelessWidget {
                     if (comment.isOwner) ...[
                       const SizedBox(width: kGapXs),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: kGapXs, vertical: 1),
+                        padding: const EdgeInsets.symmetric(horizontal: kGapXs),
                         decoration: BoxDecoration(
                           color: Colors.blue.shade100,
                           borderRadius: BorderRadius.circular(8),

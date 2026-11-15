@@ -178,9 +178,9 @@ class RealizationThumb extends StatelessWidget {
                   backgroundColor: Colors.grey.shade700,
                   child: Text(
                     authorInitial!.toUpperCase(),
-                    style: TextStyle(
+                    style: const TextStyle(
                         color: Colors.white,
-                        fontSize: size > 80 ? 11 : 9,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -191,8 +191,7 @@ class RealizationThumb extends StatelessWidget {
               left: 4,
               top: 4,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: kGapXs, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: kGapXs),
                 decoration: BoxDecoration(
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(8),

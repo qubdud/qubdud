@@ -18,7 +18,7 @@ class RulesPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 16),
+            const SizedBox(height: kGapXs),
             _header('Regulamin aplikacji QUBDUD'),
             _section(
               '1. Czym jest aplikacja',
@@ -92,7 +92,6 @@ class RulesPage extends StatelessWidget {
                   'O istotnych zmianach regulaminu poinformujemy w aplikacji; dalsze '
                   'korzystanie oznacza akceptację zmian.',
             ),
-            const SizedBox(height: 8),
             _header('Polityka prywatności (RODO)'),
             _section(
               'Administrator danych',
@@ -155,7 +154,7 @@ class RulesPage extends StatelessWidget {
                   'wniesienia skargi do Prezesa Urzędu Ochrony Danych Osobowych. '
                   'Żądania kieruj na $_contact.',
             ),
-            const SizedBox(height: 60),
+            const SizedBox(height: kGapXl),
           ],
         ),
       ),
@@ -163,32 +162,31 @@ class RulesPage extends StatelessWidget {
   }
 
   Widget _header(String text) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 8, 4, 12),
+        padding: const EdgeInsets.fromLTRB(kGapXs, kGapM, kGapXs, kGapM),
         child: Text(text,
             style: const TextStyle(
-                fontSize: 20, fontWeight: FontWeight.w800, color: cDarkBrown)),
+                fontSize: 16, fontWeight: FontWeight.w800, color: cDarkBrown)),
       );
 
   Widget _section(String title, String body) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: kGapM),
       child: WCard(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: cDarkBrown)),
-              const SizedBox(height: 8),
-              Text(body,
-                  style: const TextStyle(
-                      fontSize: 14, color: cDarkBrown, height: 1.4)),
-            ],
-          ),
+        margin: EdgeInsets.zero,
+        padding: const EdgeInsets.all(kGapL),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: cDarkBrown)),
+            const SizedBox(height: kGapS),
+            Text(body,
+                style: const TextStyle(
+                    fontSize: 14, color: cDarkBrown, height: 1.4)),
+          ],
         ),
       ),
     );

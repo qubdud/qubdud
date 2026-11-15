@@ -138,8 +138,7 @@ Future<OfferDraft?> showOfferDialog(BuildContext context, String clientName) asy
                     child: FilledButton.icon(
                       style: FilledButton.styleFrom(backgroundColor: cDarkBlue),
                       icon: const Icon(Icons.send, size: 18),
-                      label: const Text('Wyślij ofertę',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      label: const Text('Wyślij ofertę'),
                       onPressed: () {
                         final message = ctrl.text.trim();
                         final price = int.tryParse(priceCtrl.text.trim());

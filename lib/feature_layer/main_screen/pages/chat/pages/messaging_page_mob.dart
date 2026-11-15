@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:qb/shared/constants.dart';
 import 'package:qb/shared/functions/show_toast.dart';
 import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:qb/shared/widgets/w_input_field.dart';
@@ -170,7 +171,7 @@ class _MessagingPageMobState extends State<MessagingPageMob> {
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.grey.shade600)),
                 ),
-              const SizedBox(height: 32),
+              const SizedBox(height: kGapS),
             ],
           ),
         );

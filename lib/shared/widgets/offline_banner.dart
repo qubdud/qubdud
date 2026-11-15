@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 
+import '../constants.dart';
+
 /// Pasek „Brak połączenia" nad treścią — bez niego ekrany kręcą się
 /// w nieskończoność, a użytkownik nie wie dlaczego.
 class OfflineBanner extends StatefulWidget {
@@ -53,7 +55,7 @@ class _OfflineBannerState extends State<OfflineBanner> {
                       child: Row(
                         children: const [
                           Icon(Icons.wifi_off, color: Colors.white, size: 18),
-                          SizedBox(width: 10),
+                          SizedBox(width: kGapS),
                           Expanded(
                             child: Text(
                               'Brak połączenia z internetem — dane mogą być nieaktualne',
