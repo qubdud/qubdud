@@ -4,6 +4,7 @@ import 'package:qb/feature_layer/main_screen/pages/profil_publiczny/view/profil_
 import '../pages/profil_user/view/profil_user_page.dart';
 import 'package:qb/feature_layer/main_screen/pages/show_request/view/show_request_page.dart';
 
+import '../../../shared/constants.dart';
 import '../../../shared/globals.dart';
 import '../../../shared/widgets/anonim_gate.dart';
 import '../../../shared/widgets/loading.dart';
@@ -109,19 +110,19 @@ class _InitErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     final bloc = context.read<MainScreenBloc>();
     return Padding(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(kGapXl),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 40),
+          const SizedBox(height: kGapXl),
           Icon(Icons.cloud_off_outlined, size: 64, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
+          const SizedBox(height: kGapL),
           Text(message,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 15)),
-          const SizedBox(height: 24),
+          const SizedBox(height: kGapXl),
           WButton(text: 'Spróbuj ponownie', onPressed: () => bloc.add(InitEvent())),
-          const SizedBox(height: 12),
+          const SizedBox(height: kGapM),
           TextButton(
               onPressed: () => bloc.add(LogoutEvent()),
               child: const Text('Wyloguj się')),

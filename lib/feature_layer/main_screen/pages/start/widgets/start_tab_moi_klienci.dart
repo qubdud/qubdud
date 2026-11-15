@@ -64,20 +64,20 @@ class _MoiKlienciTabState extends State<MoiKlienciTab> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          padding: const EdgeInsets.fromLTRB(kGapL, kGapS, kGapL, kGapXs),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               chip('new', 'Nowe'),
-              const SizedBox(width: 8),
+              const SizedBox(width: kGapS),
               chip('active', 'W trakcie'),
-              const SizedBox(width: 8),
+              const SizedBox(width: kGapS),
               chip('rejected', 'Odrzucone'),
             ],
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+          padding: const EdgeInsets.symmetric(horizontal: kGapL),
           child: Row(
             children: [
               const Icon(Icons.place_outlined, size: 16, color: Colors.grey),
@@ -159,7 +159,7 @@ class _RequestList extends StatelessWidget {
 
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(kGapL, kGapS, kGapL, kGapL),
       itemCount: requests.length,
       itemBuilder: (context, index) => _RequestCard(
         key: ValueKey(requests[index].id),
@@ -207,22 +207,22 @@ class _RequestCard extends StatelessWidget {
     // bez gestów na karcie — poziomy ruch przesuwa zakładki;
     // oferta przyciskiem, ukrycie w menu ⋯
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: kGapM),
       elevation: 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(kRadius),
         side: frame == null
             ? BorderSide.none
             : BorderSide(color: frame, width: 2),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(kRadius),
         onTap: () {
           Globals.instance.selectedRequest = request;
           context.read<MainScreenBloc>().add(GoToShowRequestEvent());
         },
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(kGapM),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -235,7 +235,7 @@ class _RequestCard extends StatelessWidget {
               Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                     child: request.thumbUrl.isNotEmpty
                         ? CachedNetworkImage(
                       imageUrl: request.thumbUrl,
@@ -252,21 +252,21 @@ class _RequestCard extends StatelessWidget {
                   ),
                   if (request.is24)
                     Positioned(
-                      top: 4,
-                      left: 4,
+                      top: kGapXs,
+                      left: kGapXs,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        padding: const EdgeInsets.all(kGapXs),
                         decoration: BoxDecoration(
                           color: Colors.red,
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Text('24h',
-                            style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
                       ),
                     ),
                 ],
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: kGapM),
 
               // ── Treść ───────────────────────────────────────
               Expanded(
@@ -296,12 +296,12 @@ class _RequestCard extends StatelessWidget {
                         GestureDetector(
                           onTap: () => _editNote(context),
                           child: Container(
-                            margin: const EdgeInsets.only(top: 2, bottom: 2),
+                            margin: const EdgeInsets.symmetric(vertical: kGapXs),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 3),
+                                horizontal: kGapS, vertical: kGapXs),
                             decoration: BoxDecoration(
                               color: const Color(0xFFFFF6C7),
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: BorderRadius.circular(8),
                               border:
                                   Border.all(color: const Color(0xFFE8D67A)),
                             ),
@@ -310,7 +310,7 @@ class _RequestCard extends StatelessWidget {
                               children: [
                                 const Icon(Icons.sticky_note_2,
                                     size: 12, color: Color(0xFF8A6D1B)),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: kGapXs),
                                 Flexible(
                                   child: Text(note,
                                       style: const TextStyle(
@@ -327,7 +327,7 @@ class _RequestCard extends StatelessWidget {
                         Text(request.city,
                             style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                       if (request.description.isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: kGapXs),
                         Text(
                           request.description,
                           style: const TextStyle(fontSize: 13),
@@ -337,7 +337,7 @@ class _RequestCard extends StatelessWidget {
                       ],
                       if (requestBriefLabel(timing: request.timing, budget: request.budget,
                               answers: request.answers).isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: kGapXs),
                         Text(
                           requestBriefLabel(timing: request.timing, budget: request.budget,
                               answers: request.answers),
@@ -355,12 +355,12 @@ class _RequestCard extends StatelessWidget {
           ),
 
               // ── Pasek akcji (zawsze na dole ramki) ──────────
-              const SizedBox(height: 8),
+              const SizedBox(height: kGapS),
               Container(
-                        height: 40,
+                        height: kButtonHeightSmall,
                         decoration: BoxDecoration(
                           color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(kRadius),
                         ),
                         child: isTrash
                             ? Center(
@@ -386,11 +386,13 @@ class _RequestCard extends StatelessWidget {
                                         foregroundColor: cDarkBlue,
                                         side: const BorderSide(
                                             color: cDarkBlue),
+                                        minimumSize: const Size(
+                                            0, kButtonHeightSmall),
                                         padding: const EdgeInsets.symmetric(
-                                            vertical: 10, horizontal: 6),
+                                            horizontal: kGapS),
                                         shape: RoundedRectangleBorder(
                                             borderRadius:
-                                                BorderRadius.circular(10)),
+                                                BorderRadius.circular(kRadius)),
                                       ),
                                       onPressed: () =>
                                           context.read<MainScreenBloc>().add(
@@ -403,7 +405,7 @@ class _RequestCard extends StatelessWidget {
                                           Icons.chat_bubble_outline, 'Napisz'),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: kGapS),
                                   // Wyślij ofertę / status oferty
                                   Expanded(
                                     flex: 6,
@@ -588,8 +590,8 @@ class _RequestCard extends StatelessWidget {
       _ => (Colors.amber, Icons.mark_email_read_outlined, 'Oferta wysłana — czeka na decyzję'),
     };
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.only(bottom: kGapS),
+      padding: const EdgeInsets.symmetric(horizontal: kGapS, vertical: kGapXs),
       decoration: BoxDecoration(
         color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(8),
@@ -597,7 +599,7 @@ class _RequestCard extends StatelessWidget {
       child: Row(
         children: [
           Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
+          const SizedBox(width: kGapXs),
           Expanded(
             child: Text(text,
                 style: TextStyle(
@@ -629,8 +631,8 @@ class _RequestCard extends StatelessWidget {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.only(bottom: kGapS),
+      padding: const EdgeInsets.symmetric(horizontal: kGapS, vertical: kGapXs),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(8),
@@ -688,7 +690,7 @@ class _BtnLabel extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Icon(icon, size: 17),
-        const SizedBox(width: 5),
+        const SizedBox(width: kGapXs),
         Flexible(
           child: Text(text,
               maxLines: 1,
@@ -774,22 +776,22 @@ class _RealizationStatusState extends State<_RealizationStatus> {
     };
 
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(top: kGapS),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: kGapM, vertical: kGapS),
         decoration: BoxDecoration(
           color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(kRadius),
           border: Border.all(color: color.withOpacity(0.35)),
         ),
         child: Row(
           children: [
             RealizationThumb(photo: _real!, size: 38),
-            const SizedBox(width: 10),
+            const SizedBox(width: kGapS),
             Expanded(
               child: Text(text,
                   style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: color)),
             ),
@@ -817,8 +819,9 @@ class _OfferButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final shape =
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(10));
-    const pad = EdgeInsets.symmetric(vertical: 10, horizontal: 6);
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadius));
+    const pad = EdgeInsets.symmetric(horizontal: kGapS);
+    const minSize = Size(0, kButtonHeightSmall);
 
     Widget tonal(Color bg, Color fg, IconData icon, String text) =>
         FilledButton.tonal(
@@ -827,6 +830,7 @@ class _OfferButton extends StatelessWidget {
               foregroundColor: fg,
               disabledBackgroundColor: bg,
               disabledForegroundColor: fg,
+              minimumSize: minSize,
               padding: pad,
               shape: shape),
           onPressed: null,
@@ -854,6 +858,7 @@ class _OfferButton extends StatelessWidget {
           style: FilledButton.styleFrom(
               backgroundColor: cDarkBlue,
               foregroundColor: Colors.white,
+              minimumSize: minSize,
               padding: pad,
               shape: shape),
           onPressed: onSend,
