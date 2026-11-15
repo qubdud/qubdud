@@ -1,0 +1,27 @@
+{
+  "name": "qubdud-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "sync": "node scripts/sync-from-dart.mjs",
+    "emulators": "node test/emulators.mjs start auth,firestore,storage",
+    "seed": "node test/seed.mjs",
+    "test": "node test/emulators.mjs exec auth,firestore,storage",
+    "test:bez-storage": "node test/emulators.mjs exec auth,firestore"
+  },
+  "dependencies": {
+    "firebase": "^11.10.0",
+    "leaflet": "^1.9.4",
+    "preact": "^10.29.8"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.22",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.8"
+  }
+}
