@@ -245,6 +245,15 @@ video {
   border-radius: var(--radius);
   padding: 18px 16px;
 }
+form.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+form.card > * {
+  margin: 0;
+}
+
 .card--accent {
   border-color: var(--blue);
   box-shadow: 0 0 0 1px var(--blue) inset;
