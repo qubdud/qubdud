@@ -71,35 +71,28 @@ class _StartTabWyszukaneState extends State<StartTabWyszukane> {
     final videos = widget.state.videos;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+      padding: const EdgeInsets.fromLTRB(kGapL, kGapL, kGapL, kGapXl),
       children: [
         // ── Szukaj ─────────────────────────────────────────
-        SizedBox(
-          height: 56,
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.search, size: 26),
-            label: const Text('Szukaj firmy / usługi',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: cDarkBlue,
-              foregroundColor: Colors.white,
-              shape:
-                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-              elevation: 3,
-            ),
-            onPressed: () =>
-                context.read<MainScreenBloc>().add(GoToWyszukajFirmyEvent()),
+        FilledButton.icon(
+          icon: const Icon(Icons.search),
+          label: const Text('Szukaj firmy / usługi'),
+          style: FilledButton.styleFrom(
+            backgroundColor: cDarkBlue,
+            foregroundColor: Colors.white,
           ),
+          onPressed: () =>
+              context.read<MainScreenBloc>().add(GoToWyszukajFirmyEvent()),
         ),
 
         // ── Ostatnie wyszukania jako chipy ─────────────────
         if (_history.isNotEmpty) ...[
-          const SizedBox(height: 18),
+          const SizedBox(height: kGapL),
           const _SectionTitle('Ostatnio szukane'),
-          const SizedBox(height: 8),
+          const SizedBox(height: kGapS),
           Wrap(
-            spacing: 8,
-            runSpacing: 6,
+            spacing: kGapS,
+            runSpacing: kGapS,
             children: _history
                 .map((e) => InputChip(
                       avatar: const Icon(Icons.history, size: 16),
@@ -114,13 +107,13 @@ class _StartTabWyszukaneState extends State<StartTabWyszukane> {
         ],
 
         // ── Prezentacje firm ───────────────────────────────
-        const SizedBox(height: 22),
+        const SizedBox(height: kGapXl),
         const _SectionTitle('Poznaj firmy',
             subtitle: 'Dotknij, aby obejrzeć prezentację'),
-        const SizedBox(height: 10),
+        const SizedBox(height: kGapS),
         if (videos.isEmpty)
           const Padding(
-            padding: EdgeInsets.only(top: 24),
+            padding: EdgeInsets.only(top: kGapXl),
             child: EmptyState(
               icon: Icons.videocam_outlined,
               title: 'Jeszcze nic tu nie ma',
@@ -134,8 +127,8 @@ class _StartTabWyszukaneState extends State<StartTabWyszukane> {
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               childAspectRatio: 0.7,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
+              crossAxisSpacing: kGapM,
+              mainAxisSpacing: kGapM,
             ),
             itemCount: videos.length,
             itemBuilder: (context, i) => PromoTile(

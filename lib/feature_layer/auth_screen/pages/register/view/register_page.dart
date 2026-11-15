@@ -14,7 +14,7 @@ import '../../../../../shared/widgets/w_checkbox.dart';
 import '../../../../../shared/widgets/w_dropdown.dart';
 import '../../../../../shared/widgets/w_input_field.dart';
 import '../../../../../shared/widgets/w_label.dart';
-import '../../../../../shared/widgets/w_small_label.dart';
+import '../../../../../shared/widgets/w_smallest_label.dart';
 import '../../../../../shared/widgets/loading.dart';
 import '../../../../main_screen/pages/dodaj/view/dodaj_page.dart';
 import '../../../bloc/auth_bloc.dart';
@@ -221,59 +221,57 @@ class _RegisterPageState extends State<RegisterPage> {
         : <String>[];
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: kGapL),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(height: topPadding > 1 ? topPadding : 64),
-          const SizedBox(height: 20),
-          Center(
+          SizedBox(height: topPadding + kGapXl),
+          const Center(
             child: Text('QUBDUD',
-                style: const TextStyle(fontSize: 33, fontWeight: FontWeight.bold)),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: kGapL),
           Center(
             child: GestureDetector(
               onTap: () => context.read<AuthBloc>().add(AuthGoToLoginPageEvent()),
               child: const Text('< Wróć',
                   style: TextStyle(
                     color: cDarkerBlue,
-                    fontSize: 18,
+                    fontSize: 15,
                     fontWeight: FontWeight.w700,
                     decoration: TextDecoration.underline,
                   )),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: kGapL),
           Center(child: WLabel(text: 'Rejestracja')),
 
           // ──── DANE OSOBOWE ────────────────────────────────────
-          const SizedBox(height: 24),
-          WSmallLabel(text: 'Dane osobowe'),
-          const SizedBox(height: 16),
+          WSmallestLabel(text: 'Dane osobowe'),
+          const SizedBox(height: kGapXs),
           WInputField(controller: _name, label: 'Imię', errorText: _nameError,
               isPassword: false, hintText: 'Wpisz imię'),
-          const SizedBox(height: 24),
+          const SizedBox(height: kGapM),
           WInputField(controller: _surname, label: 'Nazwisko', errorText: _surnameError,
               isPassword: false, hintText: 'Wpisz nazwisko'),
-          const SizedBox(height: 24),
+          const SizedBox(height: kGapM),
           WInputField(controller: _email, label: 'E-mail', errorText: _emailError,
               isPassword: false, hintText: 'Wpisz adres e-mail',
               ),
-          const SizedBox(height: 24),
+          const SizedBox(height: kGapM),
 
           // ──── TELEFON ─────────────────────────────────────────
           WInputField(controller: _phone, label: 'Telefon', errorText: _phoneError,
               isPassword: false, hintText: 'Wpisz numer telefonu',
              // keyboardType: TextInputType.phone
               ),
-          const SizedBox(height: 6),
+          const SizedBox(height: kGapXs),
           Text(_isCompany
                   ? 'Telefon firmy jest widoczny na jej profilu (możesz go ukryć w ustawieniach).'
                   : 'Telefon i e-mail zobaczy tylko firma, której ofertę przyjmiesz '
                       'albo u której zarezerwujesz termin.',
               style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-          const SizedBox(height: 24),
+          const SizedBox(height: kGapM),
 
           // ──── OPIS PUBLICZNY ──────────────────────────────────
           WInputField(controller: _bio,
@@ -281,7 +279,7 @@ class _RegisterPageState extends State<RegisterPage> {
               isPassword: false,
               hintText: 'Krótki opis widoczny publicznie na Twoim profilu',
               maxLines: 3),
-          const SizedBox(height: 24),
+          const SizedBox(height: kGapM),
 
           // ──── CHECKBOX FIRMA ──────────────────────────────────
           Row(
@@ -292,17 +290,17 @@ class _RegisterPageState extends State<RegisterPage> {
                 value: _isCompany,
                 onChanged: (val) => setState(() => _isCompany = val ?? false),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: kGapM),
               const Flexible(child: Text('Rejestruj jako firma',
-                  style: TextStyle(fontSize: 16))),
+                  style: TextStyle(fontSize: 15))),
             ],
           ),
 
           // ──── SEKCJA FIRMY ────────────────────────────────────
           if (_isCompany) ...[
-            const SizedBox(height: 32),
-            WSmallLabel(text: 'Dane firmy'),
-            const SizedBox(height: 16),
+            const SizedBox(height: kGapXl),
+            WSmallestLabel(text: 'Dane firmy'),
+            const SizedBox(height: kGapXs),
             WInputField(controller: _nip, label: 'NIP', errorText: _nipError,
                 isPassword: false, hintText: 'Wpisz 10-cyfrowy NIP',
               //  keyboardType: TextInputType.number,
@@ -316,33 +314,33 @@ class _RegisterPageState extends State<RegisterPage> {
                     );
                   }
                 }),
-            const SizedBox(height: 24),
+            const SizedBox(height: kGapM),
             WInputField(controller: _companyName, label: 'Nazwa firmy',
                 errorText: _companyNameError,
                 isPassword: false, hintText: 'Pełna nazwa firmy'),
-            const SizedBox(height: 24),
+            const SizedBox(height: kGapM),
             WInputField(controller: _street, label: 'Ulica',
                 isPassword: false, hintText: 'Ulica (adres rejestrowy)'),
-            const SizedBox(height: 24),
+            const SizedBox(height: kGapM),
             Row(children: [
               Expanded(child: WInputField(controller: _buildingNr,
                   label: 'Nr budynku', isPassword: false, hintText: 'Nr')),
-              const SizedBox(width: 16),
+              const SizedBox(width: kGapM),
               Expanded(child: WInputField(controller: _flatNr,
                   label: 'Nr lokalu', isPassword: false, hintText: 'Nr (opcjonalnie)')),
             ]),
-            const SizedBox(height: 24),
+            const SizedBox(height: kGapM),
             WInputField(controller: _city, label: 'Miejscowość (adres)',
                 isPassword: false, hintText: 'Miejscowość'),
-            const SizedBox(height: 24),
+            const SizedBox(height: kGapM),
             WInputField(controller: _postCode, label: 'Kod pocztowy',
                 isPassword: false, hintText: '00-000',
              //   keyboardType: TextInputType.number
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: kGapXl),
 
-            WSmallLabel(text: 'Branża i lokalizacja działalności'),
-            const SizedBox(height: 16),
+            WSmallestLabel(text: 'Branża i lokalizacja działalności'),
+            const SizedBox(height: kGapXs),
             WAnimatedDropdown(
               controller: _categoryCtrl,
               label: 'Wybierz kategorię',
@@ -355,7 +353,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 _sectorCtrl.clear();
               }),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: kGapM),
             WAnimatedDropdown(
               controller: _sectorCtrl,
               label: 'Wybierz branżę',
@@ -367,7 +365,7 @@ class _RegisterPageState extends State<RegisterPage> {
               onItemSelected: (val) =>
                   setState(() => _selectedSector = val.isEmpty ? null : val),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: kGapM),
             WInputField(
               controller: _businessCity,
               label: 'Miejscowość działalności',
@@ -375,16 +373,16 @@ class _RegisterPageState extends State<RegisterPage> {
               hintText: 'Wpisz miejscowość (do mapy)',
               onChanged: _onCityChanged,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: kGapS),
             const Text('lub zaznacz lokalizację na mapie:',
                 style: TextStyle(fontSize: 13)),
-            const SizedBox(height: 12),
+            const SizedBox(height: kGapS),
 
             SizedBox(
               height: 220,
               child: Stack(children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(kRadius),
                   child: FlutterMap(
                     mapController: _mapController,
                     options: MapOptions(
@@ -411,7 +409,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     child: Container(
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(kRadius),
                       ),
                       child: const Center(child: CircularProgressIndicator()),
                     ),
@@ -419,11 +417,11 @@ class _RegisterPageState extends State<RegisterPage> {
               ]),
             ),
             if (_locationError != null) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: kGapXs),
               Text(_locationError!,
-                  style: const TextStyle(color: cMidPink, fontSize: 14)),
+                  style: const TextStyle(color: cMidPink, fontSize: 12)),
             ],
-            const SizedBox(height: 6),
+            const SizedBox(height: kGapXs),
             Text(
               'Z tą lokalizacją będą powiązane Twoje filmy — po niej znajdą Cię użytkownicy w wyszukiwarce.',
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
@@ -431,9 +429,9 @@ class _RegisterPageState extends State<RegisterPage> {
           ],
 
           // ──── HASŁO ───────────────────────────────────────────
-          const SizedBox(height: 40),
-          WSmallLabel(text: 'Hasło'),
-          const SizedBox(height: 16),
+          const SizedBox(height: kGapXl),
+          WSmallestLabel(text: 'Hasło'),
+          const SizedBox(height: kGapXs),
           WInputField(
             controller: _password,
             label: 'Hasło',
@@ -446,9 +444,9 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
 
           // ──── ZGODY ───────────────────────────────────────────
-          const SizedBox(height: 40),
-          WSmallLabel(text: 'Zgody i oświadczenia'),
-          const SizedBox(height: 16),
+          const SizedBox(height: kGapXl),
+          WSmallestLabel(text: 'Zgody i oświadczenia'),
+          const SizedBox(height: kGapXs),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -460,7 +458,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   if (_acceptTerms) _termsError = null;
                 }),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: kGapM),
               const Flexible(
                 child: Text(
                   'Akceptuję regulamin aplikacji i wyrażam zgodę na przetwarzanie moich danych osobowych '
@@ -472,14 +470,14 @@ class _RegisterPageState extends State<RegisterPage> {
             ],
           ),
           if (_termsError != null) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: kGapXs),
             Text(_termsError!,
-                style: const TextStyle(color: cMidPink, fontSize: 14)),
+                style: const TextStyle(color: cMidPink, fontSize: 12)),
           ],
 
-          const SizedBox(height: 32),
-          WButton(text: 'Zarejestruj się', onPressed: _register),
-          const SizedBox(height: 80),
+          const SizedBox(height: kGapXl),
+          Center(child: WButton(text: 'Zarejestruj się', onPressed: _register)),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + kGapXl),
         ],
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:qb/domain_layer/firebase_service.dart';
+import 'package:qb/shared/constants.dart';
 import 'package:qb/shared/functions/show_toast.dart';
 import 'package:qb/shared/functions/show_toast_error.dart';
 import 'package:qb/shared/widgets/empty_state.dart';
@@ -127,7 +128,7 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.builder(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(kGapL, kGapM, kGapL, kGapL),
         itemCount: _bookings.length,
         itemBuilder: (context, i) {
           final b = _bookings[i];
@@ -167,13 +168,15 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
           };
 
           return Card(
-            margin: const EdgeInsets.only(bottom: 10),
+            margin: const EdgeInsets.only(bottom: kGapM),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(kRadius)),
             child: InkWell(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(kRadius),
               onTap: () => context.read<MainScreenBloc>().add(
                   GoToProfilPublicznyFirmyEvent(b['companyId'] as String)),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 6, 6, 12),
+                padding: const EdgeInsets.fromLTRB(kGapM, kGapXs, kGapXs, kGapM),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -202,10 +205,10 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
+                              horizontal: kGapM, vertical: kGapXs),
                           decoration: BoxDecoration(
                             color: color.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: color, width: 1.2),
                           ),
                           child: Row(
@@ -217,13 +220,13 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
                                 decoration: BoxDecoration(
                                     color: color, shape: BoxShape.circle),
                               ),
-                              const SizedBox(width: 7),
+                              const SizedBox(width: kGapS),
                               Text(dayPart,
                                   style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
                                       color: dark)),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: kGapXs),
                               Text(timePart,
                                   style: TextStyle(
                                       fontSize: 15,
@@ -232,7 +235,7 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: kGapS),
                         Tooltip(
                           message: statusText,
                           triggerMode: TooltipTriggerMode.tap,
@@ -248,7 +251,7 @@ class StartTabRezerwacjeState extends State<StartTabRezerwacje> {
                         ),
                         // odrzucenie/odwołanie przez firmę musi być widać od razu
                         if (!active) ...[
-                          const SizedBox(width: 6),
+                          const SizedBox(width: kGapS),
                           Flexible(
                             child: Text(statusText,
                                 maxLines: 2,

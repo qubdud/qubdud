@@ -4,6 +4,7 @@ import 'package:qb/domain_layer/firebase_service.dart';
 import '../../../../../domain_layer/domain_models/app_user.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../shared/client_notes.dart';
+import '../../../../../shared/constants.dart';
 import '../../../../../shared/functions/effective_role.dart';
 import '../../../../../shared/functions/show_toast_error.dart';
 import '../../../bloc/main_bloc.dart';
@@ -104,7 +105,7 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
             // ── Nagłówek ──────────────────────────────────────
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 48, 20, 24),
+              padding: const EdgeInsets.all(kGapL),
               decoration: BoxDecoration(
                 color: Colors.grey.shade50,
                 border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
@@ -119,7 +120,7 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
                       style: const TextStyle(fontSize: 30, color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: kGapM),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -129,7 +130,7 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
                               ? 'Brak'
                               : '${user.firstName ?? ''} ${user.lastName ?? ''}'.trim(),
                           style: const TextStyle(
-                              fontSize: 22, fontWeight: FontWeight.bold),
+                              fontSize: 18, fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -158,7 +159,7 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
                     ],
                   ),
                   if (user.bio != null && user.bio!.isNotEmpty) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: kGapS),
                     Text(
                       user.bio!,
                       textAlign: TextAlign.center,
@@ -173,7 +174,7 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
                     maxLines: 3,
                     onChanged: () => setState(() {}),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: kGapL),
 
                   // ── Przyciski akcji ──────────────────────────
                   if (myUid != widget.userId)
@@ -191,7 +192,7 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
                                           .trim())),
                         ),
 
-                        const SizedBox(width: 12),
+                        const SizedBox(width: kGapM),
                         // Dodaj do kontaktów
                         _ActionButton(
                           icon: Icons.person_add_outlined,
@@ -223,13 +224,13 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
 
             // ── Statystyki ─────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(kGapL),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Aktywność',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: kGapM),
                   Row(
                     children: [
                       _StatTile(
@@ -238,14 +239,14 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
                         label: 'Zgłoszenia',
                         color: Colors.orange,
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: kGapM),
                       _StatTile(
                         icon: Icons.star_outline,
                         value: '${_reviews.length}',
                         label: 'Recenzje',
                         color: Colors.amber,
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: kGapM),
                       _StatTile(
                         icon: Icons.people_outline,
                         value: '$_contactCount',
@@ -262,13 +263,13 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
             if (_reviews.isNotEmpty) ...[
               const Divider(height: 1),
               Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(kGapL),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('Wystawione recenzje',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: kGapM),
                     ..._reviews.map((r) => ReviewCard(
                         review: r,
                         subjectName: _companyNames[r.reviewedUserId] ?? 'Firma')),
@@ -277,7 +278,7 @@ class _ProfilPublicznyUseraPageState extends State<ProfilPublicznyUseraPage> {
               ),
             ],
 
-            const SizedBox(height: 40),
+            const SizedBox(height: kGapXl),
           ],
         ),
       ),
@@ -294,22 +295,13 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.black87,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white, size: 18),
-            const SizedBox(width: 6),
-            Text(label, style: const TextStyle(color: Colors.white, fontSize: 14)),
-          ],
-        ),
+    return FilledButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: FilledButton.styleFrom(
+        backgroundColor: Colors.black87,
+        foregroundColor: Colors.white,
       ),
     );
   }
@@ -327,18 +319,18 @@ class _StatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: kGapM, horizontal: kGapS),
         decoration: BoxDecoration(
           color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(kRadius),
           border: Border.all(color: color.withOpacity(0.2)),
         ),
         child: Column(
           children: [
             Icon(icon, color: color, size: 24),
-            const SizedBox(height: 6),
-            Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
-            const SizedBox(height: 2),
+            const SizedBox(height: kGapXs),
+            Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+            const SizedBox(height: kGapXs),
             Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
           ],
         ),

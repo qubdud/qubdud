@@ -44,18 +44,16 @@ class _RegistrationCompletePageState extends State<RegistrationCompletePage> {
     final email = FirebaseAuth.instance.currentUser?.email ?? '';
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: kGapL),
       child: Column(
         children: [
-          SizedBox(height: topPadding > 1 ? topPadding : 64),
-          const SizedBox(height: 20),
+          SizedBox(height: topPadding + kGapXl),
           const Text('QUBDUD',
-              style: TextStyle(fontSize: 33, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 32),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: kGapXl),
           const Icon(Icons.check_circle_outline, color: Colors.green, size: 72),
-          const SizedBox(height: 24),
+          const SizedBox(height: kGapL),
           WLabel(text: 'Zarejestrowano!'),
-          const SizedBox(height: 24),
           Text(
             switch (_sent) {
               null => 'Wysyłamy link potwierdzający adres e-mail…',
@@ -64,7 +62,7 @@ class _RegistrationCompletePageState extends State<RegistrationCompletePage> {
               false => 'Nie udało się wysłać linku potwierdzającego na $email.',
             },
             textAlign: TextAlign.center,
-            style: const TextStyle(color: cDarkBrown, fontSize: 16),
+            style: const TextStyle(color: cDarkBrown, fontSize: 14),
           ),
           if (_sent == false)
             TextButton(
@@ -74,7 +72,7 @@ class _RegistrationCompletePageState extends State<RegistrationCompletePage> {
               },
               child: const Text('Wyślij ponownie'),
             ),
-          const SizedBox(height: 48),
+          const SizedBox(height: kGapXl),
           WButton(
             text: 'Przejdź do aplikacji',
             onPressed: () {
@@ -82,7 +80,7 @@ class _RegistrationCompletePageState extends State<RegistrationCompletePage> {
               context.read<CoreScreenBloc>().add(CoreScreenGoToMainScreenEvent());
             },
           ),
-          const SizedBox(height: 80),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + kGapXl),
         ],
       ),
     );

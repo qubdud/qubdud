@@ -110,6 +110,7 @@ class _ViewState extends State<View> {
          children: [
            SizedBox(height: MediaQuery.of(context).size.height/3,),
            Text(textAlign: TextAlign.center,'Trwa wysyłanie pliku.\n Poczekaj do zakończenia.'),
+           const SizedBox(height: kGapS),
 
            TweenAnimationBuilder<double>(
              tween: Tween<double>(
@@ -120,7 +121,7 @@ class _ViewState extends State<View> {
              builder: (context, value, child) {
                return Text(
                  '${value.toInt()}%',
-                 style: const TextStyle(fontSize: 50, fontWeight: FontWeight.bold, color: cDarkBlue),
+                 style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: cDarkBlue),
                );
              },
            ),

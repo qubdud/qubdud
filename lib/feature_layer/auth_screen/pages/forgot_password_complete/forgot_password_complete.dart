@@ -15,28 +15,26 @@ class ForgotPasswordCompletePage extends StatelessWidget {
 
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.fromLTRB(kGapL, 0, kGapL, kGapL),
         child: Column(
           children: [
-            SizedBox(height: topPadding > 1 ? topPadding : 64),
-            const SizedBox(height: 20),
+            SizedBox(height: topPadding + kGapXl),
             const Text('QUBDUD',
-                style: TextStyle(fontSize: 33, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: kGapL),
             WLabel(text: 'Sprawdź pocztę'),
-            const SizedBox(height: 16),
             const Text(
               'Kliknij link otrzymany w wiadomości e-mail, aby ustawić nowe hasło do konta.',
-              style: TextStyle(color: cDarkBrown, fontSize: 16),
+              style: TextStyle(color: cDarkBrown, fontSize: 14),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: kGapXl),
             WButton(
               text: 'Zaloguj się',
               onPressed: () =>
                   context.read<AuthBloc>().add(AuthGoToLoginPageEvent()),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: kGapL),
             const Text(
               'Jeśli wiadomość nie dotarła, sprawdź folder Spam.',
               style: TextStyle(color: cDarkBrown, fontSize: 14),

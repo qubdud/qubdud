@@ -47,11 +47,12 @@ class MenuComponent extends StatelessWidget {
 
 class MenuItem {
   final String text;
+  final IconData? icon;
   final int count;
   final bool isEnabled;
 
   //final Function(dynamic)? onTap;
   final Function()? onTap;
 
-  MenuItem({required this.text, this.count = 0, this.onTap, this.isEnabled = true});
+  MenuItem({required this.text, this.icon, this.count = 0, this.onTap, this.isEnabled = true});
 }

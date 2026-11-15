@@ -155,9 +155,9 @@ class _ViewState extends State<_View> with SingleTickerProviderStateMixin {
             labelColor: Colors.black,
             dividerColor: Colors.transparent,
             labelStyle: const TextStyle(
-                fontSize: 17, fontWeight: FontWeight.w700),
+                fontSize: 16, fontWeight: FontWeight.w700),
             unselectedLabelStyle: const TextStyle(
-                fontSize: 17, fontWeight: FontWeight.w600),
+                fontSize: 16, fontWeight: FontWeight.w600),
             indicatorWeight: 3,
             tabs: _isAnon
                 ? const [Tab(text: 'Odkrywaj')]

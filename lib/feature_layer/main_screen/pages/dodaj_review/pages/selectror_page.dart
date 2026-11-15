@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:image_picker/image_picker.dart';
 import 'package:qb/shared/constants.dart';
-import 'package:qb/shared/widgets/w_small_label.dart';
+import 'package:qb/shared/widgets/w_smallest_label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -47,11 +47,11 @@ class _ViewState extends State<View> {
         return
           Column(
           children: [
-
-
-            WSmallLabel(text: 'DODAJ RECENZJĘ'),
-
+            const SizedBox(height: kGapS),
+            WSmallestLabel(text: 'DODAJ RECENZJĘ'),
             WCard(
+              margin: EdgeInsets.zero,
+              padding: const EdgeInsets.all(kGapL),
               child: Material(
                 color: Colors.transparent,
                 child: Column(
@@ -73,13 +73,13 @@ class _ViewState extends State<View> {
 
                         context.read<DodajReviewPageBloc>().add(SelectedDodajReviewPageEvent(fileType: 'img', file: file, selectType: 'review', ))  ;},
 
-                      borderRadius: BorderRadius.circular(8.0),
+                      borderRadius: BorderRadius.circular(kRadius),
                       // jeśli chcesz rounded splash
                       child: Ink(
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
                           color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
-                          borderRadius: BorderRadius.circular(8.0),
+                          borderRadius: BorderRadius.circular(kRadius),
                         ),
                         child: Row(
                           children: [
@@ -94,7 +94,7 @@ class _ViewState extends State<View> {
                         ),
                       ),
                     ),
-                    Divider(),
+                    const SizedBox(height: kGapS),
 
                     InkWell(
                       onTap: () async {
@@ -109,13 +109,13 @@ class _ViewState extends State<View> {
 
 
                         context.read<DodajReviewPageBloc>().add(SelectedDodajReviewPageEvent(fileType: 'video', file: file, selectType: 'review', ))  ;},
-                      borderRadius: BorderRadius.circular(8.0),
+                      borderRadius: BorderRadius.circular(kRadius),
                       // jeśli chcesz rounded splash
                       child: Ink(
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
                           color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
-                          borderRadius: BorderRadius.circular(8.0),
+                          borderRadius: BorderRadius.circular(kRadius),
                         ),
                         child: Row(
                           children: [
@@ -131,7 +131,7 @@ class _ViewState extends State<View> {
                       ),
                     ),
 
-                    Divider(),
+                    const SizedBox(height: kGapS),
 
                     InkWell(
                       onTap: () async {
@@ -144,13 +144,13 @@ class _ViewState extends State<View> {
 
 
                         context.read<DodajReviewPageBloc>().add(SelectedDodajReviewPageEvent(fileType: 'img', file: file, selectType: 'review', ))  ;},
-                      borderRadius: BorderRadius.circular(8.0),
+                      borderRadius: BorderRadius.circular(kRadius),
                       // jeśli chcesz rounded splash
                       child: Ink(
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
                           color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
-                          borderRadius: BorderRadius.circular(8.0),
+                          borderRadius: BorderRadius.circular(kRadius),
                         ),
                         child: Row(
                           children: [
@@ -166,7 +166,7 @@ class _ViewState extends State<View> {
                       ),
                     ),
 
-                    Divider(),
+                    const SizedBox(height: kGapS),
 
                     InkWell(
                       onTap: () async {
@@ -181,13 +181,13 @@ class _ViewState extends State<View> {
 
 
                         context.read<DodajReviewPageBloc>().add(SelectedDodajReviewPageEvent(fileType: 'video', file: file, selectType: 'review', ))  ;},
-                      borderRadius: BorderRadius.circular(8.0),
+                      borderRadius: BorderRadius.circular(kRadius),
                       // jeśli chcesz rounded splash
                       child: Ink(
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
                           color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
-                          borderRadius: BorderRadius.circular(8.0),
+                          borderRadius: BorderRadius.circular(kRadius),
                         ),
                         child: Row(
                           children: [
@@ -203,16 +203,16 @@ class _ViewState extends State<View> {
                       ),
                     ),
 
-                    const Divider(),
+                    const SizedBox(height: kGapS),
 
                     InkWell(
                       onTap: () => context.read<DodajReviewPageBloc>().add(SkipFileDodajReviewPageEvent()),
-                      borderRadius: BorderRadius.circular(8.0),
+                      borderRadius: BorderRadius.circular(kRadius),
                       child: Ink(
                         padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
                           color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : cLighterBrown,
-                          borderRadius: BorderRadius.circular(8.0),
+                          borderRadius: BorderRadius.circular(kRadius),
                         ),
                         child: const Row(
                           children: [

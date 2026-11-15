@@ -1,6 +1,7 @@
 import 'package:qb/shared/widgets/empty_state.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:qb/shared/constants.dart';
 import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../shared/functions/plural.dart';
 import '../../../../../shared/widgets/review.dart';
@@ -34,7 +35,7 @@ class StartTabOtrzymaneRecenzje extends StatelessWidget {
           child: Row(
             children: [
               const Icon(Icons.star, color: Colors.amber),
-              const SizedBox(width: 6),
+              const SizedBox(width: kGapS),
               Text(avg.toStringAsFixed(1),
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               Text('  (${reviews.length} ${plural(reviews.length, 'opinia', 'opinie', 'opinii')})',
@@ -44,7 +45,7 @@ class StartTabOtrzymaneRecenzje extends StatelessWidget {
         ),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(kGapL, kGapM, kGapL, kGapL),
             itemCount: reviews.length,
             itemBuilder: (context, i) => _ReviewCard(review: reviews[i]),
           ),
@@ -62,14 +63,14 @@ class _ReviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: kGapM),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(kRadius),
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(kGapM),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -83,7 +84,7 @@ class _ReviewCard extends StatelessWidget {
                   fit: BoxFit.cover,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: kGapM),
             ],
             Expanded(child: ReviewWithComments(review: review)),
           ],

@@ -28,7 +28,7 @@ class MyMessageBubble extends StatelessWidget {
               ),
             ),
             Container(
-              margin: EdgeInsets.only(top: 4, bottom: 8, right: 12),
+              margin: EdgeInsets.only(top: kGapXs, bottom: kGapXs, right: kGapM),
               padding: EdgeInsets.all(8),
               decoration: BoxDecoration(
                 boxShadow: [
@@ -110,7 +110,7 @@ class UserMessageBubble extends StatelessWidget {
                     style: TextStyle(fontSize: 12),
                   ),
                   Container(
-                    margin: EdgeInsets.only(top: 4, bottom: 8),
+                    margin: EdgeInsets.only(top: kGapXs, bottom: kGapXs),
                     padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       boxShadow: [
@@ -168,7 +168,7 @@ class MyPostBubble extends StatelessWidget {
               ),
             ),
             Container(
-              margin: EdgeInsets.only(top: 4, bottom: 8, right: 12),
+              margin: EdgeInsets.only(top: kGapXs, bottom: kGapXs, right: kGapM),
               padding: EdgeInsets.all(8),
               decoration: BoxDecoration(
                 boxShadow: [
@@ -250,7 +250,7 @@ class UserPostBubble extends StatelessWidget {
                     style: TextStyle(fontSize: 12),
                   ),
                   Container(
-                    margin: EdgeInsets.only(top: 4, bottom: 8),
+                    margin: EdgeInsets.only(top: kGapXs, bottom: kGapXs),
                     padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       boxShadow: [

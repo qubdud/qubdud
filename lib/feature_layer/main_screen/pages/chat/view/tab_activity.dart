@@ -7,6 +7,7 @@ import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../domain_layer/domain_models/relation_link.dart';
 import '../../../../../domain_layer/firebase_service.dart';
 import '../../../../../shared/client_notes.dart';
+import '../../../../../shared/constants.dart';
 import '../../../../../shared/functions/effective_role.dart';
 import '../../../../../shared/functions/show_toast.dart';
 import '../../../../../shared/globals.dart';
@@ -368,7 +369,7 @@ class _TabActivityState extends State<TabActivity> {
               height: 46,
               child: ListView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+                padding: const EdgeInsets.fromLTRB(kGapL, kGapS, kGapL, kGapXs),
                 children: [
                   for (final f in filters) ...[
                     ChoiceChip(
@@ -377,7 +378,7 @@ class _TabActivityState extends State<TabActivity> {
                       visualDensity: VisualDensity.compact,
                       onSelected: (_) => setState(() => _filter = f.$1),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: kGapS),
                   ],
                 ],
               ),
@@ -395,7 +396,7 @@ class _TabActivityState extends State<TabActivity> {
                   : RefreshIndicator(
                       onRefresh: _load,
                       child: ListView(
-                        padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
+                        padding: const EdgeInsets.fromLTRB(kGapL, kGapXs, kGapL, kGapL),
                         children: [
                           if (todo.isNotEmpty) ...[
                             _SectionLabel('Do zrobienia', Colors.pink.shade600),
@@ -467,10 +468,10 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 6, 4, 8),
+        padding: const EdgeInsets.fromLTRB(kGapXs, kGapS, kGapXs, kGapS),
         child: Text(text.toUpperCase(),
             style: TextStyle(
-                fontSize: 11.5,
+                fontSize: 12,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.6,
                 color: color)),
@@ -507,7 +508,7 @@ class _ActivityCard extends StatelessWidget {
     final ms = it.at.millisecondsSinceEpoch;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: kGapS),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onOpen,
@@ -519,7 +520,7 @@ class _ActivityCard extends StatelessWidget {
                   width: 4),
             ),
           ),
-          padding: const EdgeInsets.fromLTRB(12, 10, 6, 6),
+          padding: const EdgeInsets.fromLTRB(kGapM, kGapM, kGapXs, kGapXs),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -540,7 +541,7 @@ class _ActivityCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: kGapM),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -563,30 +564,30 @@ class _ActivityCard extends StatelessWidget {
                                       fontSize: 11, color: Colors.grey)),
                           ],
                         ),
-                        const SizedBox(height: 5),
+                        const SizedBox(height: kGapXs),
                         Row(
                           children: [
                             Icon(it.icon, size: 14, color: it.color),
-                            const SizedBox(width: 5),
+                            const SizedBox(width: kGapXs),
                             Expanded(
                               child: Text(it.text,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                      fontSize: 12.5,
+                                      fontSize: 12,
                                       color: it.color,
                                       fontWeight: it.needsAction
                                           ? FontWeight.w700
                                           : FontWeight.w500)),
                             ),
                             if (it.unread > 0) ...[
-                              const SizedBox(width: 6),
+                              const SizedBox(width: kGapS),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 7, vertical: 2),
-                                decoration: BoxDecoration(
+                                    horizontal: kGapS, vertical: kGapXs),
+                                decoration: const ShapeDecoration(
                                   color: Colors.pinkAccent,
-                                  borderRadius: BorderRadius.circular(10),
+                                  shape: StadiumBorder(),
                                 ),
                                 child: Text('${it.unread}',
                                     style: const TextStyle(
@@ -637,7 +638,7 @@ class _ActivityCard extends StatelessWidget {
                       icon: Icon(saved ? Icons.bookmark : Icons.bookmark_add_outlined,
                           size: 18),
                       label: Text(saved ? 'Zapisany' : 'Zapisz',
-                          style: const TextStyle(fontSize: 12.5)),
+                          style: const TextStyle(fontSize: 12)),
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                         foregroundColor:
