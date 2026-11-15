@@ -510,6 +510,8 @@ class _RealizationRequest extends StatefulWidget {
 
 class _RealizationRequestState extends State<_RealizationRequest> {
   List<Map<String, dynamic>> _all = const [];
+  // bez wczytanych zdjęć prośba ze zdjęciami wyglądałaby jak „wykonane bez zdjęć”
+  bool _loaded = false;
   bool _busy = false;
 
   @override
@@ -523,7 +525,10 @@ class _RealizationRequestState extends State<_RealizationRequest> {
     super.didUpdateWidget(oldWidget);
     // świeży obiekt po przeładowaniu listy = mogły się zmienić zdjęcia
     if (oldWidget.request != widget.request) {
-      if (oldWidget.request.id != widget.request.id) _all = const [];
+      if (oldWidget.request.id != widget.request.id) {
+        _all = const [];
+        _loaded = false;
+      }
       _load();
     }
   }
@@ -533,7 +538,12 @@ class _RealizationRequestState extends State<_RealizationRequest> {
     try {
       final list =
           await context.read<FirebaseService>().getRealizationsForRequest(id);
-      if (mounted && id == widget.request.id) setState(() => _all = list);
+      if (mounted && id == widget.request.id) {
+        setState(() {
+          _all = list;
+          _loaded = true;
+        });
+      }
     } catch (_) {}
   }
 
@@ -606,7 +616,8 @@ class _RealizationRequestState extends State<_RealizationRequest> {
     final mine = _all.where((r) => r['addedByRole'] == 'user').toList();
     final canAddOwn = widget.request.status == 'taken' && mine.isEmpty;
     // firma oznaczyła zlecenie jako wykonane bez zdjęć
-    final jobDone = pending.isEmpty &&
+    final jobDone = _loaded &&
+        pending.isEmpty &&
         widget.request.status == 'taken' &&
         widget.request.realizationStatus == 'pending';
     final company = widget.request.takenByName.isNotEmpty

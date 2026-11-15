@@ -45,9 +45,11 @@ class _RealizationSectionState extends State<RealizationSection> {
       _load();
     } else if (oldWidget.request.realizationStatus !=
         widget.request.realizationStatus) {
-      // zmiana na żywo (nasłuch zgłoszenia): druga strona dodała/wycofała zdjęcia lub zdecydowała
-      _jobStatus = widget.request.realizationStatus;
-      _load();
+      // zmiana na żywo (nasłuch zgłoszenia): druga strona dodała/wycofała zdjęcia lub zdecydowała;
+      // status razem ze zdjęciami — inaczej nowe zdjęcia firmy mignęłyby jako „wykonane bez zdjęć”
+      _load().whenComplete(() {
+        if (mounted) setState(() => _jobStatus = widget.request.realizationStatus);
+      });
     }
   }
 
