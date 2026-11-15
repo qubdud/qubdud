@@ -329,7 +329,7 @@ class _StatTile extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 24),
             const SizedBox(height: kGapXs),
-            Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+            Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
             const SizedBox(height: kGapXs),
             Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
           ],

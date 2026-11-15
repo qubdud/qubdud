@@ -14,6 +14,7 @@ import '../../../../../shared/widgets/w_checkbox.dart';
 import '../../../../../shared/widgets/w_dropdown.dart';
 import '../../../../../shared/widgets/w_input_field.dart';
 import '../../../../../shared/widgets/w_label.dart';
+import '../../../../../shared/widgets/w_smallest_label.dart';
 import '../../../../../shared/widgets/loading.dart';
 import '../../../../main_screen/pages/dodaj/view/dodaj_page.dart';
 import '../../../bloc/auth_bloc.dart';
@@ -69,8 +70,6 @@ class _RegisterPageState extends State<RegisterPage> {
   Timer? _debounce;
 
   final Map<String, List<String>> _categoryToSector = categories;
-
-  static const _sectionStyle = TextStyle(fontSize: 16, fontWeight: FontWeight.w700);
 
   @override
   void dispose() {
@@ -248,8 +247,8 @@ class _RegisterPageState extends State<RegisterPage> {
           Center(child: WLabel(text: 'Rejestracja')),
 
           // ──── DANE OSOBOWE ────────────────────────────────────
-          const Text('Dane osobowe', style: _sectionStyle),
-          const SizedBox(height: kGapM),
+          WSmallestLabel(text: 'Dane osobowe'),
+          const SizedBox(height: kGapXs),
           WInputField(controller: _name, label: 'Imię', errorText: _nameError,
               isPassword: false, hintText: 'Wpisz imię'),
           const SizedBox(height: kGapM),
@@ -300,8 +299,8 @@ class _RegisterPageState extends State<RegisterPage> {
           // ──── SEKCJA FIRMY ────────────────────────────────────
           if (_isCompany) ...[
             const SizedBox(height: kGapXl),
-            const Text('Dane firmy', style: _sectionStyle),
-            const SizedBox(height: kGapM),
+            WSmallestLabel(text: 'Dane firmy'),
+            const SizedBox(height: kGapXs),
             WInputField(controller: _nip, label: 'NIP', errorText: _nipError,
                 isPassword: false, hintText: 'Wpisz 10-cyfrowy NIP',
               //  keyboardType: TextInputType.number,
@@ -340,8 +339,8 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             const SizedBox(height: kGapXl),
 
-            const Text('Branża i lokalizacja działalności', style: _sectionStyle),
-            const SizedBox(height: kGapM),
+            WSmallestLabel(text: 'Branża i lokalizacja działalności'),
+            const SizedBox(height: kGapXs),
             WAnimatedDropdown(
               controller: _categoryCtrl,
               label: 'Wybierz kategorię',
@@ -431,8 +430,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
           // ──── HASŁO ───────────────────────────────────────────
           const SizedBox(height: kGapXl),
-          const Text('Hasło', style: _sectionStyle),
-          const SizedBox(height: kGapM),
+          WSmallestLabel(text: 'Hasło'),
+          const SizedBox(height: kGapXs),
           WInputField(
             controller: _password,
             label: 'Hasło',
@@ -446,8 +445,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
           // ──── ZGODY ───────────────────────────────────────────
           const SizedBox(height: kGapXl),
-          const Text('Zgody i oświadczenia', style: _sectionStyle),
-          const SizedBox(height: kGapM),
+          WSmallestLabel(text: 'Zgody i oświadczenia'),
+          const SizedBox(height: kGapXs),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

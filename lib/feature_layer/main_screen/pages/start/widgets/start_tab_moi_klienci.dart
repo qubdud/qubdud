@@ -65,13 +65,13 @@ class _MoiKlienciTabState extends State<MoiKlienciTab> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(kGapL, kGapS, kGapL, kGapXs),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: kGapS,
+            runSpacing: kGapXs,
             children: [
               chip('new', 'Nowe'),
-              const SizedBox(width: kGapS),
               chip('active', 'W trakcie'),
-              const SizedBox(width: kGapS),
               chip('rejected', 'Odrzucone'),
             ],
           ),

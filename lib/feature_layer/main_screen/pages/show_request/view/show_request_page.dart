@@ -190,6 +190,7 @@ class _ViewState extends State<View> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
+          WSmallestLabel(text: 'Widok zgłoszenia'),
           if (Globals.instance.selectedRequest!.mediaType == 'image' &&
               Globals.instance.selectedRequest!.fileUrl.isNotEmpty)
             GestureDetector(
@@ -251,8 +252,7 @@ class _ViewState extends State<View> {
 
                 //VideoPlayerItem(videoUrl: Globals.instance.selectedRequest!.fileUrl),
 
-              if (Globals.instance.selectedRequest!.fileUrl.isNotEmpty)
-                const SizedBox(height: kGapXl),
+              const SizedBox(height: kGapXl),
               WSmallestLabel(text: 'Opis zgłoszenia'),
               Text(Globals.instance.selectedRequest!.description),
               if (Globals.instance.selectedRequest!.timing.isNotEmpty ||
