@@ -173,7 +173,11 @@ class MainScreenBloc extends Bloc<MainScreenEvent, MainScreenState> {
     });
 
     on<GoBackEvent>((event, emit) async {
-      if (state.user == null) return;
+      if (state.user == null) {
+        // np. Regulamin otwarty z menu po nieudanym starcie
+        if (state is! LoadingMainScreenState) add(InitEvent());
+        return;
+      }
       if (_backStack.isEmpty) {
         add(GoToHomeEvent());
         return;
