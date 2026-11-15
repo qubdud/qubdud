@@ -92,34 +92,48 @@ service cloud.firestore {
                                     'companyCity', 'companyLocation', 'companyAddress']));
       }
 
-      // sloty kalendarza: firma zarządza, klient tylko rezerwuje wolny/wygasły i odwołuje swój
+      // sloty kalendarza: firma zarządza, klient tylko rezerwuje wolny/wygasły i odwołuje swój.
+      // Obcy widzi wyłącznie wolne terminy i swoje (lista: where('bookedBy', 'in', ['', uid])).
       match /slots/{slotId} {
-        allow read: if signedIn();
+        allow read: if isMe(userId)
+            || (signedIn() && resource.data.bookedBy in ['', request.auth.uid]);
         allow create: if isMe(userId)
-            && request.resource.data.keys().hasOnly(['start', 'durationMin'])
-            && request.resource.data.start is timestamp;
+            && request.resource.data.keys().hasOnly(['start', 'durationMin', 'bookedBy'])
+            && request.resource.data.start is timestamp
+            && request.resource.data.bookedBy == '';
         allow delete: if isMe(userId);
-        allow update: if isMe(userId) || clientBooks() || clientCancels();
+        allow update: if ownerUpdates() || clientBooks() || clientCancels();
 
+        // firma przyjmuje żółtą rezerwację albo zwalnia termin; rezerwującego wpisuje tylko klient
+        function ownerUpdates() {
+          let d = request.resource.data;
+          return isMe(userId)
+              && (!changedKeys().hasAny(['bookedBy', 'bookedByName', 'bookedAt'])
+                  || d.get('bookedBy', '') == '')
+              && (!changedKeys().hasAny(['status'])
+                  || (d.status == 'free' && d.get('bookedBy', '') == '')
+                  || (d.status == 'accepted' && resource.data.get('status', 'free') == 'pending'));
+        }
         // wolny = brak pola status (świeży slot) albo 'free'; żółta rezerwacja wygasa po godzinie
         function clientBooks() {
           let d = request.resource.data;
           return signedIn()
-              && onlyKeys(['status', 'bookedBy', 'bookedByName', 'bookedAt'])
+              && onlyKeys(['status', 'bookedBy', 'bookedAt'])
               && (resource.data.get('status', 'free') in ['free', 'rejected']
                   || (resource.data.status == 'pending'
                       && resource.data.bookedAt < request.time - duration.value(60, 'm')))
               && resource.data.start > request.time
               && d.status == 'pending' && d.bookedBy == request.auth.uid
-              && d.bookedByName is string && d.bookedAt == request.time;
+              && d.bookedAt == request.time
+              && !exists(/databases/$(database)/documents/users/$(userId)/blocked/$(request.auth.uid));
         }
         function clientCancels() {
           let d = request.resource.data;
           return signedIn()
               && resource.data.get('bookedBy', '') == request.auth.uid
               && resource.data.get('status', 'free') in ['pending', 'accepted']
-              && onlyKeys(['status', 'bookedBy', 'bookedByName', 'releasedBy'])
-              && d.status == 'free' && d.bookedBy == '' && d.bookedByName == ''
+              && onlyKeys(['status', 'bookedBy', 'releasedBy'])
+              && d.status == 'free' && d.bookedBy == ''
               && d.releasedBy == 'user';
         }
       }

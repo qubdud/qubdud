@@ -14,7 +14,6 @@ import 'package:share_plus/share_plus.dart';
 import '../../../../../shared/widgets/before_after.dart';
 import '../../../../../shared/functions/show_toast.dart';
 import '../../../../../shared/functions/show_toast_error.dart';
-import '../../../../../shared/widgets/mini_slots_bar.dart' show bookingName;
 import '../../../../../shared/widgets/load_error.dart';
 import '../../profil_my/view/tab_kalendarz.dart' show dayLabel;
 import '../../../../../domain_layer/domain_models/company_info.dart';
@@ -732,7 +731,6 @@ class _SlotsSectionState extends State<_SlotsSection> {
           companyId: widget.companyId,
           slotId: s['id'] as String,
           myUid: _myUid,
-          myName: bookingName(context.read<MainScreenBloc>().state.user),
         );
         showToast(text: 'Zarezerwowano — czeka na akceptację firmy');
       } catch (e) {

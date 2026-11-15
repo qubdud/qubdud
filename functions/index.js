@@ -317,7 +317,7 @@ exports.notifySlot = onDocumentUpdated('users/{companyId}/slots/{slotId}', async
     }
     await pushTo(companyId, {
       title: '📅 Nowa rezerwacja',
-      body: `${after.bookedByName || 'Klient'} · ${when}. Potwierdź lub odrzuć w kalendarzu.`,
+      body: `${await userName(after.bookedBy)} · ${when}. Potwierdź lub odrzuć w kalendarzu.`,
       data: { type: 'booking', slotId, audience: 'company' },
     });
     return;
@@ -348,7 +348,7 @@ exports.notifySlot = onDocumentUpdated('users/{companyId}/slots/{slotId}', async
   if (after.releasedBy === 'user') {
     await pushTo(companyId, {
       title: 'Klient odwołał rezerwację',
-      body: `${before.bookedByName || 'Klient'} · ${when}. Termin wrócił do puli.`,
+      body: `${await userName(before.bookedBy)} · ${when}. Termin wrócił do puli.`,
       data: { type: 'booking', slotId, status: 'cancelled', audience: 'company' },
     });
   } else if (after.releasedBy === 'expired' || after.releasedBy === 'rejected') {
@@ -365,7 +365,7 @@ exports.expirePendingSlots = onSchedule({ schedule: 'every 15 minutes', timeZone
     .get();
   // warunek na wersję dokumentu: decyzja firmy w międzyczasie wygrywa
   const res = await Promise.allSettled(stale.docs.map((s) => s.ref.update({
-    status: 'free', bookedBy: '', bookedByName: '', releasedBy: 'expired',
+    status: 'free', bookedBy: '', bookedByName: FieldValue.delete(), releasedBy: 'expired',
   }, { lastUpdateTime: s.updateTime })));
   const freed = res.filter((r) => r.status === 'fulfilled').length;
   if (stale.size) console.log(`expirePendingSlots: zwolniono ${freed}/${stale.size}`);
@@ -418,7 +418,7 @@ exports.remindVisits = onSchedule({ schedule: 'every 15 minutes', timeZone: 'Eur
       }, `remind_${id}`),
       pushTo(companyId, {
         title,
-        body: `${d.bookedByName || 'Klient'} · ${when}`,
+        body: `${await userName(d.bookedBy)} · ${when}`,
         data: { type: 'booking_reminder', slotId: s.id, audience: 'company' },
       }, `remind_${id}_c`),
     ]);
@@ -808,7 +808,7 @@ async function deleteUserData(uid) {
 
   await commitAll([
     ...freeSlots.map((s) => (b) => b.update(s.ref, {
-      status: 'free', bookedBy: '', bookedByName: '', releasedBy: 'user',
+      status: 'free', bookedBy: '', bookedByName: FieldValue.delete(), releasedBy: 'user',
     })),
     ...lostBookings.map((s) => (b) => b.set(db.doc(`users/${s.data().bookedBy}/myBookings/${uid}_${s.id}`), {
       companyId: uid, companyName, slotId: s.id, start: s.data().start,

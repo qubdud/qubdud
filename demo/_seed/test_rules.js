@@ -68,13 +68,16 @@ const promo = {
 };
 const savedPromo = { ...promo, timestamp: EARLIER, views: 3 };
 
-const slotNew = { start: LATER };
-const slotFreed = { start: LATER, durationMin: 60, status: 'free', bookedBy: '', bookedByName: '', releasedBy: 'rejected' };
-const slotPending = { start: LATER, durationMin: 60, status: 'pending', bookedBy: 'u1', bookedByName: 'Jan', bookedAt: BOOKED_30MIN_AGO };
+const slotNew = { start: LATER, bookedBy: '' };
+const slotFreed = { start: LATER, durationMin: 60, status: 'free', bookedBy: '', releasedBy: 'rejected' };
+const slotPending = { start: LATER, durationMin: 60, status: 'pending', bookedBy: 'u1', bookedAt: BOOKED_30MIN_AGO };
 const slotExpired = { ...slotPending, bookedAt: BOOKED_2H_AGO };
 const slotAccepted = { ...slotPending, status: 'accepted' };
-const book = (uid) => ({ status: 'pending', bookedBy: uid, bookedByName: 'Ktoś', bookedAt: NOW });
-const freed = (by) => ({ status: 'free', bookedBy: '', bookedByName: '', releasedBy: by });
+const slotRejectedOld = { ...slotPending, status: 'rejected', bookedByName: 'Jan', bookedAt: BOOKED_2H_AGO };
+const book = (uid) => ({ status: 'pending', bookedBy: uid, bookedAt: NOW });
+const freed = (by) => ({ status: 'free', bookedBy: '', releasedBy: by });
+const blockedBy = (companyId, uid, value) =>
+  ({ function: 'exists', args: [{ exactValue: `${DOC}/users/${companyId}/blocked/${uid}` }], result: { value } });
 
 const booking = { companyId: 'c1', companyName: 'Firma 1', slotId: 's1', start: LATER, status: 'pending', bookedAt: NOW };
 const decision = (status) => ({ companyId: 'c1', companyName: 'Firma 1', slotId: 's1', start: LATER, status, decidedAt: NOW });
@@ -219,19 +222,39 @@ const firestoreCases = [
   del('usunięcie profilu z apki', 'DENY', '/users/u1', U1, savedUser),
 
   // ── slots ──
-  list('user czyta terminy firmy', 'ALLOW', '/users/c1/slots/s1', U1, slotNew),
+  list('user czyta wolne terminy firmy', 'ALLOW', '/users/c1/slots/s1', U1, slotNew),
+  list('#2 stary termin bez bookedBy (uzupełnia go migrate_slots_private.js)', 'DENY', '/users/c1/slots/s1', U1, { start: LATER }),
+  list('klient czyta swoją rezerwację', 'ALLOW', '/users/c1/slots/s1', U1, slotPending),
+  get('klient czyta swój termin w transakcji', 'ALLOW', '/users/c1/slots/s1', U1, slotAccepted),
+  list('firma czyta zajęte terminy', 'ALLOW', '/users/c1/slots/s1', C1, slotPending),
   list('QB-55 anon czyta terminy (bez zmian)', 'DENY', '/users/c1/slots/s1', ANON, slotNew),
+  list('#2 obcy listuje cudzą rezerwację', 'DENY', '/users/c1/slots/s1', U2, slotPending),
+  get('#2 obcy czyta cudzą przyjętą rezerwację', 'DENY', '/users/c1/slots/s1', X, slotAccepted),
   create('firma dodaje termin', 'ALLOW', '/users/c1/slots/s1', C1, slotNew),
-  create('firma generuje terminy (batch)', 'ALLOW', '/users/c1/slots/s1', C1, { start: LATER, durationMin: 30 }),
-  update('klient rezerwuje świeży termin (bez pola status)', 'ALLOW', '/users/c1/slots/s1', U1, slotNew, book('u1')),
-  update('klient rezerwuje zwolniony termin', 'ALLOW', '/users/c1/slots/s1', U2, slotFreed, book('u2')),
-  update('QB-37 klient przejmuje wygasłą żółtą (>60 min)', 'ALLOW', '/users/c1/slots/s1', U2, slotExpired, book('u2')),
+  create('firma generuje terminy (batch)', 'ALLOW', '/users/c1/slots/s1', C1, { start: LATER, durationMin: 30, bookedBy: '' }),
+  create('#2 termin bez bookedBy (niewidoczny w zapytaniu klienta)', 'DENY', '/users/c1/slots/s1', C1, { start: LATER }),
+  create('#3 firma tworzy termin od razu z klientem', 'DENY', '/users/c1/slots/s1', C1, { ...slotNew, bookedBy: 'u1' }),
+  update('klient rezerwuje świeży termin (bez pola status)', 'ALLOW', '/users/c1/slots/s1', U1, slotNew, book('u1'), [blockedBy('c1', 'u1', false)]),
+  update('klient rezerwuje zwolniony termin', 'ALLOW', '/users/c1/slots/s1', U2, slotFreed, book('u2'), [blockedBy('c1', 'u2', false)]),
+  update('#36 klient rezerwuje stary odrzucony (APK ≤1.3.2)', 'ALLOW', '/users/c1/slots/s1', U2, slotRejectedOld, book('u2'), [blockedBy('c1', 'u2', false)]),
+  update('QB-37 klient przejmuje wygasłą żółtą (>60 min)', 'ALLOW', '/users/c1/slots/s1', U2, slotExpired, book('u2'), [blockedBy('c1', 'u2', false)]),
+  update('klient ponawia swoją wygasłą żółtą', 'ALLOW', '/users/c1/slots/s1', U1, slotExpired, book('u1'), [blockedBy('c1', 'u1', false)]),
+  update('#17 klient zablokowany przez firmę rezerwuje', 'DENY', '/users/c1/slots/s1', U1, slotNew, book('u1'), [blockedBy('c1', 'u1', true)]),
+  update('#2 rezerwacja z imieniem w slocie', 'DENY', '/users/c1/slots/s1', U1, slotNew, { ...book('u1'), bookedByName: 'Jan' }, [blockedBy('c1', 'u1', false)]),
   update('klient odwołuje swoją żółtą', 'ALLOW', '/users/c1/slots/s1', U1, slotPending, freed('user')),
   update('klient odwołuje swoją przyjętą', 'ALLOW', '/users/c1/slots/s1', U1, slotAccepted, freed('user')),
+  update('#36 klient zwalnia stary odrzucony', 'DENY', '/users/c1/slots/s1', U1, slotRejectedOld, freed('user')),
   update('firma przyjmuje rezerwację', 'ALLOW', '/users/c1/slots/s1', C1, slotPending, { status: 'accepted' }),
   update('firma odrzuca (zwalnia termin)', 'ALLOW', '/users/c1/slots/s1', C1, slotPending, freed('rejected')),
   update('firma zwalnia wygasłą', 'ALLOW', '/users/c1/slots/s1', C1, slotExpired, freed('expired')),
   del('firma usuwa termin', 'ALLOW', '/users/c1/slots/s1', C1, slotAccepted),
+  update('#3 firma wpisuje klienta i akceptuje', 'DENY', '/users/c1/slots/s1', C1, slotNew, { status: 'accepted', bookedBy: 'u2' }),
+  update('#3 firma wpisuje klienta jako żółtą', 'DENY', '/users/c1/slots/s1', C1, slotNew, book('u2')),
+  update('#3 firma podmienia rezerwującego', 'DENY', '/users/c1/slots/s1', C1, slotAccepted, { bookedBy: 'u2' }),
+  update('#3 firma akceptuje wolny termin', 'DENY', '/users/c1/slots/s1', C1, slotFreed, { status: 'accepted' }),
+  update('#3 firma cofa przyjętą do żółtej (ponowny push)', 'DENY', '/users/c1/slots/s1', C1, slotAccepted, { status: 'pending' }),
+  update('#3 firma przedłuża żółtą (bookedAt)', 'DENY', '/users/c1/slots/s1', C1, slotPending, { bookedAt: NOW }),
+  update('#3 firma zwalnia bez czyszczenia bookedBy', 'DENY', '/users/c1/slots/s1', C1, slotPending, { status: 'free' }),
   update('QB-71 obcy przejmuje przyjętą rezerwację', 'DENY', '/users/c1/slots/s1', X, slotAccepted, book('x1')),
   update('QB-71 obcy przejmuje świeżą żółtą', 'DENY', '/users/c1/slots/s1', X, slotPending, book('x1')),
   update('QB-71 klient sam akceptuje', 'DENY', '/users/c1/slots/s1', U1, slotPending, { status: 'accepted' }),

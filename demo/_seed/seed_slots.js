@@ -43,7 +43,7 @@ const HOURS = [9, 11, 13, 15, 17];
       for (const h of picks.slice(0, 3)) {
         const dt = new Date(
           today.getFullYear(), today.getMonth(), today.getDate() + d, h, 0);
-        batch.set(slotsCol.doc(), { start: Timestamp.fromDate(dt) });
+        batch.set(slotsCol.doc(), { start: Timestamp.fromDate(dt), bookedBy: '' });
         count++;
       }
     }

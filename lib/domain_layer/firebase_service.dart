@@ -886,7 +886,7 @@ class FirebaseService {
   // ── KALENDARZ FIRMY (sloty na 7 dni do przodu, rezerwacje na kropki) ─────
   // users/{companyId}/slots/{slotId}:
   //   {start: Timestamp, status: 'free'|'pending'|'accepted',
-  //    bookedBy, bookedByName, bookedAt,
+  //    bookedBy ('' = wolny; obcy widzi tylko wolne i swoje), bookedAt,
   //    releasedBy: 'user'|'expired'|'rejected' — kto ostatnio zwolnił termin}
   // users/{uid}/myBookings/{companyId}_{slotId} — kopia rezerwacji klienta,
   //   status: 'pending'|'accepted'|'rejected'|'cancelled' (firma usunęła termin)
@@ -923,7 +923,6 @@ class FirebaseService {
   Map<String, dynamic> _freed(String releasedBy) => {
         'status': 'free',
         'bookedBy': '',
-        'bookedByName': '',
         'releasedBy': releasedBy,
       };
 
@@ -945,31 +944,54 @@ class FirebaseService {
         'start': start,
         'status': expired ? 'free' : (data['status'] ?? 'free'),
         'bookedBy': expired ? '' : (data['bookedBy'] ?? ''),
-        'bookedByName': expired ? '' : (data['bookedByName'] ?? ''),
       });
     }
     return slots;
   }
 
+  /// Firma czyta wszystkie swoje terminy, pozostali tylko wolne i swoje (reguły).
+  Query<Map<String, dynamic>> _slotsQuery(String companyId) {
+    final me = _auth.currentUser?.uid ?? '';
+    final col =
+        _firestore.collection('users').doc(companyId).collection('slots');
+    return (companyId == me
+            ? col
+            : col.where('bookedBy', whereIn: ['', if (me.isNotEmpty) me]))
+        .orderBy('start');
+  }
+
   Future<List<Map<String, dynamic>>> getSlots(String companyId) async {
-    final snap = await _firestore
-        .collection('users')
-        .doc(companyId)
-        .collection('slots')
-        .orderBy('start')
-        .get();
+    final snap = await _slotsQuery(companyId).get();
     return _slotsFromDocs(snap.docs);
   }
 
-  /// Live-podgląd slotów (7 dni).
+  /// Live-podgląd slotów (7 dni). Firmie dokłada 'bookedByName' z profilu
+  /// rezerwującego — slot nie trzyma danych klienta.
   Stream<List<Map<String, dynamic>>> slotsStream(String companyId) {
-    return _firestore
-        .collection('users')
-        .doc(companyId)
-        .collection('slots')
-        .orderBy('start')
-        .snapshots()
-        .map((snap) => _slotsFromDocs(snap.docs));
+    final own = companyId == _auth.currentUser?.uid;
+    final names = <String, String>{};
+    return _slotsQuery(companyId).snapshots().asyncMap((snap) async {
+      final slots = _slotsFromDocs(snap.docs);
+      if (!own) return slots;
+      for (final s in slots) {
+        final uid = s['bookedBy'] as String;
+        if (uid.isNotEmpty) s['bookedByName'] = names[uid] ??= await _bookerName(uid);
+      }
+      return slots;
+    });
+  }
+
+  Future<String> _bookerName(String uid) async {
+    try {
+      final u = await fetchUser(uid);
+      final person = '${u?.firstName ?? ''} ${u?.lastName ?? ''}'.trim();
+      final company = u?.companyName ?? '';
+      return company.isNotEmpty
+          ? company
+          : (person.isNotEmpty ? person : 'Klient');
+    } on FirebaseException {
+      return 'Klient';
+    }
   }
 
   /// Zwalnia wygasłą żółtą rezerwację osobnym zapisem, żeby Cloud Function
@@ -1069,38 +1091,55 @@ class FirebaseService {
     required String companyId,
     required String slotId,
     required String myUid,
-    required String myName,
   }) async {
     if (companyId == myUid) {
       throw const SlotException('To Twój termin — nie możesz go zarezerwować');
     }
     final ref = _slotRef(companyId, slotId);
-    await _firestore.runTransaction((tx) async {
-      final slot = (await tx.get(ref)).data();
-      if (slot == null) throw const SlotException('Firma usunęła ten termin');
-      final start = (slot['start'] as Timestamp?)?.toDate();
-      if (start == null || start.isBefore(DateTime.now())) {
-        throw const SlotException('Ten termin już minął');
-      }
-      if ((slot['status'] ?? 'free') != 'free' && !_pendingExpired(slot)) {
-        throw const SlotException('Ten termin jest już zajęty');
-      }
-      final companyName = await _companyNameTx(tx, companyId);
-      tx.update(ref, {
-        'status': 'pending',
-        'bookedBy': myUid,
-        'bookedByName': myName,
-        'bookedAt': FieldValue.serverTimestamp(),
+    try {
+      await _firestore.runTransaction((tx) async {
+        final Map<String, dynamic>? slot;
+        try {
+          slot = (await tx.get(ref)).data();
+        } on FirebaseException catch (e) {
+          // cudza rezerwacja i usunięty termin są dla klienta niewidoczne (reguły)
+          if (e.code == 'permission-denied') {
+            throw const SlotException('Ten termin jest już niedostępny');
+          }
+          rethrow;
+        }
+        if (slot == null) throw const SlotException('Firma usunęła ten termin');
+        final start = (slot['start'] as Timestamp?)?.toDate();
+        if (start == null || start.isBefore(DateTime.now())) {
+          throw const SlotException('Ten termin już minął');
+        }
+        // 'rejected' z wersji ≤1.3.2 to w praktyce wolny termin
+        final status = slot['status'] ?? 'free';
+        if (status != 'free' && status != 'rejected' && !_pendingExpired(slot)) {
+          throw const SlotException('Ten termin jest już zajęty');
+        }
+        final companyName = await _companyNameTx(tx, companyId);
+        tx.update(ref, {
+          'status': 'pending',
+          'bookedBy': myUid,
+          'bookedAt': FieldValue.serverTimestamp(),
+        });
+        tx.set(_myBookingRef(myUid, companyId, slotId), {
+          'companyId': companyId,
+          'companyName': companyName,
+          'slotId': slotId,
+          'start': Timestamp.fromDate(start),
+          'status': 'pending',
+          'bookedAt': FieldValue.serverTimestamp(),
+        });
       });
-      tx.set(_myBookingRef(myUid, companyId, slotId), {
-        'companyId': companyId,
-        'companyName': companyName,
-        'slotId': slotId,
-        'start': Timestamp.fromDate(start),
-        'status': 'pending',
-        'bookedAt': FieldValue.serverTimestamp(),
-      });
-    });
+    } on FirebaseException catch (e) {
+      // reguły odrzucają rezerwację od konta zablokowanego przez firmę
+      if (e.code == 'permission-denied') {
+        throw const SlotException('Nie możesz zarezerwować terminu w tej firmie');
+      }
+      rethrow;
+    }
 
     // rezerwacja też buduje relację: klient u firmy i firma u klienta
     await _linkClient(
@@ -1150,12 +1189,20 @@ class FirebaseService {
     required String myUid,
   }) async {
     final ref = _slotRef(companyId, slotId);
+    // termin zajęty już przez kogoś innego albo usunięty jest dla klienta niewidoczny (reguły)
+    var visible = true;
+    try {
+      await ref.get();
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') rethrow;
+      visible = false;
+    }
     await _firestore.runTransaction((tx) async {
-      final slot = (await tx.get(ref)).data();
+      final slot = visible ? (await tx.get(ref)).data() : null;
       final relation = await _readRelationTx(tx, companyId, myUid);
       if (slot != null &&
           slot['bookedBy'] == myUid &&
-          slot['status'] != 'free') {
+          (slot['status'] == 'pending' || slot['status'] == 'accepted')) {
         tx.update(ref, _freed('user'));
       }
       _unlinkTx(tx, relation, slotId: slotId);
@@ -1203,7 +1250,7 @@ class FirebaseService {
         .collection('users')
         .doc(companyId)
         .collection('slots')
-        .add({'start': Timestamp.fromDate(start)});
+        .add({'start': Timestamp.fromDate(start), 'bookedBy': ''});
   }
 
   Future<void> addSlotsBatch(
@@ -1216,6 +1263,7 @@ class FirebaseService {
       batch.set(col.doc(), {
         'start': Timestamp.fromDate(s),
         'durationMin': durationMin,
+        'bookedBy': '',
       });
     }
     await batch.commit();
@@ -1579,7 +1627,14 @@ class FirebaseService {
   /// go ktoś inny (wspólny slot nie mówi nic o dawnych rezerwujących).
   Future<SlotRef?> getSlotRef(
       String companyId, String slotId, String clientId) async {
-    final doc = await _slotRef(companyId, slotId).get();
+    final DocumentSnapshot<Map<String, dynamic>> doc;
+    try {
+      doc = await _slotRef(companyId, slotId).get();
+    } on FirebaseException catch (e) {
+      // klient nie widzi terminu usuniętego ani zajętego przez kogoś innego (reguły)
+      if (e.code == 'permission-denied') return null;
+      rethrow;
+    }
     final d = doc.data();
     if (d == null || d['start'] == null || d['bookedBy'] != clientId) {
       return null;

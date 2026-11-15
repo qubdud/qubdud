@@ -165,7 +165,7 @@ async function publicUrlFor(localPath, destination) {
           const dt = new Date(today.getFullYear(), today.getMonth(),
             today.getDate() + d, h, 0);
           batch.set(slotsCol.doc(), {
-            start: Timestamp.fromDate(dt), durationMin: dur,
+            start: Timestamp.fromDate(dt), durationMin: dur, bookedBy: '',
           });
         }
       }
