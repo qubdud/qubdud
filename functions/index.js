@@ -106,7 +106,7 @@ async function pushTo(uid, payload, notifDocId) {
     const tag = data.type === 'chat' && data.senderId ? `chat_${data.senderId}`
       : data.requestId ? `req_${data.requestId}`
       : data.slotId ? `slot_${data.slotId}`
-      : data.type || 'info';
+      : [data.type || 'info', data.senderId || data.companyId].filter(Boolean).join('_');
     const res = await getMessaging().sendEachForMulticast({
       tokens,
       notification: { title: payload.title, body: payload.body },
