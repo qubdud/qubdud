@@ -43,6 +43,8 @@ const update = (n, e, p, a, before, patch, mocks) =>
 const del = (n, e, p, a, before, mocks) => fsCase(n, e, 'delete', p, a, { before, mocks });
 const mock = (fn, path, data) =>
   ({ function: fn, args: [{ exactValue: DOC + path }], result: { value: { data } } });
+const existsMock = (path, value) =>
+  ({ function: 'exists', args: [{ exactValue: DOC + path }], result: { value } });
 
 const loc = { lat: 52.23, lng: 21.01 };
 const consents = { terms: true, rodo: true, acceptedAt: NOW };
@@ -191,7 +193,22 @@ const firestoreCases = [
     www: 'https://f.pl', contactEmail: 'k@f.pl', showPhone: false, showAddress: true, companyLocation: { lat: 50.06, lng: 19.94 },
   }),
   update('kalendarz: opis terminów', 'ALLOW', '/users/c1', C1, savedCompany, { slotsInfo: 'Pn-Pt' }),
-  update('token FCM (arrayUnion)', 'ALLOW', '/users/u1', U1, savedUser, { fcmTokens: ['t1', 't2'] }),
+  update('token FCM w jawnym profilu', 'DENY', '/users/u1', U1, savedUser, { fcmTokens: ['t1', 't2'] }),
+  create('token FCM: pierwszy zapis (set merge)', 'ALLOW', '/users/u1/private/push', U1, { fcmTokens: ['t1'] }, [existsMock('/users/u1', true)]),
+  update('token FCM: kolejny (arrayUnion)', 'ALLOW', '/users/u1/private/push', U1, { fcmTokens: ['t1'] }, { fcmTokens: ['t1', 't2'] }),
+  update('token FCM: wylogowanie (arrayRemove)', 'ALLOW', '/users/u1/private/push', U1, { fcmTokens: ['t1', 't2'] }, { fcmTokens: ['t2'] }),
+  get('właściciel czyta swoje tokeny', 'ALLOW', '/users/u1/private/push', U1, { fcmTokens: ['t1'] }),
+  get('#1 obcy czyta tokeny', 'DENY', '/users/c1/private/push', U1, { fcmTokens: ['t1'] }),
+  create('#1 tokeny na cudze konto', 'DENY', '/users/c1/private/push', U1, { fcmTokens: ['t1'] }),
+  update('#1 dopisanie cudzych tokenów', 'DENY', '/users/c1/private/push', U1, { fcmTokens: ['t1'] }, { fcmTokens: ['t1', 't2'] }),
+  create('token FCM bez profilu', 'DENY', '/users/u1/private/push', U1, { fcmTokens: ['t1'] }, [existsMock('/users/u1', false)]),
+  create('token FCM: dodatkowe pole', 'DENY', '/users/u1/private/push', U1, { fcmTokens: ['t1'], x: 1 }, [existsMock('/users/u1', true)]),
+  create('token FCM nie jest tekstem', 'DENY', '/users/u1/private/push', U1, { fcmTokens: [1] }, [existsMock('/users/u1', true)]),
+  update('token FCM: dwa naraz', 'DENY', '/users/u1/private/push', U1, { fcmTokens: ['t1'] }, { fcmTokens: ['t1', 't2', 't3'] }),
+  update('token FCM: ponad 20', 'DENY', '/users/u1/private/push', U1,
+    { fcmTokens: Array.from({ length: 20 }, (_, i) => `t${i}`) }, { fcmTokens: Array.from({ length: 21 }, (_, i) => `t${i}`) }),
+  update('token FCM: lista zamieniona na tekst', 'DENY', '/users/u1/private/push', U1, { fcmTokens: ['t1'] }, { fcmTokens: 't2' }),
+  del('usunięcie tokenów z apki', 'DENY', '/users/u1/private/push', U1, { fcmTokens: ['t1'] }),
   update('QB-77 klient ustawia sobie firma=true', 'DENY', '/users/u1', U1, savedUser, { firma: true, isCompany: true }),
   update('QB-77 zmiana NIP', 'DENY', '/users/c1', C1, savedCompany, { nip: '0000000000' }),
   update('QB-77 nadpisanie zgód', 'DENY', '/users/u1', U1, savedUser, { consents: { terms: false } }),

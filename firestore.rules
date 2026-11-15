@@ -65,7 +65,7 @@ service cloud.firestore {
       allow update: if isMe(userId)
           && onlyKeys(['firstName', 'lastName', 'phone', 'bio', 'companyName', 'companyCity',
                        'companyAddress', 'companyLocation', 'www', 'contactEmail', 'showPhone',
-                       'showAddress', 'slotsInfo', 'fcmTokens'])
+                       'showAddress', 'slotsInfo'])
           // telefon klienta jest tylko w private/contact (jawny ma wyłącznie firma)
           && (!changedKeys().hasAny(['phone'])
               || resource.data.get('firma', resource.data.get('isCompany', false)) == true
@@ -219,7 +219,20 @@ service cloud.firestore {
         // e-mail logowania jest niezmienny, jak w users/{uid}
         allow update: if isMe(userId) && docId == 'contact' && onlyKeys(['phone'])
             && contactOk(request.resource.data);
+        // tokeny FCM: cudzy token dopisany u siebie zabrałby ofierze pushe (releasePushTokens)
+        allow create: if isMe(userId) && docId == 'push' && pushOk([])
+            && exists(/databases/$(database)/documents/users/$(userId));
+        allow update: if isMe(userId) && docId == 'push' && pushOk(resource.data.get('fcmTokens', []));
         allow delete: if false;
+
+        // apka dopisuje jeden token naraz (arrayUnion), więc wcześniejsze są już sprawdzone
+        function pushOk(old) {
+          let t = request.resource.data.get('fcmTokens', []);
+          let added = t.removeAll(old);
+          return request.resource.data.keys().hasOnly(['fcmTokens'])
+              && t is list && t.size() <= 20
+              && added.size() <= 1 && (added.size() == 0 || added[0] is string);
+        }
 
         function relOk(r) {
           return r.get('requestIds', []).size() > 0 || r.get('slotIds', []).size() > 0

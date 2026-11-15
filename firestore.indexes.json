@@ -107,6 +107,16 @@
   ],
   "fieldOverrides": [
     {
+      "collectionGroup": "private",
+      "fieldPath": "fcmTokens",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" },
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" },
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION_GROUP" }
+      ]
+    },
+    {
       "collectionGroup": "offers",
       "fieldPath": "companyId",
       "indexes": [

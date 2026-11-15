@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../../shared/push_service.dart';
+
 part 'core_screen_event.dart';
 part 'core_screen_state.dart';
 
@@ -22,6 +24,7 @@ class CoreScreenBloc extends Bloc<CoreScreenEvent, CoreScreenState> {
     if (user != null) {
       emit(CoreScreenAuthenticatedState());
     } else {
+      PushService.retryPendingDelete();
       emit(CoreScreenUnauthenticatedState(toRegister: event.toRegister));
     }
   }

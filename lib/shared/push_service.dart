@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain_layer/chat_service.dart';
 import '../domain_layer/firebase_service.dart';
@@ -20,6 +22,10 @@ class PushService {
   // jeszcze raz — pytamy o nią tylko raz na proces
   static bool _initialHandled = false;
 
+  static const _deletePendingKey = 'fcm_delete_pending';
+  static Future<void>? _deleting;
+  static Timer? _deleteRetry;
+
   static Future<void> register(
     String uid,
     FirebaseService firebase,
@@ -28,6 +34,9 @@ class PushService {
     _onOpen = onOpen;
     if (_uid == uid) return;
     _uid = uid;
+    // token tego konta nie może zniknąć przez spóźnione usunięcie poprzedniego
+    _deleteRetry?.cancel();
+    await _deleting;
     final m = FirebaseMessaging.instance;
     try {
       final perm = await m.requestPermission(alert: true, badge: true, sound: true);
@@ -77,27 +86,58 @@ class PushService {
   }
 
   /// Przy wylogowaniu: to urządzenie przestaje dostawać push tego konta.
-  /// Nie czeka na serwer — offline wylogowanie nie może wisieć.
+  /// Czeka na serwer najwyżej kilka sekund — offline wylogowanie nie może wisieć.
   static Future<void> unregister(FirebaseService firebase) async {
-    final uid = _uid;
+    // wylogowanie przed końcem startu konta: register się nie wykonał, a token jest w profilu
+    final user = FirebaseAuth.instance.currentUser;
+    final uid = _uid ?? (user == null || user.isAnonymous ? null : user.uid);
     _uid = null;
     _onOpen = null;
     await _onToken?.cancel();
     await _onMessage?.cancel();
     await _onOpened?.cancel();
-    if (uid == null) return;
-    final m = FirebaseMessaging.instance;
-    try {
-      final token = await m.getToken().timeout(const Duration(seconds: 3));
-      if (token != null) {
-        firebase.removeFcmToken(uid, token).catchError(
-            (Object e) => debugPrint('PUSH: usunięcie tokenu: $e'));
+    String? token;
+    if (uid != null) {
+      try {
+        token = await FirebaseMessaging.instance.getToken().timeout(const Duration(seconds: 3));
+      } catch (e) {
+        debugPrint('PUSH: token przy wylogowaniu: $e');
       }
-      // nowy token dla następnego konta; stary przestaje działać w FCM,
-      // nawet jeśli usunięcie z profilu utknęło w kolejce offline
-      await m.deleteToken().timeout(const Duration(seconds: 3));
+    }
+    // zapis, który nie zdąży przed signOut, utknie w kolejce tego konta —
+    // dlatego token wyłączamy też w FCM (nowy token dla następnego konta)
+    await Future.wait([
+      if (uid != null && token != null)
+        firebase.removeFcmToken(uid, token).timeout(const Duration(seconds: 3)).catchError(
+            (Object e) => debugPrint('PUSH: usunięcie tokenu: $e')),
+      _deleteToken(),
+    ]);
+  }
+
+  /// Start bez konta: dokończenie wyłączenia tokenu po wylogowaniu offline.
+  /// Po wylogowaniu w tym procesie ponawia już timer.
+  static Future<void> retryPendingDelete() async {
+    if (_deleting != null) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_deletePendingKey) == true) await _deleteToken();
+  }
+
+  static Future<void> _deleteToken() {
+    _deleteRetry?.cancel();
+    return _deleting = _tryDelete();
+  }
+
+  // bez sieci deleteToken się nie uda: ponawiamy co minutę i przy starcie apki, aż do
+  // skutku albo do zalogowania konta (jego zapis tokenu zabierze go poprzedniemu)
+  static Future<void> _tryDelete() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_deletePendingKey, true);
+      await FirebaseMessaging.instance.deleteToken().timeout(const Duration(seconds: 3));
+      await prefs.remove(_deletePendingKey);
     } catch (e) {
-      debugPrint('PUSH: wyrejestrowanie: $e');
+      debugPrint('PUSH: usunięcie tokenu FCM: $e');
+      if (_uid == null) _deleteRetry = Timer(const Duration(minutes: 1), _deleteToken);
     }
   }
 }

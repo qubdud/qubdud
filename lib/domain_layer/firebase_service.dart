@@ -624,14 +624,14 @@ class FirebaseService {
 
 
 
-  // update, nie set(merge) — token nie może wskrzesić usuniętego profilu
+  // tokeny tylko w private/push (czyta wyłącznie właściciel); reguły nie tworzą go bez profilu
   Future<void> addFcmToken(String uid, String token) async {
-    await _firestore.collection('users').doc(uid).update(
-        {'fcmTokens': FieldValue.arrayUnion([token])});
+    await _firestore.collection('users').doc(uid).collection('private').doc('push').set(
+        {'fcmTokens': FieldValue.arrayUnion([token])}, SetOptions(merge: true));
   }
 
   Future<void> removeFcmToken(String uid, String token) async {
-    await _firestore.collection('users').doc(uid).update(
+    await _firestore.collection('users').doc(uid).collection('private').doc('push').update(
         {'fcmTokens': FieldValue.arrayRemove([token])});
   }
 

@@ -93,16 +93,25 @@ async function pushTo(uid, payload, notifDocId) {
   const notifId = await logNotification(uid, payload, notifDocId);
   try {
     const ref = db.collection('users').doc(uid);
-    const tokens = ((await ref.get()).data() || {}).fcmTokens || [];
+    const pushRef = ref.collection('private').doc('push');
+    const [user, push] = await Promise.all([ref.get(), pushRef.get()]);
+    // EXPIRES (pole users.fcmTokens): po migrate_fcm_tokens.js --apply
+    const legacy = (user.data() || {}).fcmTokens || [];
+    const tokens = [...new Set([...((push.data() || {}).fcmTokens || []), ...legacy])];
     if (!tokens.length) return;
 
     // 'from' jest zarezerwowane przez FCM — nadawca idzie jako 'senderId'
     const data = { ...payload.data, ...(notifId && { notifId }) };
+    // ten sam wątek zastępuje poprzedni push: zwiniętej grupy Android nie otwiera z danymi
+    const tag = data.type === 'chat' && data.senderId ? `chat_${data.senderId}`
+      : data.requestId ? `req_${data.requestId}`
+      : data.slotId ? `slot_${data.slotId}`
+      : data.type || 'info';
     const res = await getMessaging().sendEachForMulticast({
       tokens,
       notification: { title: payload.title, body: payload.body },
       data: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])),
-      android: { priority: 'high', notification: { sound: 'default' } },
+      android: { priority: 'high', notification: { sound: 'default', tag } },
       apns: { payload: { aps: { sound: 'default', badge: 1 } } },
     });
 
@@ -114,7 +123,12 @@ async function pushTo(uid, payload, notifDocId) {
       if (DEAD_TOKEN.includes(code)) dead.push(tokens[i]);
       else errors[code] = r.error.message;
     });
-    if (dead.length) await ref.update({ fcmTokens: FieldValue.arrayRemove(...dead) });
+    if (dead.length) {
+      await Promise.all([
+        push.exists && pushRef.update({ fcmTokens: FieldValue.arrayRemove(...dead) }),
+        legacy.some((t) => dead.includes(t)) && ref.update({ fcmTokens: FieldValue.arrayRemove(...dead) }),
+      ]);
+    }
     console.log(`push → ${uid}: ok=${res.successCount} fail=${res.failureCount}`
       + (dead.length ? ` (usunięto ${dead.length} martwych tokenów)` : '') + ` | ${payload.title}`);
     if (Object.keys(errors).length) console.error(`push → ${uid}: błędy FCM ${JSON.stringify(errors)}`);
@@ -833,7 +847,8 @@ async function deleteUserData(uid) {
   await db.recursiveDelete(me);
   // syncPrivateContact z zapisu sprzed usunięcia nie odtworzy już danych (sprawdza users/{uid}),
   // ale kasujemy też jawnie — recursiveDelete nie widzi dokumentu dopisanego w trakcie
-  await me.collection('private').doc('contact').delete();
+  // (tak samo token FCM z onTokenRefresh)
+  await Promise.all(['contact', 'push'].map((id) => me.collection('private').doc(id).delete()));
 
   await getDatabase().ref(`users/${uid}`).remove();
   const bucket = getStorage().bucket();
@@ -878,7 +893,7 @@ exports.onUserUpdated = onDocumentUpdated('users/{uid}', async (event) => {
   const before = event.data.before.data() || {};
   const after = event.data.after.data() || {};
   const { uid } = event.params;
-  await Promise.all([syncChatNames(uid, before, after), releaseTokens(uid, before, after)]);
+  await syncChatNames(uid, before, after);
 });
 
 /** Rozmowa niesie nazwę z ostatniej wiadomości nadawcy; konto firmowe pisze jako firma
@@ -899,12 +914,19 @@ async function syncChatNames(uid, before, after) {
 }
 
 /** Telefon zalogowany na nowe konto: jego token znika z poprzedniego, nawet gdy
- *  wylogowanie offline nie zdążyło go usunąć. */
-async function releaseTokens(uid, before, after) {
-  const known = new Set(before.fcmTokens || []);
-  const added = (after.fcmTokens || []).filter((t) => !known.has(t));
-  const holders = await Promise.all(added.map((t) => db.collection('users')
-    .where('fcmTokens', 'array-contains', t).get()));
-  await commitAll(holders.flatMap((q, i) => q.docs.filter((d) => d.id !== uid)
-    .map((d) => (b) => b.update(d.ref, { fcmTokens: FieldValue.arrayRemove(added[i]) }))));
-}
+ *  wylogowanie offline nie zdążyło go usunąć. Stare pole users.fcmTokens czyścimy
+ *  u wszystkich (EXPIRES: po migrate_fcm_tokens.js --apply). */
+exports.releasePushTokens = onDocumentWritten('users/{uid}/private/push', async (event) => {
+  const own = `users/${event.params.uid}/private/push`;
+  const tokens = (s) => (s.exists && s.get('fcmTokens')) || [];
+  const known = new Set(tokens(event.data.before));
+  const added = tokens(event.data.after).filter((t) => !known.has(t));
+  const holders = await Promise.all(added.map((t) => Promise.all([
+    db.collectionGroup('private').where('fcmTokens', 'array-contains', t).get(),
+    db.collection('users').where('fcmTokens', 'array-contains', t).get(),
+  ])));
+  await commitAll(holders.flatMap(([priv, legacy], i) => [
+    ...priv.docs.filter((d) => d.ref.path !== own),
+    ...legacy.docs,
+  ].map((d) => (b) => b.update(d.ref, { fcmTokens: FieldValue.arrayRemove(added[i]) }))));
+});
