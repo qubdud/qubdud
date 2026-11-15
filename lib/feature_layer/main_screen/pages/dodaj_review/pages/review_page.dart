@@ -1,9 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:qb/shared/constants.dart';
 import 'package:qb/shared/widgets/w_button.dart';
 import 'package:qb/shared/widgets/w_input_field.dart';
-import 'package:qb/shared/widgets/w_small_label.dart';
+import 'package:qb/shared/widgets/w_smallest_label.dart';
 import '../../../bloc/main_bloc.dart';
 import '../bloc/dodaj_rev_page_bloc.dart';
 
@@ -58,16 +59,16 @@ class _ViewState extends State<_View> {
         final thumbPath = state is DodajRequestPromoState ? state.thumbPath : null;
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(kGapL),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Podgląd wybranego pliku ───────────────────────
               if (content != null) ...[
-                WSmallLabel(text: 'Wybrany plik'),
-                const SizedBox(height: 8),
+                WSmallestLabel(text: 'Wybrany plik'),
+                const SizedBox(height: kGapXs),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(kRadius),
                   child: Stack(
                     children: [
                       // Miniatura
@@ -96,9 +97,9 @@ class _ViewState extends State<_View> {
                       ),
                       // Badge typ pliku
                       Positioned(
-                        top: 8, right: 8,
+                        top: kGapS, right: kGapS,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: kGapS, vertical: kGapXs),
                           decoration: BoxDecoration(
                             color: Colors.black54,
                             borderRadius: BorderRadius.circular(8),
@@ -123,13 +124,13 @@ class _ViewState extends State<_View> {
                       ),
                       // Przycisk zmiany pliku
                       Positioned(
-                        bottom: 8, left: 8,
+                        bottom: kGapS, left: kGapS,
                         child: GestureDetector(
                           onTap: () => context
                               .read<DodajReviewPageBloc>()
                               .add(GetDataDodajReviewPageEvent()),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            padding: const EdgeInsets.symmetric(horizontal: kGapS, vertical: kGapXs),
                             decoration: BoxDecoration(
                               color: Colors.black54,
                               borderRadius: BorderRadius.circular(8),
@@ -148,7 +149,7 @@ class _ViewState extends State<_View> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: kGapXl),
               ] else ...[
                 TextButton.icon(
                   onPressed: () => context
@@ -157,12 +158,12 @@ class _ViewState extends State<_View> {
                   icon: const Icon(Icons.add_a_photo_outlined, size: 18),
                   label: const Text('Dodaj zdjęcie lub film'),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: kGapL),
               ],
 
               // ── Gwiazdki ──────────────────────────────────────
-              WSmallLabel(text: 'Twoja ocena'),
-              const SizedBox(height: 8),
+              WSmallestLabel(text: 'Twoja ocena'),
+              const SizedBox(height: kGapXs),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(5, (i) {
@@ -189,7 +190,7 @@ class _ViewState extends State<_View> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 24),
+              const SizedBox(height: kGapXl),
 
               // ── Opis ──────────────────────────────────────────
               WInputField(
@@ -199,7 +200,7 @@ class _ViewState extends State<_View> {
                 isPassword: false,
                 hintText: 'Opisz swoją opinię o usłudze...',
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: kGapXl),
 
               WButton(
                 text: 'Dodaj recenzję',
@@ -215,7 +216,7 @@ class _ViewState extends State<_View> {
                       .add(DodajDodajReviewPageEvent());
                 },
               ),
-              const SizedBox(height: 60),
+              const SizedBox(height: kGapXl),
             ],
           ),
         );

@@ -1,3 +1,4 @@
+import 'package:qb/shared/constants.dart';
 import 'package:qb/shared/widgets/empty_state.dart';
 import 'dart:async';
 
@@ -20,7 +21,7 @@ import '../../../../../../shared/widgets/anonim_gate.dart';
 import '../../../../../../shared/widgets/loading.dart';
 import '../../../../../../shared/widgets/w_button.dart';
 import '../../../../../../shared/widgets/w_input_field.dart';
-import '../../../../../../shared/widgets/w_small_label.dart';
+import '../../../../../../shared/widgets/w_smallest_label.dart';
 import '../../../bloc/main_appbar_cubit.dart';
 import '../../../../../../feature_layer/main_screen/bloc/main_bloc.dart';
 import '../bloc/profil_my_page_bloc.dart';
@@ -259,29 +260,27 @@ class _TabDaneState extends State<_TabDane> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(kGapL),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 8),
-
           if (!widget.isCompany) ...[
             // ── Dane użytkownika ──────────────────────────────
             WInputField(controller: _firstName, label: 'Imię',
                 isPassword: false, hintText: 'Imię'),
-            const SizedBox(height: 16),
+            const SizedBox(height: kGapM),
             WInputField(controller: _lastName, label: 'Nazwisko',
                 isPassword: false, hintText: 'Nazwisko'),
-            const SizedBox(height: 16),
+            const SizedBox(height: kGapM),
             WInputField(controller: _phone, label: 'Telefon',
                 isPassword: false, hintText: 'Numer telefonu',
                 readOnly: _sharedWithCompany),
-            const SizedBox(height: 16),
+            const SizedBox(height: kGapM),
             WInputField(controller: _bio, label: 'Opis (publiczny)',
                 isPassword: false, hintText: 'Krótki opis widoczny na profilu',
                 maxLines: 4, readOnly: _sharedWithCompany),
             if (_sharedWithCompany) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: kGapS),
               Text(
                 'Telefon i opis należą do profilu firmy — zmienisz je w trybie Firma.',
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
@@ -291,46 +290,45 @@ class _TabDaneState extends State<_TabDane> {
             // ── Dane firmy ────────────────────────────────────
             WInputField(controller: _companyName, label: 'Nazwa firmy',
                 isPassword: false, hintText: 'Nazwa firmy'),
-            const SizedBox(height: 16),
+            const SizedBox(height: kGapM),
             WInputField(controller: _phone, label: 'Telefon kontaktowy',
                 isPassword: false, hintText: 'Numer telefonu',
 
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: kGapM),
             WInputField(controller: _bio, label: 'Opis firmy (publiczny)',
                 isPassword: false,
                 hintText: 'Opis działalności widoczny na profilu firmy',
                 maxLines: 6),
 
-            const SizedBox(height: 32),
-            WSmallLabel(text: 'Adres prowadzenia działalności'),
-            const SizedBox(height: 16),
+            const SizedBox(height: kGapXl),
+            WSmallestLabel(text: 'Adres prowadzenia działalności'),
+            const SizedBox(height: kGapXs),
             WInputField(controller: _street, label: 'Ulica',
                 isPassword: false, hintText: 'Ulica'),
-            const SizedBox(height: 16),
+            const SizedBox(height: kGapM),
             Row(children: [
               Expanded(child: WInputField(controller: _buildingNr,
                   label: 'Nr budynku', isPassword: false, hintText: 'Nr')),
-              const SizedBox(width: 16),
+              const SizedBox(width: kGapM),
               Expanded(child: WInputField(controller: _flatNr,
                   label: 'Nr lokalu', isPassword: false, hintText: 'Nr (opcjonalnie)')),
             ]),
-            const SizedBox(height: 16),
+            const SizedBox(height: kGapM),
             WInputField(controller: _city, label: 'Miejscowość (adres)',
                 isPassword: false, hintText: 'Miejscowość'),
-            const SizedBox(height: 16),
+            const SizedBox(height: kGapM),
             WInputField(controller: _postCode, label: 'Kod pocztowy',
                 isPassword: false, hintText: '00-000'),
 
-            const SizedBox(height: 32),
-            WSmallLabel(text: 'Lokalizacja działalności'),
-            const SizedBox(height: 8),
+            const SizedBox(height: kGapXl),
+            WSmallestLabel(text: 'Lokalizacja działalności'),
             Text(
               'Z tą lokalizacją powiązane są Twoje filmy — po niej znajdą Cię użytkownicy w wyszukiwarce. '
               'Zmiana przenosi też już opublikowane filmy.',
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: kGapM),
             WInputField(
               controller: _businessCity,
               label: 'Miejscowość działalności',
@@ -338,15 +336,15 @@ class _TabDaneState extends State<_TabDane> {
               hintText: 'Wpisz miejscowość (do mapy)',
               onChanged: _onCityChanged,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: kGapS),
             const Text('lub zaznacz lokalizację na mapie:',
                 style: TextStyle(fontSize: 13)),
-            const SizedBox(height: 12),
+            const SizedBox(height: kGapM),
             SizedBox(
               height: 220,
               child: Stack(children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(kRadius),
                   child: FlutterMap(
                     mapController: _mapController,
                     options: MapOptions(
@@ -375,7 +373,7 @@ class _TabDaneState extends State<_TabDane> {
                     child: Container(
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(kRadius),
                       ),
                       child: const Center(child: CircularProgressIndicator()),
                     ),
@@ -385,14 +383,15 @@ class _TabDaneState extends State<_TabDane> {
           ],
 
           if (widget.isCompany) ...[
-            const SizedBox(height: 20),
-            WSmallLabel(text: 'Kontakt na profilu publicznym'),
-            const SizedBox(height: 8),
+            const SizedBox(height: kGapXl),
+            WSmallestLabel(text: 'Kontakt na profilu publicznym'),
+            const SizedBox(height: kGapXs),
             WInputField(
               controller: _www,
               label: 'Strona www (opcjonalnie)',
               isPassword: false,
             ),
+            const SizedBox(height: kGapM),
             WInputField(
               controller: _contactEmail,
               label: 'E-mail kontaktowy (opcjonalnie)',
@@ -413,7 +412,7 @@ class _TabDaneState extends State<_TabDane> {
               onChanged: (v) => setState(() => _showAddress = v),
             ),
           ],
-          const SizedBox(height: 24),
+          const SizedBox(height: kGapXl),
           Center(
             child: WButton(
             text: _saving ? 'Zapisywanie…' : 'Zapisz',
@@ -454,7 +453,7 @@ class _TabDaneState extends State<_TabDane> {
           ),
           ),
 
-          const SizedBox(height: 40),
+          const SizedBox(height: kGapXl),
         ],
       ),
     );
@@ -497,12 +496,12 @@ class _TabRecenzje extends StatelessWidget {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(kGapL),
       itemCount: state.reviews.length,
       itemBuilder: (context, index) {
         final rev = state.reviews[index];
         return Card(
-          margin: const EdgeInsets.symmetric(vertical: 6),
+          margin: const EdgeInsets.only(bottom: kGapS),
           child: ListTile(
             leading: Row(
               mainAxisSize: MainAxisSize.min,
@@ -552,7 +551,7 @@ class _TabPrezentacje extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final addButton = Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      padding: const EdgeInsets.fromLTRB(kGapL, kGapL, kGapL, 0),
       child: WButton(
         text: 'Dodaj prezentację',
         onPressed: () => context.read<MainScreenBloc>().add(GoToDodajEvent()),
@@ -579,12 +578,12 @@ class _TabPrezentacje extends StatelessWidget {
       addButton,
       Expanded(
         child: GridView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(kGapL),
       itemCount: state.videos.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+        crossAxisSpacing: kGapS,
+        mainAxisSpacing: kGapS,
         childAspectRatio: 9 / 16,
       ),
       itemBuilder: (context, index) {
@@ -601,8 +600,8 @@ class _TabPrezentacje extends StatelessWidget {
               ),
             ),
             Positioned(
-              bottom: 6,
-              right: 6,
+              bottom: kGapXs,
+              right: kGapXs,
               child: Container(
                 decoration: const BoxDecoration(
                   color: Colors.black45,
@@ -691,15 +690,15 @@ class _TrashedChatsState extends State<_TrashedChats> {
         return ListView(
           shrinkWrap: !standalone,
           physics: standalone ? null : const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+          padding: const EdgeInsets.fromLTRB(kGapL, kGapM, kGapL, kGapXs),
           children: [
             const Padding(
-              padding: EdgeInsets.only(left: 4, bottom: 6),
+              padding: EdgeInsets.only(left: kGapXs, bottom: kGapS),
               child: Text('Rozmowy',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             ),
             ...chats.map((c) => Card(
-                  margin: const EdgeInsets.only(bottom: 8),
+                  margin: const EdgeInsets.only(bottom: kGapS),
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor: c['isCompany'] == true
@@ -756,35 +755,24 @@ class _TabKosz extends StatelessWidget {
 
   Widget _buildRequests(BuildContext context) {
     if (state.trashedRequests.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.delete_outline, size: 56, color: Colors.grey.shade300),
-            const SizedBox(height: 12),
-            Text('Kosz jest pusty',
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
-            const SizedBox(height: 8),
-            Text(
-              'Ukryte zgłoszenia trafiają tutaj.\nMożesz je przywrócić lub usunąć z kosza.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
-            ),
-          ],
-        ),
+      return const EmptyState(
+        icon: Icons.delete_outline,
+        title: 'Kosz jest pusty',
+        subtitle:
+            'Ukryte zgłoszenia trafiają tutaj.\nMożesz je przywrócić lub usunąć z kosza.',
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: kGapL, vertical: kGapM),
       itemCount: state.trashedRequests.length,
       itemBuilder: (context, index) {
         final req = state.trashedRequests[index];
         return Card(
-          margin: const EdgeInsets.only(bottom: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.only(bottom: kGapS),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadius)),
           child: Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(kGapM),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -802,7 +790,7 @@ class _TabKosz extends StatelessWidget {
                     child: const Icon(Icons.description_outlined),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: kGapM),
 
                 // Dane
                 Expanded(
@@ -814,15 +802,17 @@ class _TabKosz extends StatelessWidget {
                       Text(req.sector,
                           style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                       if (req.description.isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: kGapXs),
                         Text(req.description,
                             style: const TextStyle(fontSize: 12),
                             maxLines: 2, overflow: TextOverflow.ellipsis),
                       ],
-                      const SizedBox(height: 8),
+                      const SizedBox(height: kGapS),
 
                       // Akcje
-                      Row(
+                      Wrap(
+                        spacing: kGapS,
+                        runSpacing: kGapS,
                         children: [
                           // Przywróć
                           OutlinedButton.icon(
@@ -831,12 +821,11 @@ class _TabKosz extends StatelessWidget {
                             icon: const Icon(Icons.restore, size: 14),
                             label: const Text('Przywróć', style: TextStyle(fontSize: 12)),
                             style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              minimumSize: Size.zero,
+                              padding: const EdgeInsets.symmetric(horizontal: kGapM),
+                              minimumSize: const Size(0, kButtonHeightSmall),
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                           ),
-                          const SizedBox(width: 8),
                           // Usuń z kosza
                           OutlinedButton.icon(
                             onPressed: () => context.read<MyProfilPageBloc>()
@@ -845,8 +834,8 @@ class _TabKosz extends StatelessWidget {
                             label: const Text('Usuń z kosza',
                                 style: TextStyle(fontSize: 12, color: Colors.red)),
                             style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              minimumSize: Size.zero,
+                              padding: const EdgeInsets.symmetric(horizontal: kGapM),
+                              minimumSize: const Size(0, kButtonHeightSmall),
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               side: const BorderSide(color: Colors.red),
                             ),

@@ -6,6 +6,7 @@ import '../../../../../domain_layer/domain_models/promoVideo.dart';
 import '../../../../../domain_layer/domain_models/relation_link.dart';
 import '../../../../../domain_layer/firebase_service.dart';
 import '../../../../../shared/client_notes.dart';
+import '../../../../../shared/constants.dart';
 import '../../../../../shared/functions/show_toast_error.dart';
 import '../../../../../shared/globals.dart';
 import '../../../../../shared/widgets/empty_state.dart';
@@ -155,7 +156,7 @@ class _RelationListState extends State<_RelationList> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: kGapL, vertical: kGapM),
       itemCount: _links.length,
       itemBuilder: (context, i) {
         final l = _links[i];
@@ -166,9 +167,9 @@ class _RelationListState extends State<_RelationList> {
             widget.companyView && ClientNotes.get(u.id).isNotEmpty;
 
         return Card(
-          margin: const EdgeInsets.only(bottom: 10),
+          margin: const EdgeInsets.only(bottom: kGapS),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+            padding: const EdgeInsets.fromLTRB(kGapM, kGapM, kGapXs, kGapM),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -189,7 +190,7 @@ class _RelationListState extends State<_RelationList> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: kGapM),
                     Expanded(
                       child: GestureDetector(
                         onTap: () => _openProfile(u.id, isCompany),
@@ -259,10 +260,10 @@ class _RelationListState extends State<_RelationList> {
 
                 // ── skąd ta relacja: chipy z odnośnikami ──
                 Padding(
-                  padding: const EdgeInsets.only(left: 52, top: 6),
+                  padding: const EdgeInsets.only(left: 52, top: kGapS),
                   child: Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
+                    spacing: kGapS,
+                    runSpacing: kGapXs,
                     children: [
                       for (final s in l.slots) _SourceChip(
                         icon: Icons.event_available_outlined,
@@ -388,7 +389,7 @@ class _SourceChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: kGapS, vertical: kGapXs),
         decoration: BoxDecoration(
           color: color.withOpacity(0.08),
           borderRadius: BorderRadius.circular(8),
@@ -398,15 +399,15 @@ class _SourceChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 13, color: color),
-            const SizedBox(width: 4),
+            const SizedBox(width: kGapXs),
             Flexible(
               child: Text(text,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11.5, color: color)),
+                  style: TextStyle(fontSize: 12, color: color)),
             ),
             if (onTap != null) ...[
-              const SizedBox(width: 2),
+              const SizedBox(width: kGapXs),
               Icon(Icons.chevron_right, size: 13, color: color),
             ],
           ],
