@@ -143,6 +143,7 @@ export async function completeEmailLink(email: string): Promise<boolean> {
   } catch (e) {
     const code = errorCode(e);
     if (code === 'auth/invalid-email') {
+      set({ linkNeedsEmail: true });
       toast('Ten adres nie pasuje do linku — wpisz adres, na który przyszedł e-mail', 'error');
       return false;
     }

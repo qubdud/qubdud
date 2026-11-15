@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   averageScore,
   getCompany,
@@ -220,7 +220,12 @@ function SlotsSection({ company, own }: { company: Company; own: boolean }) {
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loginFor, setLoginFor] = useState<Slot | null>(null);
+  const loginRef = useRef<HTMLDivElement>(null);
   const me = session.guest ? (session.user?.uid ?? '') : '';
+
+  useEffect(() => {
+    if (loginFor) loginRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [loginFor]);
 
   useEffect(() => {
     if (!session.user) return;
@@ -339,16 +344,18 @@ function SlotsSection({ company, own }: { company: Company; own: boolean }) {
         </>
       )}
       {loginFor && !session.guest && (
-        <EmailLogin
-          pending={{ type: 'book', companyId: company.id, slotId: loginFor.id }}
-          title={`Rezerwacja: ${dateTimeLabel(loginFor.start)}`}
-          onCancel={() => setLoginFor(null)}
-        >
-          <p>
-            Podaj e-mail — wyślemy link logowania. Po powrocie zarezerwujemy ten termin automatycznie. Firma zobaczy Twój telefon
-            i e-mail, potwierdzi albo odrzuci rezerwację.
-          </p>
-        </EmailLogin>
+        <div ref={loginRef}>
+          <EmailLogin
+            pending={{ type: 'book', companyId: company.id, slotId: loginFor.id }}
+            title={`Rezerwacja: ${dateTimeLabel(loginFor.start)}`}
+            onCancel={() => setLoginFor(null)}
+          >
+            <p>
+              Podaj e-mail — wyślemy link logowania. Po powrocie zarezerwujemy ten termin automatycznie. Firma zobaczy Twój
+              telefon i e-mail, potwierdzi albo odrzuci rezerwację.
+            </p>
+          </EmailLogin>
+        </div>
       )}
       {session.guest && !own && (
         <p class="small">

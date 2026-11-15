@@ -68,7 +68,7 @@ export function ProfileSetup({ email }: { email: string }) {
 
         <div class="info">
           Telefon i e-mail zobaczy tylko firma, której ofertę przyjmiesz albo u której zarezerwujesz termin. Firmy z okolicy
-          widzą treść zgłoszenia, przybliżone miejsce i Twoje imię. Wiadomości widzą wyłącznie uczestnicy rozmowy.
+          widzą treść zgłoszenia, przybliżone miejsce oraz Twoje imię i nazwisko. Wiadomości widzą wyłącznie uczestnicy rozmowy.
         </div>
 
         <div class={`check${errors.terms ? ' field--error' : ''}`}>
